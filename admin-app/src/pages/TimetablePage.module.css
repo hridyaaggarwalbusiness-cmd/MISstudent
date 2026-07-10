@@ -1,0 +1,66 @@
+.grid {
+  display: grid;
+  grid-template-columns: 90px repeat(6, 1fr);
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.dayHeader {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-tertiary);
+  text-align: center;
+  padding: 10px 4px;
+}
+
+.periodLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cell {
+  min-height: 76px;
+  border-radius: var(--radius-md);
+  border: 1.5px dashed var(--color-border);
+  padding: 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.cell:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.cellFilled {
+  border-style: solid;
+  border-color: var(--color-border-soft);
+  background: var(--color-surface-alt);
+}
+
+.cellSubject {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.cellMeta {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+.cellEmpty {
+  font-size: 20px;
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
