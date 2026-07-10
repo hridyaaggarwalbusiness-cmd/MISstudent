@@ -9,7 +9,7 @@ import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader, pageHeaderStyles } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
-import { repo } from '@/data/repositories';
+import { repo, MAX_ATTACHMENT_BYTES } from '@/data/repositories';
 import { useAuthStore } from '@/store/useAuthStore';
 import type { StudyMaterial, MaterialType, SchoolClass } from '@/types';
 
@@ -35,13 +35,25 @@ export function MaterialsPage() {
   const [classFilter, setClassFilter] = useState('');
   const [uploading, setUploading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState('');
   const [form, setForm] = useState({ title: '', description: '', subject: '', type: 'note' as MaterialType, classId: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function openCreate() {
     setForm({ title: '', description: '', subject: '', type: 'note', classId: '' });
     setFile(null);
+    setFileError('');
     setModalOpen(true);
+  }
+
+  function onPickFile(picked: File | null) {
+    if (picked && picked.size > MAX_ATTACHMENT_BYTES) {
+      setFile(null);
+      setFileError(`File is too large. Storage isn't enabled on this project, so attachments are limited to ${Math.round(MAX_ATTACHMENT_BYTES / 1024)} KB.`);
+      return;
+    }
+    setFileError('');
+    setFile(picked);
   }
 
   async function onUpload() {
@@ -49,7 +61,7 @@ export function MaterialsPage() {
     setUploading(true);
     try {
       const path = `studyMaterials/${Date.now()}_${file.name}`;
-      const url = await repo.storage.upload(path, file);
+      const url = await repo.storage.upload(file);
       await repo.materials.create({
         classId: form.classId,
         title: form.title || file.name,
@@ -178,9 +190,17 @@ export function MaterialsPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
               />
             </div>
+            <span style={{ display: 'block', marginTop: 6, fontSize: 12, color: 'var(--color-text-tertiary)' }}>
+              Max {Math.round(MAX_ATTACHMENT_BYTES / 1024)} KB — attachments are stored inline in Firestore since Cloud Storage isn't enabled on this project.
+            </span>
+            {fileError && (
+              <span style={{ display: 'block', marginTop: 6, fontSize: 12, color: 'var(--color-danger-strong)' }}>
+                {fileError}
+              </span>
+            )}
           </div>
         </div>
       </Modal>

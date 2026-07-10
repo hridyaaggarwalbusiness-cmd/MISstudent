@@ -15,4 +15,4 @@ jobs:
       - name: Deploy rules and indexes
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-        run: firebase deploy --only firestore:rules,firestore:indexes,storage --project mis-student-6yhtxk --token "$FIREBASE_TOKEN"
+        run: firebase deploy --only firestore:rules,firestore:indexes --project mis-student-6yhtxk --token "$FIREBASE_TOKEN"

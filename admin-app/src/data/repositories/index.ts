@@ -19,8 +19,7 @@ import {
 } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { httpsCallable, getFunctions } from 'firebase/functions';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, auth, storage, app } from '@/services/firebase';
+import { db, auth, app } from '@/services/firebase';
 import type {
   Teacher,
   SchoolClass,
@@ -158,14 +157,24 @@ export const repo = {
     },
   },
 
+  // Firebase Storage isn't provisioned on this project, so file attachments
+  // are inlined as base64 data URLs directly on the Firestore document
+  // instead of living in a bucket. Firestore caps documents at 1 MiB, so
+  // callers must enforce MAX_ATTACHMENT_BYTES before calling this.
   storage: {
-    upload: async (path: string, blob: Blob): Promise<string> => {
-      const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, blob);
-      return getDownloadURL(storageRef);
-    },
+    upload: (file: Blob): Promise<string> =>
+      new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error ?? new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      }),
   },
 };
+
+// Leaves headroom under Firestore's 1 MiB document limit once the ~33%
+// base64 inflation and the rest of the document's fields are accounted for.
+export const MAX_ATTACHMENT_BYTES = 700 * 1024;
 
 // Fetch-once helper (not a live subscription) for cases like populating a
 // dropdown once rather than keeping a listener open.

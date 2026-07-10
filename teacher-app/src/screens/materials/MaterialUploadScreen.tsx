@@ -6,7 +6,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { AppText, Card, Chip, Button, DetailHeader, AttachmentRow } from '@components/ui';
 import { colors, spacing, radius } from '@theme';
 import { useAuthStore } from '@store/useAuthStore';
-import { repo } from '@data/repositories';
+import { repo, MAX_ATTACHMENT_BYTES } from '@data/repositories';
 import { Attachment, MaterialType } from '@/types';
 
 const TYPES: { key: MaterialType; label: string }[] = [
@@ -33,7 +33,15 @@ export function MaterialUploadScreen() {
   const pickFile = async () => {
     const result = await DocumentPicker.getDocumentAsync({ multiple: false });
     if (!result.canceled && result.assets?.[0]) {
-      setPickedFile(result.assets[0]);
+      const asset = result.assets[0];
+      if (asset.size && asset.size > MAX_ATTACHMENT_BYTES) {
+        Alert.alert(
+          'File too large',
+          `Cloud Storage isn't enabled on this project, so attachments are limited to ${Math.round(MAX_ATTACHMENT_BYTES / 1024)} KB.`,
+        );
+        return;
+      }
+      setPickedFile(asset);
     }
   };
 
@@ -47,8 +55,7 @@ export function MaterialUploadScreen() {
     try {
       const response = await fetch(pickedFile.uri);
       const blob = await response.blob();
-      const path = `studyMaterials/${classId}-${Date.now()}/${pickedFile.name}`;
-      const url = await repo.storage.upload(path, blob);
+      const url = await repo.storage.upload(blob);
 
       const attachment: Attachment = {
         id: `${Date.now()}`,
