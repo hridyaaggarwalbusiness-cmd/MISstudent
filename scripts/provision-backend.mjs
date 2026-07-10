@@ -48,26 +48,50 @@ async function main() {
   }
 
   step('Enabling Email/Password sign-in provider');
-  const authConfig = await call(
+  let authConfig = await call(
     'PATCH',
     `https://identitytoolkit.googleapis.com/admin/v2/projects/${PROJECT_ID}/config?updateMask=signIn.email`,
     { signIn: { email: { enabled: true, passwordRequired: true } } },
   );
+  if (!authConfig.ok && authConfig.json?.error?.message === 'CONFIGURATION_NOT_FOUND') {
+    console.log('Auth config missing - initializing Identity Platform for this project first...');
+    const init = await call(
+      'POST',
+      `https://identitytoolkit.googleapis.com/v2/projects/${PROJECT_ID}/identityPlatform:initializeAuth`,
+      {},
+    );
+    logResult('initializeAuth', init);
+    authConfig = await call(
+      'PATCH',
+      `https://identitytoolkit.googleapis.com/admin/v2/projects/${PROJECT_ID}/config?updateMask=signIn.email`,
+      { signIn: { email: { enabled: true, passwordRequired: true } } },
+    );
+  }
   logResult('enable email/password auth', authConfig);
 
   step('Ensuring default Cloud Storage bucket exists');
-  const addBucket = await call(
-    'POST',
-    `https://firebasestorage.googleapis.com/v1beta/projects/${PROJECT_ID}/defaultBucket:addFirebase`,
-    {},
-  );
-  logResult('link default storage bucket', addBucket);
-  const getBucket = await call(
-    'GET',
-    `https://firebasestorage.googleapis.com/v1beta/projects/${PROJECT_ID}/defaultBucket`,
-  );
-  logResult('get default storage bucket', getBucket);
-  const storageBucket = getBucket.ok ? getBucket.json.name?.split('/').pop() : `${PROJECT_ID}.appspot.com`;
+  let storageBucket = `${PROJECT_ID}.firebasestorage.app`;
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    const addBucket = await call(
+      'POST',
+      `https://firebasestorage.googleapis.com/v1beta/projects/${PROJECT_ID}/defaultBucket:addFirebase`,
+      {},
+    );
+    logResult(`link default storage bucket (attempt ${attempt})`, addBucket);
+    const getBucket = await call(
+      'GET',
+      `https://firebasestorage.googleapis.com/v1beta/projects/${PROJECT_ID}/defaultBucket`,
+    );
+    logResult(`get default storage bucket (attempt ${attempt})`, getBucket);
+    if (getBucket.ok) {
+      storageBucket = getBucket.json.name?.split('/').pop() ?? storageBucket;
+      break;
+    }
+    if (attempt < 5) {
+      console.log('Storage API may still be propagating, waiting 15s before retry...');
+      await new Promise((r) => setTimeout(r, 15000));
+    }
+  }
   console.log('Storage bucket:', storageBucket);
 
   step('Finding or creating a Web App registration');
