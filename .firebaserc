@@ -1,5 +1,13 @@
 {
   "projects": {
     "default": "mis-student-6yhtxk"
+  },
+  "targets": {
+    "mis-student-6yhtxk": {
+      "hosting": {
+        "student": ["mis-student-6yhtxk"],
+        "admin": ["mis-student-admin"]
+      }
+    }
   }
 }

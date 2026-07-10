@@ -6,9 +6,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: student-app
     steps:
       - uses: actions/checkout@v4
 
@@ -16,17 +13,31 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install dependencies
+      - name: Install student-app dependencies
+        working-directory: student-app
         run: npm ci
 
-      - name: Export web build
+      - name: Export student-app web build
+        working-directory: student-app
         run: npx expo export --platform web --output-dir dist
+
+      - name: Install admin-app dependencies
+        working-directory: admin-app
+        run: npm ci
+
+      - name: Build admin-app
+        working-directory: admin-app
+        run: npm run build
 
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
+      - name: Ensure admin Hosting site exists
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: firebase hosting:sites:create mis-student-admin --project mis-student-6yhtxk --token "$FIREBASE_TOKEN" || true
+
       - name: Deploy to Firebase Hosting
-        working-directory: .
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: firebase deploy --only hosting --project mis-student-6yhtxk --token "$FIREBASE_TOKEN"
