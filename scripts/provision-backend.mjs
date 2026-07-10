@@ -36,6 +36,7 @@ async function main() {
   );
   logResult('list databases', listDb);
   const hasDefault = listDb.ok && (listDb.json.databases || []).some((d) => d.name?.endsWith('/databases/(default)'));
+  let firestoreReady = hasDefault;
   if (!hasDefault) {
     const createDb = await call(
       'POST',
@@ -43,35 +44,43 @@ async function main() {
       { type: 'FIRESTORE_NATIVE', locationId: 'nam5' },
     );
     logResult('create default Firestore database', createDb);
+    firestoreReady = createDb.ok;
   } else {
     console.log('Default Firestore database already exists.');
   }
 
   step('Enabling Email/Password sign-in provider');
-  let authConfig = await call(
-    'PATCH',
-    `https://identitytoolkit.googleapis.com/admin/v2/projects/${PROJECT_ID}/config?updateMask=signIn.email`,
-    { signIn: { email: { enabled: true, passwordRequired: true } } },
-  );
-  if (!authConfig.ok && authConfig.json?.error?.message === 'CONFIGURATION_NOT_FOUND') {
-    console.log('Auth config missing - initializing Identity Platform for this project first...');
-    const init = await call(
-      'POST',
-      `https://identitytoolkit.googleapis.com/v2/projects/${PROJECT_ID}/identityPlatform:initializeAuth`,
-      {},
-    );
-    logResult('initializeAuth', init);
-    authConfig = await call(
+  let authConfig = await call('GET', `https://identitytoolkit.googleapis.com/admin/v2/projects/${PROJECT_ID}/config`);
+  logResult('get auth config', authConfig);
+  if (!authConfig.ok) {
+    console.log('Auth config missing - retrying a couple times in case of API propagation delay...');
+    for (let attempt = 1; attempt <= 2 && !authConfig.ok; attempt++) {
+      await new Promise((r) => setTimeout(r, 8000));
+      authConfig = await call('GET', `https://identitytoolkit.googleapis.com/admin/v2/projects/${PROJECT_ID}/config`);
+      logResult(`get auth config (retry ${attempt})`, authConfig);
+    }
+  }
+
+  if (authConfig.ok) {
+    const patchAuth = await call(
       'PATCH',
       `https://identitytoolkit.googleapis.com/admin/v2/projects/${PROJECT_ID}/config?updateMask=signIn.email`,
       { signIn: { email: { enabled: true, passwordRequired: true } } },
     );
+    logResult('enable email/password auth', patchAuth);
+  } else {
+    console.log(
+      'BLOCKED: Firebase Auth config could not be initialized. This project needs the Blaze ' +
+        '(pay-as-you-go) plan linked before Authentication can be enabled via API - this is a Google ' +
+        'requirement for API-driven setup on a project that was never opened in the Firebase console. ' +
+        'Blaze keeps the same free quotas as Spark; it only requires a payment method on file. ' +
+        'Action needed: console.firebase.google.com -> mis-student-6yhtxk -> Upgrade to Blaze, then re-run this workflow.',
+    );
   }
-  logResult('enable email/password auth', authConfig);
 
   step('Ensuring default Cloud Storage bucket exists');
   let storageBucket = `${PROJECT_ID}.firebasestorage.app`;
-  for (let attempt = 1; attempt <= 5; attempt++) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
     const addBucket = await call(
       'POST',
       `https://firebasestorage.googleapis.com/v1beta/projects/${PROJECT_ID}/defaultBucket:addFirebase`,
@@ -87,9 +96,9 @@ async function main() {
       storageBucket = getBucket.json.name?.split('/').pop() ?? storageBucket;
       break;
     }
-    if (attempt < 5) {
-      console.log('Storage API may still be propagating, waiting 15s before retry...');
-      await new Promise((r) => setTimeout(r, 15000));
+    if (attempt < 3) {
+      console.log('Storage API may still be propagating, waiting 10s before retry...');
+      await new Promise((r) => setTimeout(r, 10000));
     }
   }
   console.log('Storage bucket:', storageBucket);
@@ -151,6 +160,11 @@ async function main() {
     ),
   );
   console.log('\nWrote firebase-web-config.json');
+
+  step('Summary');
+  console.log('Firestore:', firestoreReady ? 'ready' : 'NOT ready');
+  console.log('Auth (email/password):', authConfig.ok ? 'ready' : 'BLOCKED - needs Blaze plan');
+  console.log('Storage bucket:', storageBucket);
 }
 
 main().catch((err) => {

@@ -1,0 +1,43 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function myRole() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdminOrTeacher() {
+      return signedIn() && (myRole() == 'admin' || myRole() == 'teacher');
+    }
+
+    match /profilePhotos/{uid}/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn() && (request.auth.uid == uid || myRole() == 'admin');
+    }
+
+    match /homeworkAttachments/{homeworkId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if isAdminOrTeacher();
+    }
+
+    match /homeworkSubmissions/{homeworkId}/{studentId}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == studentId || isAdminOrTeacher());
+      allow write: if signedIn() && (request.auth.uid == studentId || isAdminOrTeacher());
+    }
+
+    match /studyMaterials/{materialId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if isAdminOrTeacher();
+    }
+
+    match /noticeAttachments/{noticeId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if isAdminOrTeacher();
+    }
+  }
+}
