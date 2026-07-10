@@ -1,0 +1,22 @@
+name: Provision Firebase Backend
+
+on:
+  workflow_dispatch:
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run provisioning script
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: node scripts/provision-backend.mjs
+
+      - name: Print web config (safe to expose - protected by security rules, not secrecy)
+        run: cat firebase-web-config.json
