@@ -17,10 +17,15 @@ import { ResultCard } from '@components/results/ResultCard';
 import { colors, spacing, layout } from '@theme';
 import { repo } from '@data/repositories';
 import { useAsyncResource } from '@hooks/useAsyncResource';
+import { useAuthStore } from '@store/useAuthStore';
 
 export function ResultsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { data, loading, refreshing, error, refresh } = useAsyncResource(() => repo.results.list(), []);
+  const studentId = useAuthStore((s) => s.student?.id);
+  const { data, loading, refreshing, error, refresh } = useAsyncResource(
+    () => (studentId ? repo.results.list(studentId) : Promise.resolve([])),
+    [studentId],
+  );
 
   const trendData = useMemo(() => {
     if (!data) return [];

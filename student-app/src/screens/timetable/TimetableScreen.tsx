@@ -13,6 +13,7 @@ import { PeriodCard } from '@components/dashboard/PeriodCard';
 import { colors, spacing, layout } from '@theme';
 import { repo } from '@data/repositories';
 import { useAsyncResource } from '@hooks/useAsyncResource';
+import { useAuthStore } from '@store/useAuthStore';
 import { todayDayCode } from '@utils/date';
 import { DayOfWeek } from '@/types';
 
@@ -28,10 +29,11 @@ export function TimetableScreen() {
   const todayCode = todayDayCode();
   const defaultDay: DayOfWeek = DAYS.includes(todayCode as DayOfWeek) ? (todayCode as DayOfWeek) : 'Mon';
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(defaultDay);
+  const classId = useAuthStore((s) => s.student?.classId);
 
   const { data, loading, refreshing, error, refresh } = useAsyncResource(
-    () => repo.timetable.getAll(),
-    [],
+    () => (classId ? repo.timetable.getAll(classId) : Promise.resolve([])),
+    [classId],
   );
 
   const dayPeriods = useMemo(() => {

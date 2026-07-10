@@ -7,10 +7,12 @@ import { AppText, Card, Button, Avatar, SkeletonCard } from '@components/ui';
 import { InfoRow } from '@components/profile/InfoRow';
 import { colors, spacing, radius, gradients, layout } from '@theme';
 import { useStudentStore } from '@store/useStudentStore';
+import { useAuthStore } from '@store/useAuthStore';
 import { friendlyDate } from '@utils/date';
 
 export function ProfileScreen() {
   const { student, fetch } = useStudentStore();
+  const signOut = useAuthStore((s) => s.signOut);
 
   useEffect(() => {
     fetch();
@@ -105,7 +107,7 @@ export function ProfileScreen() {
           style={{ marginTop: spacing.md }}
           onPress={() => Alert.alert('Log Out', 'Are you sure you want to log out?', [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Log Out', style: 'destructive', onPress: () => {} },
+            { text: 'Log Out', style: 'destructive', onPress: () => signOut() },
           ])}
         />
         <AppText variant="tiny" color={colors.textTertiary} align="center" style={{ marginTop: spacing.lg }}>

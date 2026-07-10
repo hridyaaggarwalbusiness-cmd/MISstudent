@@ -1,6 +1,16 @@
+export type Role = 'admin' | 'teacher' | 'student';
+
+export interface AppUser {
+  id: string;
+  role: Role;
+  email: string;
+  displayName: string;
+}
+
 export interface Student {
   id: string;
   name: string;
+  classId: string;
   photoUrl?: string | null;
   className: string;
   section: string;
@@ -98,7 +108,16 @@ export interface Notice {
   pinned?: boolean;
 }
 
-export type AttendanceStatus = 'present' | 'absent' | 'late' | 'leave' | 'holiday' | 'weekend' | 'future';
+export type AttendanceStatus =
+  | 'present'
+  | 'absent'
+  | 'late'
+  | 'leave'
+  | 'holiday'
+  | 'weekend'
+  | 'future'
+  // Client-only: a past school day the teacher hasn't marked attendance for yet.
+  | 'unmarked';
 
 export interface AttendanceDay {
   date: string; // ISO date

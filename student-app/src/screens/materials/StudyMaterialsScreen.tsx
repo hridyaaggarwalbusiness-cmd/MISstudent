@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, FlatList, StyleSheet, RefreshControl, Alert } from 'react-native';
+import { View, FlatList, StyleSheet, RefreshControl, Alert, Modal, Image, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   SearchBar,
@@ -13,7 +13,8 @@ import { MaterialCard } from '@components/materials/MaterialCard';
 import { colors, spacing } from '@theme';
 import { repo } from '@data/repositories';
 import { useAsyncResource } from '@hooks/useAsyncResource';
-import { materialTypeLabels } from '@data/mock/materials';
+import { materialTypeLabels } from '@data/materialTypeLabels';
+import { useAuthStore } from '@store/useAuthStore';
 import { MaterialType, StudyMaterial } from '@/types';
 
 type FilterKey = 'all' | MaterialType;
@@ -28,9 +29,14 @@ const FILTERS: { key: FilterKey; label: string }[] = [
 ];
 
 export function StudyMaterialsScreen() {
-  const { data, loading, refreshing, error, refresh } = useAsyncResource(() => repo.materials.list(), []);
+  const classId = useAuthStore((s) => s.student?.classId);
+  const { data, loading, refreshing, error, refresh } = useAsyncResource(
+    () => (classId ? repo.materials.list(classId) : Promise.resolve([])),
+    [classId],
+  );
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
+  const [previewImage, setPreviewImage] = useState<StudyMaterial | null>(null);
 
   const filtered = useMemo(() => {
     let list = data ?? [];
@@ -45,7 +51,11 @@ export function StudyMaterialsScreen() {
   }, [data, filter, query]);
 
   const onOpen = (material: StudyMaterial) => {
-    Alert.alert(material.title, 'This resource will open once connected to your school’s file storage.');
+    if (material.attachment.type === 'image' && material.attachment.url) {
+      setPreviewImage(material);
+      return;
+    }
+    Alert.alert(material.title, 'Preview isn’t available for this file type in this build yet.');
   };
 
   return (
@@ -96,6 +106,14 @@ export function StudyMaterialsScreen() {
           }
         />
       )}
+
+      <Modal visible={!!previewImage} transparent animationType="fade" onRequestClose={() => setPreviewImage(null)}>
+        <Pressable style={styles.previewBackdrop} onPress={() => setPreviewImage(null)}>
+          {previewImage && (
+            <Image source={{ uri: previewImage.attachment.url }} style={styles.previewImage} resizeMode="contain" />
+          )}
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -104,4 +122,14 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   header: { paddingHorizontal: spacing.lg },
   list: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xxxl, flexGrow: 1 },
+  previewBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewImage: {
+    width: '100%',
+    height: '80%',
+  },
 });

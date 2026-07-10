@@ -22,21 +22,21 @@ import { colors, spacing, layout } from '@theme';
 import { repo } from '@data/repositories';
 import { useAsyncResource } from '@hooks/useAsyncResource';
 import { useStudentStore } from '@store/useStudentStore';
+import { useHomeworkStore } from '@store/useHomeworkStore';
+import { useNoticesStore } from '@store/useNoticesStore';
 import { useNotificationsStore } from '@store/useNotificationsStore';
+import { useAuthStore } from '@store/useAuthStore';
 import { todayDayCode } from '@utils/date';
-import { overallAttendancePercentage } from '@data/mock/attendance';
+import { overallAttendancePercentage } from '@utils/attendance';
 
-async function loadDashboard() {
-  const [student, timetable, homework, exams, notices, attendanceMonth, results] = await Promise.all([
-    repo.student.get(),
-    repo.timetable.getAll(),
-    repo.homework.list(),
-    repo.exams.list(),
-    repo.notices.list(),
-    repo.attendance.getCurrentMonth(),
-    repo.results.list(),
+async function loadDashboard(classId: string, studentId: string) {
+  const [timetable, exams, attendanceMonth, results] = await Promise.all([
+    repo.timetable.getAll(classId),
+    repo.exams.list(classId),
+    repo.attendance.getCurrentMonth(studentId),
+    repo.results.list(studentId),
   ]);
-  return { student, timetable, homework, exams, notices, attendanceMonth, results };
+  return { timetable, exams, attendanceMonth, results };
 }
 
 function toMinutes(t: string) {
@@ -46,14 +46,25 @@ function toMinutes(t: string) {
 
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const authStudent = useAuthStore((s) => s.student);
   const { student, fetch: fetchStudent } = useStudentStore();
+  const { items: homeworkItems, fetch: fetchHomework } = useHomeworkStore();
+  const { items: noticeItems, fetch: fetchNotices } = useNoticesStore();
   const { unreadCount, fetch: fetchNotifications } = useNotificationsStore();
-  const { data, loading, refreshing, error, refresh } = useAsyncResource(loadDashboard, []);
+  const { data, loading, refreshing, error, refresh } = useAsyncResource(
+    () =>
+      authStudent
+        ? loadDashboard(authStudent.classId, authStudent.id)
+        : Promise.resolve({ timetable: [], exams: [], attendanceMonth: [], results: [] }),
+    [authStudent?.id],
+  );
 
   React.useEffect(() => {
-    fetchNotifications();
     fetchStudent();
-  }, [fetchNotifications, fetchStudent]);
+    fetchHomework();
+    fetchNotices();
+    fetchNotifications();
+  }, [fetchStudent, fetchHomework, fetchNotices, fetchNotifications]);
 
   const today = todayDayCode();
 
@@ -79,25 +90,21 @@ export function HomeScreen() {
   }, [todaysPeriods]);
 
   const todaysHomework = useMemo(() => {
-    if (!data) return [];
     const todayIso = new Date().toISOString().slice(0, 10);
-    return data.homework.filter((h) => h.dueDate === todayIso);
-  }, [data]);
+    return homeworkItems.filter((h) => h.dueDate === todayIso);
+  }, [homeworkItems]);
 
-  const upcomingHomework = useMemo(() => {
-    if (!data) return [];
-    return data.homework.filter((h) => h.status === 'pending' || h.status === 'overdue').slice(0, 4);
-  }, [data]);
+  const upcomingHomework = useMemo(
+    () => homeworkItems.filter((h) => h.status === 'pending' || h.status === 'overdue').slice(0, 4),
+    [homeworkItems],
+  );
 
   const upcomingExams = useMemo(() => {
     if (!data) return [];
     return data.exams.filter((e) => e.status === 'upcoming').slice(0, 4);
   }, [data]);
 
-  const recentNotices = useMemo(() => {
-    if (!data) return [];
-    return data.notices.slice(0, 3);
-  }, [data]);
+  const recentNotices = useMemo(() => noticeItems.slice(0, 3), [noticeItems]);
 
   const attendancePct = useMemo(() => {
     if (!data) return 0;
@@ -107,7 +114,7 @@ export function HomeScreen() {
   const presentDays = useMemo(() => {
     if (!data) return { present: 0, total: 0 };
     const countable = data.attendanceMonth.filter(
-      (d) => d.status !== 'weekend' && d.status !== 'future' && d.status !== 'holiday',
+      (d) => d.status !== 'weekend' && d.status !== 'future' && d.status !== 'holiday' && d.status !== 'unmarked',
     );
     const present = countable.filter((d) => d.status === 'present' || d.status === 'late').length;
     return { present, total: countable.length };

@@ -18,20 +18,23 @@ import { RootStackParamList } from '@navigation/types';
 import { repo } from '@data/repositories';
 import { ExamResult } from '@/types';
 import { friendlyDate } from '@utils/date';
+import { useAuthStore } from '@store/useAuthStore';
 
 export function ResultDetailScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'ResultDetail'>>();
+  const studentId = useAuthStore((s) => s.student?.id);
   const [result, setResult] = useState<ExamResult | null | undefined>(undefined);
 
   useEffect(() => {
+    if (!studentId) return;
     let active = true;
-    repo.results.list().then((all) => {
+    repo.results.list(studentId).then((all) => {
       if (active) setResult(all.find((r) => r.id === route.params.id) ?? null);
     });
     return () => {
       active = false;
     };
-  }, [route.params.id]);
+  }, [route.params.id, studentId]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>

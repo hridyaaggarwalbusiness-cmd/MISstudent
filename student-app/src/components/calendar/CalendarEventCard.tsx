@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card, AppText } from '@components/ui';
 import { colors, spacing, radius } from '@theme';
 import { CalendarEvent } from '@/types';
-import { eventTypeMeta } from '@data/mock/calendarEvents';
+import { eventTypeMeta } from '@data/calendarEventTypeMeta';
 import { dayMonth, weekdayLabel } from '@utils/date';
 
 const bgColorMap: Record<string, string> = {

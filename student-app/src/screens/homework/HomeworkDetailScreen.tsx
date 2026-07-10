@@ -109,6 +109,8 @@ export function HomeworkDetailScreen() {
       await submit(homework.id, { attachments: draftAttachments, note: note.trim() || undefined });
       setNote('');
       setDraftAttachments([]);
+    } catch (e) {
+      Alert.alert('Could not submit', e instanceof Error ? e.message : 'Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -153,7 +155,7 @@ export function HomeworkDetailScreen() {
               <AttachmentRow
                 key={a.id}
                 attachment={a}
-                onPress={() => Alert.alert(a.name, 'Opening attachments will be available once connected to your school’s file storage.')}
+                onPress={() => Alert.alert(a.name, 'Preview isn’t available for this file type in this build yet.')}
               />
             ))}
           </View>

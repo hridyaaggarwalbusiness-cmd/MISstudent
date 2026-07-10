@@ -11,29 +11,32 @@ import {
   IconButton,
   DetailHeader,
   SkeletonCard,
+  EmptyState,
   ErrorState,
 } from '@components/ui';
 import { AttendanceCalendar, AttendanceLegend } from '@components/attendance/AttendanceCalendar';
 import { colors, spacing, layout } from '@theme';
 import { repo } from '@data/repositories';
 import { useAsyncResource } from '@hooks/useAsyncResource';
-import { overallAttendancePercentage } from '@data/mock/attendance';
+import { overallAttendancePercentage } from '@utils/attendance';
 import { friendlyDate } from '@utils/date';
 import { AttendanceDay } from '@/types';
+import { useAuthStore } from '@store/useAuthStore';
 
-async function loadAttendance(monthDate: Date) {
+async function loadAttendance(studentId: string, monthDate: Date) {
   const [days, subjectSummary] = await Promise.all([
-    repo.attendance.getMonth(monthDate),
+    repo.attendance.getMonth(studentId, monthDate),
     repo.attendance.getSubjectSummary(),
   ]);
   return { days, subjectSummary };
 }
 
 export function AttendanceScreen() {
+  const studentId = useAuthStore((s) => s.student?.id);
   const [monthDate, setMonthDate] = useState(new Date());
   const { data, loading, refreshing, error, refresh } = useAsyncResource(
-    () => loadAttendance(monthDate),
-    [monthDate.getMonth(), monthDate.getFullYear()],
+    () => (studentId ? loadAttendance(studentId, monthDate) : Promise.resolve({ days: [], subjectSummary: [] })),
+    [studentId, monthDate.getMonth(), monthDate.getFullYear()],
   );
 
   const monthPct = useMemo(() => (data ? overallAttendancePercentage(data.days) : 0), [data]);
@@ -41,7 +44,7 @@ export function AttendanceScreen() {
   const monthStats = useMemo(() => {
     if (!data) return { present: 0, total: 0 };
     const countable = data.days.filter(
-      (d) => d.status !== 'weekend' && d.status !== 'future' && d.status !== 'holiday',
+      (d) => d.status !== 'weekend' && d.status !== 'future' && d.status !== 'holiday' && d.status !== 'unmarked',
     );
     const present = countable.filter((d) => d.status === 'present' || d.status === 'late').length;
     return { present, total: countable.length };
@@ -58,6 +61,7 @@ export function AttendanceScreen() {
       holiday: 'Holiday',
       weekend: 'Weekend',
       future: '',
+      unmarked: 'Not marked yet',
     };
     Alert.alert(friendlyDate(day.date), labelMap[day.status] ?? day.status);
   };
@@ -114,33 +118,44 @@ export function AttendanceScreen() {
                   Subject-wise Attendance
                 </AppText>
               </View>
-              <Card>
-                {(data?.subjectSummary ?? []).map((s, index) => {
-                  const pct = Math.round((s.present / s.total) * 1000) / 10;
-                  return (
-                    <View
-                      key={s.subject}
-                      style={[
-                        styles.subjectRow,
-                        index !== (data?.subjectSummary.length ?? 0) - 1 && styles.subjectRowBorder,
-                      ]}
-                    >
-                      <View style={styles.subjectHeaderRow}>
-                        <AppText variant="bodyMedium">{s.subject}</AppText>
-                        <AppText variant="caption" color={colors.textSecondary}>
-                          {s.present}/{s.total} · {pct}%
-                        </AppText>
+              {(data?.subjectSummary ?? []).length === 0 ? (
+                <Card>
+                  <EmptyState
+                    icon="library-outline"
+                    title="Not tracked yet"
+                    message="Subject-wise attendance isn't recorded by teachers yet — only daily attendance."
+                    compact
+                  />
+                </Card>
+              ) : (
+                <Card>
+                  {(data?.subjectSummary ?? []).map((s, index) => {
+                    const pct = Math.round((s.present / s.total) * 1000) / 10;
+                    return (
+                      <View
+                        key={s.subject}
+                        style={[
+                          styles.subjectRow,
+                          index !== (data?.subjectSummary.length ?? 0) - 1 && styles.subjectRowBorder,
+                        ]}
+                      >
+                        <View style={styles.subjectHeaderRow}>
+                          <AppText variant="bodyMedium">{s.subject}</AppText>
+                          <AppText variant="caption" color={colors.textSecondary}>
+                            {s.present}/{s.total} · {pct}%
+                          </AppText>
+                        </View>
+                        <ProgressBar
+                          value={pct}
+                          fillColor={pct >= 85 ? colors.success : pct >= 75 ? colors.warning : colors.danger}
+                          trackColor={colors.surfaceAlt}
+                          style={{ marginTop: 6 }}
+                        />
                       </View>
-                      <ProgressBar
-                        value={pct}
-                        fillColor={pct >= 85 ? colors.success : pct >= 75 ? colors.warning : colors.danger}
-                        trackColor={colors.surfaceAlt}
-                        style={{ marginTop: 6 }}
-                      />
-                    </View>
-                  );
-                })}
-              </Card>
+                    );
+                  })}
+                </Card>
+              )}
             </>
           )}
         </ScrollView>

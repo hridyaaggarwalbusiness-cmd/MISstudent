@@ -4,7 +4,7 @@ import { startOfMonth, endOfMonth, eachDayOfInterval, getDay, format, formatISO,
 import { AppText, AnimatedPressable } from '@components/ui';
 import { colors, radius } from '@theme';
 import { CalendarEvent } from '@/types';
-import { eventTypeMeta } from '@data/mock/calendarEvents';
+import { eventTypeMeta } from '@data/calendarEventTypeMeta';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 

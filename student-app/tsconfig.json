@@ -12,6 +12,7 @@
       "@theme": ["src/theme/index"],
       "@theme/*": ["src/theme/*"],
       "@data/*": ["src/data/*"],
+      "@services/*": ["src/services/*"],
       "@store/*": ["src/store/*"],
       "@hooks/*": ["src/hooks/*"],
       "@utils/*": ["src/utils/*"],

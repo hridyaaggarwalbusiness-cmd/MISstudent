@@ -16,6 +16,8 @@ import {
   PlusJakartaSans_700Bold,
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { RootNavigator } from '@navigation/RootNavigator';
+import { LoginScreen } from '@screens/auth/LoginScreen';
+import { useAuthStore } from '@store/useAuthStore';
 import { colors } from '@theme';
 import { View } from 'react-native';
 
@@ -30,14 +32,19 @@ export default function App() {
     PlusJakartaSans_600SemiBold,
     PlusJakartaSans_700Bold,
   });
+  const { user, student, initializing, init } = useAuthStore();
+
+  React.useEffect(() => {
+    init();
+  }, [init]);
 
   const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded || fontError) {
+    if ((fontsLoaded || fontError) && !initializing) {
       await SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontsLoaded, fontError, initializing]);
 
-  if (!fontsLoaded && !fontError) {
+  if ((!fontsLoaded && !fontError) || initializing) {
     return null;
   }
 
@@ -46,7 +53,7 @@ export default function App() {
       <SafeAreaProvider>
         <View style={{ flex: 1, backgroundColor: colors.background }} onLayout={onLayoutRootView}>
           <StatusBar style="dark" />
-          <RootNavigator />
+          {user && student ? <RootNavigator /> : <LoginScreen />}
         </View>
       </SafeAreaProvider>
     </GestureHandlerRootView>
