@@ -1,0 +1,8 @@
+{
+  "name": "misstudent-scripts",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "firebase": "^12.16.0"
+  }
+}
