@@ -14,6 +14,5 @@ jobs:
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          firebase projects:create mis-student --display-name "MIS-student" --token "$FIREBASE_TOKEN" || \
-          echo "Project may already exist, continuing"
+          firebase projects:create mis-student-6yhtxk --display-name "MIS-student" --token "$FIREBASE_TOKEN"
           firebase projects:list --token "$FIREBASE_TOKEN"
