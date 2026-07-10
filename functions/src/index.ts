@@ -1,3 +1,11 @@
+// Cloud Functions require the Blaze plan (Cloud Build + Artifact Registry),
+// which isn't enabled on this project, so these aren't deployed by default -
+// the admin app instead creates/revokes accounts client-side via a secondary
+// Firebase App (see admin-app/src/data/repositories/index.ts). Deploy this
+// codebase once Blaze is active to get real Auth-account deletion (the
+// client-side path can only revoke Firestore access, not the credential
+// itself) via `firebase deploy --only functions` or the functions-deploy.yml
+// workflow.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';

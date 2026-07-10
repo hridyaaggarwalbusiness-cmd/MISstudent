@@ -16,10 +16,15 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  updateProfile,
+  signOut as secondarySignOut,
 } from 'firebase/auth';
 import type { User } from 'firebase/auth';
-import { httpsCallable, getFunctions } from 'firebase/functions';
-import { db, auth, app } from '@/services/firebase';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth as getSecondaryAuth } from 'firebase/auth';
+import { db, auth } from '@/services/firebase';
+import { firebaseConfig } from '@/services/firebaseConfig';
 import type {
   Teacher,
   SchoolClass,
@@ -32,12 +37,66 @@ import type {
   CalendarEvent,
   ExamResult,
   AttendanceRecord,
+  Role,
 } from '@/types';
-
-const functions = getFunctions(app);
 
 function withId<T>(d: { id: string; data: () => unknown }): T {
   return { id: d.id, ...(d.data() as object) } as T;
+}
+
+// Cloud Functions (and the Admin SDK they'd wrap) require the Blaze plan,
+// which isn't enabled on this project. Creating a user with the client SDK
+// on the *primary* app would sign the admin in as that new account and
+// hijack their session, so instead we spin up a short-lived secondary
+// Firebase App, create the account there (leaving the admin's own session
+// on the primary app untouched), then tear the secondary app down.
+async function createAuthAccountWithoutSignIn(
+  email: string,
+  password: string,
+  displayName: string,
+): Promise<string> {
+  const secondaryApp = initializeApp(firebaseConfig, `secondary-${Date.now()}`);
+  const secondaryAuth = getSecondaryAuth(secondaryApp);
+  try {
+    const credential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+    if (displayName) {
+      await updateProfile(credential.user, { displayName });
+    }
+    return credential.user.uid;
+  } finally {
+    await secondarySignOut(secondaryAuth).catch(() => {});
+    await deleteApp(secondaryApp).catch(() => {});
+  }
+}
+
+async function createSchoolUser(role: Role, payload: {
+  email: string;
+  password: string;
+  displayName: string;
+  profile: Record<string, unknown>;
+}): Promise<string> {
+  const uid = await createAuthAccountWithoutSignIn(payload.email, payload.password, payload.displayName);
+  await setDoc(doc(db, 'users', uid), {
+    id: uid,
+    role,
+    email: payload.email,
+    displayName: payload.displayName,
+  });
+  await setDoc(doc(db, role === 'teacher' ? 'teachers' : 'students', uid), {
+    id: uid,
+    ...payload.profile,
+  });
+  return uid;
+}
+
+// The Auth credential itself can only be deleted server-side (Admin SDK /
+// Cloud Functions), which needs Blaze. Revoking the Firestore profile is
+// enough to fully cut off access: every security rule keys off these
+// documents, so the account can no longer read or write anything once they're
+// gone - it just leaves a harmless orphaned credential behind.
+async function revokeSchoolUser(role: Role, uid: string): Promise<void> {
+  await deleteDoc(doc(db, 'users', uid));
+  await deleteDoc(doc(db, role === 'teacher' ? 'teachers' : 'students', uid));
 }
 
 export const repo = {
@@ -63,8 +122,8 @@ export const repo = {
       password: string;
       displayName: string;
       profile: Omit<Teacher, 'id'>;
-    }) => httpsCallable(functions, 'createSchoolUser')({ role: 'teacher', ...payload }),
-    remove: (id: string) => httpsCallable(functions, 'deleteSchoolUser')({ uid: id, role: 'teacher' }),
+    }) => createSchoolUser('teacher', payload),
+    remove: (id: string) => revokeSchoolUser('teacher', id),
   },
 
   students: {
@@ -80,8 +139,8 @@ export const repo = {
       password: string;
       displayName: string;
       profile: Omit<Student, 'id'>;
-    }) => httpsCallable(functions, 'createSchoolUser')({ role: 'student', ...payload }),
-    remove: (id: string) => httpsCallable(functions, 'deleteSchoolUser')({ uid: id, role: 'student' }),
+    }) => createSchoolUser('student', payload),
+    remove: (id: string) => revokeSchoolUser('student', id),
   },
 
   timetable: {
