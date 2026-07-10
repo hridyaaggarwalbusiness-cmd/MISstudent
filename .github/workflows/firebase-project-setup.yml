@@ -1,0 +1,19 @@
+name: Firebase Project Setup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-project:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Create Firebase project
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          firebase projects:create mis-student --display-name "MIS-student" --token "$FIREBASE_TOKEN" || \
+          echo "Project may already exist, continuing"
+          firebase projects:list --token "$FIREBASE_TOKEN"
