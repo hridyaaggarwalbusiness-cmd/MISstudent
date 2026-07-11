@@ -4,18 +4,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   AppText,
   SegmentedControl,
-  Chip,
   SkeletonCard,
   EmptyState,
   ErrorState,
 } from '@components/ui';
 import { PeriodCard } from '@components/dashboard/PeriodCard';
+import { WeekStrip } from '@components/timetable/WeekStrip';
+import { DayTimeline } from '@components/timetable/DayTimeline';
 import { colors, spacing, layout } from '@theme';
 import { repo } from '@data/repositories';
 import { useAsyncResource } from '@hooks/useAsyncResource';
 import { useAuthStore } from '@store/useAuthStore';
 import { todayDayCode } from '@utils/date';
 import { DayOfWeek } from '@/types';
+import { format } from 'date-fns';
 
 const DAYS: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -25,7 +27,7 @@ function toMinutes(t: string) {
 }
 
 export function TimetableScreen() {
-  const [mode, setMode] = useState(0); // 0 = Daily, 1 = Weekly
+  const [mode, setMode] = useState(0); // 0 = Day, 1 = Week
   const todayCode = todayDayCode();
   const defaultDay: DayOfWeek = DAYS.includes(todayCode as DayOfWeek) ? (todayCode as DayOfWeek) : 'Mon';
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(defaultDay);
@@ -47,6 +49,12 @@ export function TimetableScreen() {
     return dayPeriods.find((p) => nowMinutes >= toMinutes(p.startTime) && nowMinutes < toMinutes(p.endTime))?.id ?? null;
   }, [dayPeriods, selectedDay, todayCode]);
 
+  const nextPeriodId = useMemo(() => {
+    if (selectedDay !== todayCode) return null;
+    const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+    return dayPeriods.find((p) => toMinutes(p.startTime) > nowMinutes && !p.isBreak)?.id ?? null;
+  }, [dayPeriods, selectedDay, todayCode]);
+
   const weekByDay = useMemo(() => {
     if (!data) return [];
     return DAYS.map((day) => ({
@@ -55,12 +63,19 @@ export function TimetableScreen() {
     }));
   }, [data]);
 
+  const hasClasses = (day: DayOfWeek) => (data ?? []).some((p) => p.day === day && !p.isBreak);
+
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
       <View style={styles.header}>
-        <AppText variant="displayMd">Timetable</AppText>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+          <AppText variant="displayMd">Timetable</AppText>
+          <AppText variant="captionRegular" color={colors.textTertiary}>
+            {format(new Date(), 'MMMM yyyy')}
+          </AppText>
+        </View>
         <View style={{ marginTop: spacing.md }}>
-          <SegmentedControl options={['Daily', 'Weekly']} selectedIndex={mode} onChange={setMode} />
+          <SegmentedControl options={['Day', 'Week']} selectedIndex={mode} onChange={setMode} />
         </View>
       </View>
 
@@ -77,22 +92,14 @@ export function TimetableScreen() {
         >
           {mode === 0 ? (
             <>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.dayPicker}
-                contentContainerStyle={{ paddingHorizontal: spacing.lg }}
-              >
-                {DAYS.map((day) => (
-                  <Chip
-                    key={day}
-                    label={dayFullName(day)}
-                    active={selectedDay === day}
-                    onPress={() => setSelectedDay(day)}
-                    style={{ marginRight: spacing.xs }}
-                  />
-                ))}
-              </ScrollView>
+              <View style={styles.section}>
+                <WeekStrip
+                  selectedDay={selectedDay}
+                  todayCode={todayCode}
+                  hasClasses={hasClasses}
+                  onSelect={setSelectedDay}
+                />
+              </View>
 
               <View style={styles.section}>
                 {loading ? (
@@ -104,13 +111,7 @@ export function TimetableScreen() {
                 ) : dayPeriods.length === 0 ? (
                   <EmptyState icon="calendar-outline" title="No classes" message="There are no periods scheduled for this day." />
                 ) : (
-                  dayPeriods.map((period) => (
-                    <PeriodCard
-                      key={period.id}
-                      period={period}
-                      isCurrent={period.id === currentPeriodId}
-                    />
-                  ))
+                  <DayTimeline periods={dayPeriods} currentPeriodId={currentPeriodId} nextPeriodId={nextPeriodId} />
                 )}
               </View>
             </>
@@ -166,8 +167,7 @@ function dayFullName(day: DayOfWeek): string {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   header: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, marginBottom: spacing.md },
-  dayPicker: { marginBottom: spacing.md },
-  section: { paddingHorizontal: spacing.lg },
+  section: { paddingHorizontal: spacing.lg, marginBottom: spacing.md },
   scrollContent: { paddingBottom: layout.tabBarClearance },
   weekDayHeader: {
     flexDirection: 'row',

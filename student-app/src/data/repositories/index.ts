@@ -7,6 +7,7 @@ import {
   onSnapshot,
   getDocs,
   setDoc,
+  updateDoc,
 } from 'firebase/firestore';
 import type { Unsubscribe, Timestamp } from 'firebase/firestore';
 import {
@@ -180,6 +181,14 @@ export const repo = {
     subscribe: (uid: string, cb: (student: Student | null) => void): Unsubscribe =>
       onSnapshot(doc(db, 'students', uid), (snap) => cb(snap.exists() ? withId<Student>(snap) : null)),
     get: (uid: string) => once<Student | null>((cb) => repo.student.subscribe(uid, cb)),
+    // Students may only touch this narrow set of contact fields on their own
+    // doc — enforced again server-side by firestore.rules.
+    updateContact: (
+      uid: string,
+      fields: Partial<
+        Pick<Student, 'phone' | 'address' | 'emergencyContactName' | 'emergencyContactPhone' | 'emergencyContactRelation'>
+      >,
+    ) => updateDoc(doc(db, 'students', uid), fields),
   },
 
   timetable: {

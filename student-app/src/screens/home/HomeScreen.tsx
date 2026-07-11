@@ -12,15 +12,14 @@ import {
   ErrorState,
 } from '@components/ui';
 import { DashboardHeader } from '@components/dashboard/DashboardHeader';
-import { QuickActionsGrid, QuickAction } from '@components/dashboard/QuickActionsGrid';
-import { StatsStrip, StatItem } from '@components/dashboard/StatsStrip';
+import { BentoStats } from '@components/dashboard/BentoStats';
+import { QuickActionsRow, QuickAction } from '@components/dashboard/QuickActionsGrid';
 import { PeriodCard } from '@components/dashboard/PeriodCard';
-import { AttendanceSummaryCard } from '@components/dashboard/AttendanceSummaryCard';
 import { LatestMarksCard } from '@components/dashboard/LatestMarksCard';
 import { ExamCountdownCard } from '@components/dashboard/ExamCountdownCard';
 import { HomeworkCard } from '@components/homework/HomeworkCard';
 import { NoticeListItem } from '@components/notices/NoticeListItem';
-import { colors, spacing, layout, radius } from '@theme';
+import { colors, spacing, layout } from '@theme';
 import { repo } from '@data/repositories';
 import { useAsyncResource } from '@hooks/useAsyncResource';
 import { useStudentStore } from '@store/useStudentStore';
@@ -91,13 +90,14 @@ export function HomeScreen() {
     return upcoming?.id ?? null;
   }, [todaysPeriods]);
 
-  const todaysHomework = useMemo(() => {
-    const todayIso = new Date().toISOString().slice(0, 10);
-    return homeworkItems.filter((h) => h.dueDate === todayIso);
-  }, [homeworkItems]);
-
-  const upcomingHomework = useMemo(
-    () => homeworkItems.filter((h) => h.status === 'pending' || h.status === 'overdue').slice(0, 4),
+  // A single, correctly-prioritized list instead of two overlapping "today" /
+  // "upcoming" sections — anything still pending or overdue, soonest due first.
+  const priorityHomework = useMemo(
+    () =>
+      homeworkItems
+        .filter((h) => h.status === 'pending' || h.status === 'overdue')
+        .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+        .slice(0, 5),
     [homeworkItems],
   );
 
@@ -106,7 +106,7 @@ export function HomeScreen() {
     return data.exams.filter((e) => e.status === 'upcoming').slice(0, 4);
   }, [data]);
 
-  const recentNotices = useMemo(() => noticeItems.slice(0, 3), [noticeItems]);
+  const recentNotices = useMemo(() => noticeItems.slice(0, 2), [noticeItems]);
 
   const attendancePct = useMemo(() => {
     if (!data) return 0;
@@ -158,7 +158,7 @@ export function HomeScreen() {
       key: 'results',
       label: 'Results',
       icon: 'stats-chart-outline',
-      bg: '#F5F3FF',
+      bg: colors.primarySoft,
       fg: colors.secondary,
       onPress: () => navigation.navigate('Results'),
     },
@@ -185,53 +185,6 @@ export function HomeScreen() {
       bg: colors.dangerBg,
       fg: colors.dangerStrong,
       onPress: () => navigation.navigate('MainTabs', { screen: 'NoticesTab' }),
-    },
-    {
-      key: 'profile',
-      label: 'Profile',
-      icon: 'person-outline',
-      bg: colors.primarySoft,
-      fg: colors.primary,
-      onPress: () => navigation.navigate('MainTabs', { screen: 'ProfileTab' }),
-    },
-  ];
-
-  const statItems: StatItem[] = [
-    {
-      key: 'pending',
-      icon: 'book-outline',
-      value: String(upcomingHomework.length),
-      label: 'Pending tasks',
-      tint: colors.infoStrong,
-      tintBg: colors.infoBg,
-      onPress: () => navigation.navigate('MainTabs', { screen: 'HomeworkTab' }),
-    },
-    {
-      key: 'attendance-stat',
-      icon: 'checkmark-done-outline',
-      value: `${attendancePct}%`,
-      label: 'Attendance',
-      tint: colors.successStrong,
-      tintBg: colors.successBg,
-      onPress: () => navigation.navigate('Attendance'),
-    },
-    {
-      key: 'notices-stat',
-      icon: 'notifications-outline',
-      value: String(unreadCount),
-      label: 'Unread',
-      tint: colors.dangerStrong,
-      tintBg: colors.dangerBg,
-      onPress: () => navigation.navigate('Notifications'),
-    },
-    {
-      key: 'next-class',
-      icon: 'time-outline',
-      value: nextPeriod ? nextPeriod.startTime : '—',
-      label: nextPeriod ? nextPeriod.subject : 'No more classes',
-      tint: colors.warningStrong,
-      tintBg: colors.warningBg,
-      onPress: () => navigation.navigate('MainTabs', { screen: 'TimetableTab' }),
     },
   ];
 
@@ -270,20 +223,29 @@ export function HomeScreen() {
       >
         <View style={{ paddingHorizontal: spacing.lg }}>
           {loading ? (
-            <SkeletonCard lines={2} />
+            <Skeleton height={150} borderRadius={18} />
           ) : (
-            <View style={styles.quickActionsCard}>
-              <QuickActionsGrid actions={quickActions} />
-            </View>
+            <BentoStats
+              attendancePct={attendancePct}
+              presentDays={presentDays.present}
+              totalDays={presentDays.total}
+              pendingCount={priorityHomework.length}
+              unreadCount={unreadCount}
+              nextPeriod={nextPeriod}
+              onAttendancePress={() => navigation.navigate('Attendance')}
+              onHomeworkPress={() => navigation.navigate('MainTabs', { screen: 'HomeworkTab' })}
+              onNotificationsPress={() => navigation.navigate('Notifications')}
+              onTimetablePress={() => navigation.navigate('MainTabs', { screen: 'TimetableTab' })}
+            />
           )}
         </View>
 
-        <View style={[styles.section, { marginTop: spacing.lg }]}>
-          {loading ? <Skeleton height={80} borderRadius={16} /> : <StatsStrip items={statItems} />}
+        <View style={[styles.section, { paddingLeft: spacing.lg }]}>
+          <QuickActionsRow actions={quickActions} />
         </View>
 
         <View style={styles.section}>
-          <SectionHeader title="Today's Classes" />
+          <SectionHeader title="Today's Schedule" onActionPress={() => navigation.navigate('MainTabs', { screen: 'TimetableTab' })} />
           {loading ? (
             <Skeleton height={90} borderRadius={16} />
           ) : todaysPeriods.filter((p) => !p.isBreak).length === 0 ? (
@@ -312,35 +274,16 @@ export function HomeScreen() {
 
         <View style={styles.section}>
           <SectionHeader
-            title="Today's Homework"
+            title="Priorities"
+            subtitle={priorityHomework.length > 0 ? `${priorityHomework.length} need your attention` : undefined}
             onActionPress={() => navigation.navigate('MainTabs', { screen: 'HomeworkTab' })}
           />
           {loading ? (
             <SkeletonCard lines={2} />
-          ) : todaysHomework.length === 0 ? (
-            <EmptyState icon="checkmark-circle-outline" title="All caught up" message="No homework due today." compact />
+          ) : priorityHomework.length === 0 ? (
+            <EmptyState icon="checkmark-circle-outline" title="All caught up" message="No pending homework right now." compact />
           ) : (
-            todaysHomework.map((hw) => (
-              <HomeworkCard
-                key={hw.id}
-                homework={hw}
-                onPress={() => navigation.navigate('HomeworkDetail', { id: hw.id })}
-              />
-            ))
-          )}
-        </View>
-
-        <View style={styles.section}>
-          <SectionHeader
-            title="Upcoming Assignments"
-            onActionPress={() => navigation.navigate('MainTabs', { screen: 'HomeworkTab' })}
-          />
-          {loading ? (
-            <SkeletonCard lines={2} />
-          ) : upcomingHomework.length === 0 ? (
-            <EmptyState icon="book-outline" title="Nothing pending" message="No upcoming assignments." compact />
-          ) : (
-            upcomingHomework.map((hw) => (
+            priorityHomework.map((hw) => (
               <HomeworkCard
                 key={hw.id}
                 homework={hw}
@@ -366,21 +309,7 @@ export function HomeScreen() {
         </View>
 
         <View style={styles.section}>
-          <SectionHeader title="Attendance Summary" onActionPress={() => navigation.navigate('Attendance')} />
-          {loading ? (
-            <SkeletonCard lines={1} />
-          ) : (
-            <AttendanceSummaryCard
-              percentage={attendancePct}
-              presentDays={presentDays.present}
-              totalDays={presentDays.total}
-              onPress={() => navigation.navigate('Attendance')}
-            />
-          )}
-        </View>
-
-        <View style={styles.section}>
-          <SectionHeader title="Latest Marks" onActionPress={() => navigation.navigate('Results')} />
+          <SectionHeader title="Latest Result" onActionPress={() => navigation.navigate('Results')} />
           {loading ? (
             <SkeletonCard lines={1} />
           ) : latestResult ? (
@@ -420,12 +349,5 @@ const styles = StyleSheet.create({
   section: {
     paddingHorizontal: spacing.lg,
     marginTop: spacing.xl,
-  },
-  quickActionsCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
   },
 });

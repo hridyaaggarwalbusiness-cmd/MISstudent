@@ -1,22 +1,34 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@navigation/types';
-import { AppText, AnimatedPressable, DetailHeader, SkeletonCard, EmptyState } from '@components/ui';
+import { AppText, AnimatedPressable, DetailHeader, SegmentedControl, SkeletonCard, EmptyState } from '@components/ui';
 import { NotificationItem } from '@components/notifications/NotificationItem';
 import { colors, spacing } from '@theme';
 import { useNotificationsStore } from '@store/useNotificationsStore';
 import { AppNotification } from '@/types';
 
+const TABS: { label: string; type: AppNotification['type'] | 'all' }[] = [
+  { label: 'All', type: 'all' },
+  { label: 'Homework', type: 'homework' },
+  { label: 'Notices', type: 'notice' },
+];
+
 export function NotificationsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { items, loading, unreadCount, fetch, markRead, markAllRead } = useNotificationsStore();
+  const [tab, setTab] = useState(0);
 
   useEffect(() => {
     fetch();
   }, [fetch]);
+
+  const filtered = useMemo(() => {
+    const type = TABS[tab].type;
+    return type === 'all' ? items : items.filter((n) => n.type === type);
+  }, [items, tab]);
 
   const onPressNotification = (n: AppNotification) => {
     if (!n.isRead) markRead(n.id);
@@ -56,13 +68,16 @@ export function NotificationsScreen() {
           ) : undefined
         }
       />
+      <View style={styles.tabsWrap}>
+        <SegmentedControl options={TABS.map((t) => t.label)} selectedIndex={tab} onChange={setTab} />
+      </View>
       {loading && items.length === 0 ? (
         <View style={{ paddingHorizontal: spacing.lg }}>
           <SkeletonCard lines={2} />
         </View>
       ) : (
         <FlatList
-          data={items}
+          data={filtered}
           keyExtractor={(n) => n.id}
           renderItem={({ item }) => (
             <NotificationItem notification={item} onPress={() => onPressNotification(item)} />
@@ -80,5 +95,6 @@ export function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  tabsWrap: { paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
   list: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xxxl, flexGrow: 1 },
 });

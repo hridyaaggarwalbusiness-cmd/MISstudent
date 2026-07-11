@@ -25,8 +25,24 @@ const LABELS: Record<string, string> = {
   ProfileTab: 'Profile',
 };
 
+// The middle tab is raised into a floating action button instead of sitting
+// flush in the bar, so the bar is no longer just five identical slots.
+const RAISED_ROUTE = 'HomeworkTab';
+
 export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const raisedIndex = state.routes.findIndex((r) => r.name === RAISED_ROUTE);
+  const raisedFocused = state.index === raisedIndex;
+
+  const goTo = (index: number) => {
+    const route = state.routes[index];
+    const isFocused = state.index === index;
+    Haptics.selectionAsync().catch(() => {});
+    const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+    if (!isFocused && !event.defaultPrevented) {
+      navigation.navigate(route.name);
+    }
+  };
 
   return (
     <View style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 14) }]}>
@@ -35,33 +51,40 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
         <View style={styles.tint} />
         <View style={styles.row}>
           {state.routes.map((route, index) => {
+            if (index === raisedIndex) return <View key={route.key} style={styles.tabButton} />;
             const isFocused = state.index === index;
             const icons = ICONS[route.name] ?? ICONS.HomeTab;
-
-            const onPress = () => {
-              Haptics.selectionAsync().catch(() => {});
-              const event = navigation.emit({
-                type: 'tabPress',
-                target: route.key,
-                canPreventDefault: true,
-              });
-              if (!isFocused && !event.defaultPrevented) {
-                navigation.navigate(route.name);
-              }
-            };
-
             return (
               <TabButton
                 key={route.key}
                 label={LABELS[route.name] ?? route.name}
                 icon={isFocused ? icons.active : icons.inactive}
                 focused={isFocused}
-                onPress={onPress}
+                onPress={() => goTo(index)}
               />
             );
           })}
         </View>
       </View>
+
+      {raisedIndex >= 0 && (
+        <Pressable
+          style={styles.raisedWrap}
+          onPress={() => goTo(raisedIndex)}
+          hitSlop={8}
+        >
+          <View style={[styles.raisedButton, shadows.glow(colors.primary), raisedFocused && styles.raisedButtonFocused]}>
+            <Ionicons
+              name={raisedFocused ? ICONS[RAISED_ROUTE].active : ICONS[RAISED_ROUTE].inactive}
+              size={22}
+              color={colors.textInverse}
+            />
+          </View>
+          <AppText variant="tiny" color={raisedFocused ? colors.primary : colors.textTertiary} style={{ fontSize: 10, marginTop: 3 }}>
+            {LABELS[RAISED_ROUTE]}
+          </AppText>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -147,5 +170,25 @@ const styles = StyleSheet.create({
     height: 30,
     borderRadius: radius.md,
     backgroundColor: colors.primary,
+  },
+  raisedWrap: {
+    position: 'absolute',
+    top: -22,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  raisedButton: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: colors.background,
+  },
+  raisedButtonFocused: {
+    backgroundColor: colors.primaryDark,
   },
 });

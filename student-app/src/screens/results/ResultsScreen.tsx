@@ -8,6 +8,7 @@ import {
   AppText,
   Card,
   LineChart,
+  BarChart,
   DetailHeader,
   SkeletonCard,
   EmptyState,
@@ -33,6 +34,15 @@ export function ResultsScreen() {
   }, [data]);
 
   const sorted = useMemo(() => (data ? [...data].reverse() : []), [data]);
+  const latest = sorted[0];
+
+  const subjectBreakdown = useMemo(() => {
+    if (!latest) return [];
+    return latest.subjects.map((s) => ({
+      label: s.subject.length > 4 ? s.subject.slice(0, 4) : s.subject,
+      value: Math.round((s.marksObtained / s.maxMarks) * 1000) / 10,
+    }));
+  }, [latest]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -62,6 +72,16 @@ export function ResultsScreen() {
                   <EmptyState icon="trending-up-outline" title="Not enough data yet" compact />
                 )}
               </Card>
+
+              {subjectBreakdown.length > 0 && (
+                <Card style={{ marginTop: spacing.lg }}>
+                  <AppText variant="h3">Subject Breakdown</AppText>
+                  <AppText variant="caption" color={colors.textSecondary} style={{ marginTop: 2, marginBottom: spacing.sm }}>
+                    {latest.examName} · {latest.term}
+                  </AppText>
+                  <BarChart data={subjectBreakdown} height={180} />
+                </Card>
+              )}
 
               <View style={styles.sectionTitle}>
                 <AppText variant="h3">All Results</AppText>

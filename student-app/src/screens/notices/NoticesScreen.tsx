@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
+import { View, FlatList, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -46,18 +46,21 @@ export function NoticesScreen() {
     }
   };
 
-  const filtered = useMemo(() => {
+  const matched = useMemo(() => {
     let list = items;
     if (filter !== 'all') list = list.filter((n) => n.category === filter);
     if (query.trim()) {
       const q = query.trim().toLowerCase();
       list = list.filter((n) => n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q));
     }
-    return [...list].sort((a, b) => {
-      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-      return b.postedAt.localeCompare(a.postedAt);
-    });
+    return list;
   }, [items, filter, query]);
+
+  const pinned = useMemo(() => matched.filter((n) => n.pinned), [matched]);
+  const feed = useMemo(
+    () => [...matched.filter((n) => !n.pinned)].sort((a, b) => b.postedAt.localeCompare(a.postedAt)),
+    [matched],
+  );
 
   const renderItem = ({ item }: { item: Notice }) => (
     <NoticeListItem notice={item} onPress={() => navigation.navigate('NoticeDetail', { id: item.id })} />
@@ -96,7 +99,7 @@ export function NoticesScreen() {
         </View>
       ) : (
         <FlatList
-          data={filtered}
+          data={feed}
           keyExtractor={(n) => n.id}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
@@ -104,12 +107,30 @@ export function NoticesScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
           }
+          ListHeaderComponent={
+            pinned.length > 0 ? (
+              <View style={{ marginBottom: spacing.lg }}>
+                <AppText variant="overline" color={colors.textTertiary} style={{ marginBottom: spacing.sm }}>
+                  PINNED
+                </AppText>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {pinned.map((n) => (
+                    <View key={n.id} style={{ width: 270, marginRight: spacing.sm }}>
+                      <NoticeListItem notice={n} onPress={() => navigation.navigate('NoticeDetail', { id: n.id })} />
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
-            <EmptyState
-              icon="megaphone-outline"
-              title="No notices found"
-              message={query ? 'Try a different search term.' : 'Nothing here yet — check back soon.'}
-            />
+            pinned.length === 0 ? (
+              <EmptyState
+                icon="megaphone-outline"
+                title="No notices found"
+                message={query ? 'Try a different search term.' : 'Nothing here yet — check back soon.'}
+              />
+            ) : null
           }
         />
       )}

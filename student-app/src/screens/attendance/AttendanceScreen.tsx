@@ -50,6 +50,21 @@ export function AttendanceScreen() {
     return { present, total: countable.length };
   }, [data]);
 
+  // Consecutive present/late days counting back from the most recent marked
+  // day in the currently-loaded month (weekends/holidays don't break it).
+  const streak = useMemo(() => {
+    if (!data) return 0;
+    const known = data.days.filter((d) => d.status !== 'future');
+    let count = 0;
+    for (let i = known.length - 1; i >= 0; i--) {
+      const s = known[i].status;
+      if (s === 'present' || s === 'late') count++;
+      else if (s === 'weekend' || s === 'holiday') continue;
+      else break;
+    }
+    return count;
+  }, [data]);
+
   const canGoNext = !isSameMonth(monthDate, new Date()) && monthDate < new Date();
 
   const onDayPress = (day: AttendanceDay) => {
@@ -94,6 +109,14 @@ export function AttendanceScreen() {
                   <AppText variant="caption" color={colors.textTertiary} style={{ marginTop: 6 }}>
                     Minimum required: 75%
                   </AppText>
+                  {streak > 0 && (
+                    <View style={styles.streakPill}>
+                      <Ionicons name="flame" size={13} color={colors.warningStrong} />
+                      <AppText variant="tiny" color={colors.warningStrong} style={{ marginLeft: 4 }}>
+                        {streak}-day streak
+                      </AppText>
+                    </View>
+                  )}
                 </View>
               </Card>
 
@@ -168,6 +191,16 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.lg, paddingBottom: layout.tabBarClearance },
   overviewCard: { flexDirection: 'row', alignItems: 'center' },
+  streakPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.warningBg,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    marginTop: 8,
+  },
   monthNav: {
     flexDirection: 'row',
     alignItems: 'center',

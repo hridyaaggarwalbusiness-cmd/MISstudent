@@ -45,7 +45,16 @@ service cloud.firestore {
     // ---- students ----
     match /students/{studentId} {
       allow read: if isAdmin() || isMe(studentId) || (isTeacher() && teachesClass(resource.data.classId));
-      allow write: if isAdmin();
+      // Students may self-edit a narrow set of contact fields on their own
+      // profile; everything else (name, roll number, classId, grades-adjacent
+      // fields) stays admin-only.
+      allow update: if isAdmin() || (
+        isMe(studentId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+          ['phone', 'address', 'emergencyContactName', 'emergencyContactPhone', 'emergencyContactRelation', 'photoUrl']
+        )
+      );
+      allow create, delete: if isAdmin();
     }
 
     // ---- teachers ----

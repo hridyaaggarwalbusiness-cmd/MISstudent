@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AnimatedPressable, AppText } from '@components/ui';
 import { colors, radius, spacing } from '@theme';
@@ -13,43 +13,47 @@ export interface QuickAction {
   onPress: () => void;
 }
 
-export function QuickActionsGrid({ actions }: { actions: QuickAction[] }) {
+export function QuickActionsRow({ actions }: { actions: QuickAction[] }) {
   return (
-    <View style={styles.grid}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.row}
+    >
       {actions.map((action) => (
-        <AnimatedPressable key={action.key} onPress={action.onPress} style={styles.item} scaleTo={0.94}>
+        <AnimatedPressable key={action.key} onPress={action.onPress} style={styles.pill} scaleTo={0.95}>
           <View style={[styles.iconWrap, { backgroundColor: action.bg }]}>
-            <Ionicons name={action.icon} size={21} color={action.fg} />
+            <Ionicons name={action.icon} size={15} color={action.fg} />
           </View>
-          <AppText
-            variant="tiny"
-            color={colors.textSecondary}
-            align="center"
-            style={{ marginTop: 7, fontSize: 11.5 }}
-            numberOfLines={1}
-          >
+          <AppText variant="bodyMedium" color={colors.textSecondary} style={{ marginLeft: 7 }}>
             {action.label}
           </AppText>
         </AnimatedPressable>
       ))}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  row: {
+    gap: spacing.xs,
+    paddingRight: spacing.lg,
   },
-  item: {
-    width: '25%',
+  pill: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    borderRadius: radius.pill,
+    paddingVertical: 6,
+    paddingRight: 14,
+    paddingLeft: 6,
   },
   iconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.md,
+    width: 28,
+    height: 28,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
