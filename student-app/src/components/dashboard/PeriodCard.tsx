@@ -31,6 +31,7 @@ export function PeriodCard({ period, isCurrent, isNext, style, compact }: Period
       style={[
         styles.card,
         compact && styles.compactCard,
+        { borderLeftWidth: 3, borderLeftColor: accent.fg },
         isCurrent && { borderColor: colors.primary, borderWidth: 1.5 },
         style,
       ]}

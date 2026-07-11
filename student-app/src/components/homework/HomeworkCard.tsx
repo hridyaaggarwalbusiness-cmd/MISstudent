@@ -26,10 +26,10 @@ export function HomeworkCard({ homework, onPress }: HomeworkCardProps) {
   const showUrgent = due.overdue && !isSettled;
 
   return (
-    <Card onPress={onPress} style={styles.card}>
+    <Card onPress={onPress} style={[styles.card, { borderLeftWidth: 3, borderLeftColor: accent.fg }]}>
       <View style={styles.row}>
         <View style={[styles.iconWrap, { backgroundColor: accent.bg }]}>
-          <Ionicons name="book-outline" size={18} color={accent.fg} />
+          <Ionicons name="book-outline" size={20} color={accent.fg} />
         </View>
         <View style={{ flex: 1, marginLeft: spacing.sm }}>
           <View style={styles.topRow}>
@@ -38,7 +38,7 @@ export function HomeworkCard({ homework, onPress }: HomeworkCardProps) {
             </AppText>
             <Badge label={status.label} tone={status.tone} size="sm" />
           </View>
-          <AppText variant="bodySemibold" numberOfLines={2} style={{ marginTop: 3 }}>
+          <AppText variant="bodySemibold" numberOfLines={2} style={{ marginTop: 3, fontSize: 15 }}>
             {homework.title}
           </AppText>
           <View style={styles.metaRow}>
@@ -84,8 +84,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   iconWrap: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',

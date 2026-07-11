@@ -33,11 +33,8 @@ export function BentoStats({
   return (
     <View style={styles.grid}>
       <AnimatedPressable onPress={onAttendancePress} style={[styles.tile, styles.cell]} scaleTo={0.97}>
-        <ProgressRing value={attendancePct} size={40} strokeWidth={5} showValueLabel={false} />
-        <AppText variant="h2" style={{ marginTop: spacing.sm }}>
-          {attendancePct}%
-        </AppText>
-        <AppText variant="tiny" color={colors.textTertiary} numberOfLines={1}>
+        <ProgressRing value={attendancePct} size={58} strokeWidth={7} />
+        <AppText variant="tiny" color={colors.textTertiary} numberOfLines={1} style={{ marginTop: spacing.sm }}>
           Attendance · {presentDays}/{totalDays}d
         </AppText>
       </AnimatedPressable>

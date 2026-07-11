@@ -71,7 +71,7 @@ export function EventCalendar({ monthDate, events, selectedDate, onSelectDate }:
                   !isSelected && isToday && styles.todayRing,
                 ]}
               >
-                <AppText variant="caption" color={isSelected ? colors.textInverse : colors.textPrimary}>
+                <AppText variant="bodyMedium" color={isSelected ? colors.textInverse : colors.textPrimary}>
                   {format(date, 'd')}
                 </AppText>
                 {dayEvents.length > 0 && (
@@ -108,8 +108,8 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { width: CELL_SIZE, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
   dayCircle: {
-    width: 34,
-    height: 34,
+    width: 36,
+    height: 36,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',

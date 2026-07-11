@@ -12,7 +12,7 @@ export function ExamCountdownCard({ exam }: { exam: Exam }) {
   const accent = accentForKey(exam.subject);
 
   return (
-    <Card style={styles.card} elevation="xs">
+    <Card style={[styles.card, { borderLeftWidth: 3, borderLeftColor: accent.fg }]} elevation="xs">
       <View style={styles.row}>
         <View style={[styles.dateBlock, { backgroundColor: accent.bg }]}>
           <AppText variant="h2" color={accent.fg} style={{ fontSize: 18 }}>

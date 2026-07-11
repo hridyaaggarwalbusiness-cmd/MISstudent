@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { AppText } from '@components/ui';
-import { colors, spacing, radius, accentForKey } from '@theme';
+import { colors, spacing, radius, shadows, accentForKey } from '@theme';
 import { DayOfWeek, TimetablePeriod } from '@/types';
 
 const DAYS: { code: DayOfWeek; label: string }[] = [
@@ -43,7 +43,8 @@ export function TimetableGrid({ periods, todayCode, currentPeriodId }: Timetable
 
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-      <View style={styles.table}>
+      <View style={styles.tableShadowWrap}>
+        <View style={styles.table}>
         <View style={styles.row}>
           <View style={[styles.headerCell, { width: TIME_COL_WIDTH }]} />
           {DAYS.map((d) => (
@@ -113,12 +114,17 @@ export function TimetableGrid({ periods, todayCode, currentPeriodId }: Timetable
             })}
           </View>
         ))}
+        </View>
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  tableShadowWrap: {
+    borderRadius: radius.md,
+    ...shadows.sm,
+  },
   table: {
     borderWidth: 1,
     borderColor: colors.borderSoft,

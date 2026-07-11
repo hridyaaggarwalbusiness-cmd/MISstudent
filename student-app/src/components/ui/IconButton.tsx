@@ -29,7 +29,7 @@ export function IconButton({
       onPress={onPress}
       style={[
         styles.base,
-        { width: size, height: size, borderRadius: size / 2, backgroundColor },
+        { width: size, height: size, borderRadius: size / 2, backgroundColor, borderColor: colors.borderSoft },
         style,
       ]}
     >
@@ -43,6 +43,7 @@ const styles = StyleSheet.create({
   base: {
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
   },
   badgeDot: {
     position: 'absolute',

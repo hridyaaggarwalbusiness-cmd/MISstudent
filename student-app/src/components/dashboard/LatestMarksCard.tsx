@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card, AppText, Badge } from '@components/ui';
 import { colors, spacing, radius } from '@theme';
 import { ExamResult } from '@/types';
+import { gradeColor } from '@utils/grade';
 
 interface LatestMarksCardProps {
   result: ExamResult;
@@ -11,11 +12,12 @@ interface LatestMarksCardProps {
 }
 
 export function LatestMarksCard({ result, onPress }: LatestMarksCardProps) {
+  const grade = gradeColor(result.grade);
   return (
-    <Card onPress={onPress} style={styles.card}>
+    <Card onPress={onPress} style={[styles.card, { borderLeftWidth: 3, borderLeftColor: grade.fg }]}>
       <View style={styles.row}>
-        <View style={styles.gradeCircle}>
-          <AppText variant="h1" color={colors.primary} style={{ fontSize: 20 }}>
+        <View style={[styles.gradeCircle, { backgroundColor: grade.bg }]}>
+          <AppText variant="h1" color={grade.fg} style={{ fontSize: 20 }}>
             {result.grade}
           </AppText>
         </View>

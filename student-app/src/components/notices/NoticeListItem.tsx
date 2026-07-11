@@ -6,19 +6,19 @@ import { colors, spacing } from '@theme';
 import { Notice } from '@/types';
 import { relativeTime } from '@utils/date';
 
-const categoryMeta: Record<Notice['category'], { label: string; tone: BadgeTone; icon: keyof typeof Ionicons.glyphMap }> = {
-  general: { label: 'General', tone: 'neutral', icon: 'information-circle-outline' },
-  holiday: { label: 'Holiday', tone: 'danger', icon: 'sunny-outline' },
-  event: { label: 'Event', tone: 'primary', icon: 'sparkles-outline' },
-  exam: { label: 'Exam', tone: 'warning', icon: 'document-text-outline' },
-  circular: { label: 'Circular', tone: 'info', icon: 'reader-outline' },
-  competition: { label: 'Competition', tone: 'success', icon: 'ribbon-outline' },
+const categoryMeta: Record<Notice['category'], { label: string; tone: BadgeTone; icon: keyof typeof Ionicons.glyphMap; accent: string }> = {
+  general: { label: 'General', tone: 'neutral', icon: 'information-circle-outline', accent: colors.textTertiary },
+  holiday: { label: 'Holiday', tone: 'danger', icon: 'sunny-outline', accent: colors.dangerStrong },
+  event: { label: 'Event', tone: 'primary', icon: 'sparkles-outline', accent: colors.primary },
+  exam: { label: 'Exam', tone: 'warning', icon: 'document-text-outline', accent: colors.warningStrong },
+  circular: { label: 'Circular', tone: 'info', icon: 'reader-outline', accent: colors.infoStrong },
+  competition: { label: 'Competition', tone: 'success', icon: 'ribbon-outline', accent: colors.successStrong },
 };
 
 export function NoticeListItem({ notice, onPress }: { notice: Notice; onPress: () => void }) {
   const meta = categoryMeta[notice.category];
   return (
-    <Card onPress={onPress} style={styles.card}>
+    <Card onPress={onPress} style={[styles.card, { borderLeftWidth: 3, borderLeftColor: meta.accent }]}>
       <View style={styles.row}>
         {!notice.isRead && <View style={styles.unreadDot} />}
         <View style={{ flex: 1 }}>

@@ -22,13 +22,16 @@ export function SectionHeader({
 }: SectionHeaderProps) {
   return (
     <View style={[styles.row, style]}>
-      <View style={{ flex: 1 }}>
-        <AppText variant="h2">{title}</AppText>
-        {subtitle && (
-          <AppText variant="body" color={colors.textSecondary} style={{ marginTop: 2 }}>
-            {subtitle}
-          </AppText>
-        )}
+      <View style={styles.titleRow}>
+        <View style={styles.accentBar} />
+        <View style={{ flex: 1 }}>
+          <AppText variant="h2">{title}</AppText>
+          {subtitle && (
+            <AppText variant="body" color={colors.textSecondary} style={{ marginTop: 2 }}>
+              {subtitle}
+            </AppText>
+          )}
+        </View>
       </View>
       {onActionPress && (
         <AnimatedPressable onPress={onActionPress} style={styles.action}>
@@ -48,6 +51,17 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    flex: 1,
+  },
+  accentBar: {
+    width: 4,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+    marginRight: spacing.xs,
+    alignSelf: 'stretch',
   },
   action: {
     flexDirection: 'row',

@@ -28,7 +28,7 @@ export function Badge({ label, tone = 'neutral', style, dot = false, size = 'md'
     <View
       style={[
         styles.base,
-        { backgroundColor: c.bg, paddingVertical: size === 'sm' ? 3 : 5 },
+        { backgroundColor: c.bg, paddingVertical: size === 'sm' ? 4 : 6 },
         style,
       ]}
     >
@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    paddingHorizontal: spacing.xs,
+    paddingHorizontal: spacing.sm,
     borderRadius: radius.pill,
   },
   dot: {

@@ -5,11 +5,11 @@ import { HomeworkCard } from './HomeworkCard';
 import { colors, spacing, radius } from '@theme';
 import { Homework, HomeworkStatus } from '@/types';
 
-const COLUMNS: { key: HomeworkStatus; label: string }[] = [
-  { key: 'overdue', label: 'Overdue' },
-  { key: 'pending', label: 'Pending' },
-  { key: 'submitted', label: 'Submitted' },
-  { key: 'graded', label: 'Graded' },
+const COLUMNS: { key: HomeworkStatus; label: string; accent: string }[] = [
+  { key: 'overdue', label: 'Overdue', accent: colors.dangerStrong },
+  { key: 'pending', label: 'Pending', accent: colors.warningStrong },
+  { key: 'submitted', label: 'Submitted', accent: colors.infoStrong },
+  { key: 'graded', label: 'Graded', accent: colors.successStrong },
 ];
 
 interface HomeworkBoardProps {
@@ -25,9 +25,12 @@ export function HomeworkBoard({ items, onPressItem }: HomeworkBoardProps) {
         return (
           <View key={col.key} style={styles.column}>
             <View style={styles.columnHeader}>
-              <AppText variant="bodySemibold">{col.label}</AppText>
-              <View style={styles.countPill}>
-                <AppText variant="tiny" color={colors.textSecondary}>
+              <View style={styles.columnTitle}>
+                <View style={[styles.columnDot, { backgroundColor: col.accent }]} />
+                <AppText variant="bodySemibold">{col.label}</AppText>
+              </View>
+              <View style={[styles.countPill, { backgroundColor: `${col.accent}1F` }]}>
+                <AppText variant="tiny" color={col.accent}>
                   {colItems.length}
                 </AppText>
               </View>
@@ -57,6 +60,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
     paddingHorizontal: 2,
+  },
+  columnTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  columnDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
   },
   countPill: {
     backgroundColor: colors.surfaceAlt,

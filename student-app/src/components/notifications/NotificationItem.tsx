@@ -26,7 +26,11 @@ export function NotificationItem({
   return (
     <Card
       onPress={onPress}
-      style={[styles.card, !notification.isRead && styles.unreadCard]}
+      style={[
+        styles.card,
+        { borderLeftWidth: 3, borderLeftColor: meta.fg },
+        !notification.isRead && styles.unreadCard,
+      ]}
       bordered={notification.isRead}
     >
       <View style={styles.row}>
@@ -54,7 +58,7 @@ export function NotificationItem({
 
 const styles = StyleSheet.create({
   card: { marginBottom: spacing.sm },
-  unreadCard: { borderWidth: 1.5, borderColor: colors.primaryLight },
+  unreadCard: { borderWidth: 1.5, borderColor: colors.primary, backgroundColor: colors.primarySoft },
   row: { flexDirection: 'row', alignItems: 'flex-start' },
   iconWrap: {
     width: 38,

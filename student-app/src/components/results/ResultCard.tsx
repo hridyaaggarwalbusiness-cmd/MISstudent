@@ -5,18 +5,20 @@ import { Card, AppText, Badge } from '@components/ui';
 import { colors, spacing, radius } from '@theme';
 import { ExamResult } from '@/types';
 import { friendlyDate } from '@utils/date';
+import { gradeColor } from '@utils/grade';
 
 export function ResultCard({ result, onPress }: { result: ExamResult; onPress: () => void }) {
+  const grade = gradeColor(result.grade);
   return (
-    <Card onPress={onPress} style={styles.card}>
+    <Card onPress={onPress} style={[styles.card, { borderLeftWidth: 3, borderLeftColor: grade.fg }]}>
       <View style={styles.row}>
-        <View style={styles.gradeCircle}>
-          <AppText variant="h2" color={colors.primary} style={{ fontSize: 18 }}>
+        <View style={[styles.gradeCircle, { backgroundColor: grade.bg }]}>
+          <AppText variant="h2" color={grade.fg} style={{ fontSize: 18 }}>
             {result.grade}
           </AppText>
         </View>
         <View style={{ flex: 1, marginLeft: spacing.sm }}>
-          <AppText variant="bodySemibold">{result.examName}</AppText>
+          <AppText variant="bodySemibold" style={{ fontSize: 15 }}>{result.examName}</AppText>
           <AppText variant="caption" color={colors.textSecondary}>
             {result.term} · {friendlyDate(result.date)}
           </AppText>

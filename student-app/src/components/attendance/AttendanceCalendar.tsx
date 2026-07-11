@@ -80,7 +80,7 @@ export function AttendanceCalendar({ monthDate, days, onDayPress }: AttendanceCa
                 ]}
               >
                 <AppText
-                  variant="caption"
+                  variant="bodyMedium"
                   color={status === 'future' || status === 'unmarked' ? colors.textTertiary : colorSet.fg}
                 >
                   {format(date, 'd')}
@@ -129,8 +129,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dayCircle: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
