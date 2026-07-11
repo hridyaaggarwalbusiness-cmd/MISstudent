@@ -62,6 +62,11 @@ export function ExamsPage() {
     await repo.exams.remove(id);
   }
 
+  function classLabel(id: string) {
+    const c = classes.find((cl) => cl.id === id);
+    return c ? `${c.name} - ${c.section}` : id;
+  }
+
   return (
     <div>
       <PageHeader
@@ -85,7 +90,7 @@ export function ExamsPage() {
             columns={[
               { key: 'name', header: 'Exam', render: (e) => e.name },
               { key: 'subject', header: 'Subject', render: (e) => e.subject },
-              { key: 'class', header: 'Class', render: (e) => e.classId },
+              { key: 'class', header: 'Class', render: (e) => classLabel(e.classId) },
               { key: 'date', header: 'Date', render: (e) => `${e.date} · ${e.startTime}-${e.endTime}` },
               { key: 'status', header: 'Status', render: (e) => <Badge label={e.status} tone={statusTone[e.status]} /> },
               {

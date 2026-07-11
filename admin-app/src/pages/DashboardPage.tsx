@@ -49,6 +49,10 @@ export function DashboardPage() {
 
   const recentHomework = useMemo(() => homework.slice(0, 6), [homework]);
   const recentNotices = useMemo(() => notices.slice(0, 5), [notices]);
+  const classLabel = (id: string) => {
+    const c = classes.find((cl) => cl.id === id);
+    return c ? `${c.name} - ${c.section}` : id;
+  };
 
   const stats = [
     { icon: '🏫', label: 'Classes', value: classes.length, bg: 'var(--color-primary-soft)' },
@@ -90,7 +94,7 @@ export function DashboardPage() {
                   <div>
                     <div className={styles.listItemTitle}>{hw.title}</div>
                     <div className={styles.listItemMeta}>
-                      {hw.subject} · {hw.classId} · by {hw.teacherName}
+                      {hw.subject} · {classLabel(hw.classId)} · by {hw.teacherName}
                     </div>
                   </div>
                   <Badge label={`Due ${hw.dueDate}`} tone="warning" />

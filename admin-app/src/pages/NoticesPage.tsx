@@ -72,6 +72,11 @@ export function NoticesPage() {
     await repo.notices.remove(id);
   }
 
+  function classLabel(id: string) {
+    const c = classes.find((cl) => cl.id === id);
+    return c ? `${c.name} - ${c.section}` : id;
+  }
+
   return (
     <div>
       <PageHeader
@@ -104,7 +109,7 @@ export function NoticesPage() {
                   <div className={styles.noticeMeta}>
                     <span>{n.postedByName}</span>
                     <span>·</span>
-                    <span>{n.targetClassIds.length ? n.targetClassIds.join(', ') : 'All classes'}</span>
+                    <span>{n.targetClassIds.length ? n.targetClassIds.map(classLabel).join(', ') : 'All classes'}</span>
                   </div>
                 </div>
                 <div className={styles.actions}>

@@ -78,6 +78,11 @@ export function TeachersPage() {
     await repo.teachers.remove(id);
   }
 
+  function classLabel(id: string) {
+    const c = classes.find((cl) => cl.id === id);
+    return c ? `${c.name} - ${c.section}` : id;
+  }
+
   return (
     <div>
       <PageHeader
@@ -119,7 +124,7 @@ export function TeachersPage() {
               },
               { key: 'phone', header: 'Phone', render: (t) => t.phone },
               { key: 'subjects', header: 'Subjects', render: (t) => t.subjects.join(', ') || '—' },
-              { key: 'classes', header: 'Classes', render: (t) => t.classIds.join(', ') || '—' },
+              { key: 'classes', header: 'Classes', render: (t) => t.classIds.map(classLabel).join(', ') || '—' },
               {
                 key: 'actions',
                 header: '',

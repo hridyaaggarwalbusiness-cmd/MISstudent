@@ -91,6 +91,10 @@ export function MaterialsPage() {
   }
 
   const filtered = classFilter ? materials.filter((m) => m.classId === classFilter) : materials;
+  const classLabel = (id: string) => {
+    const c = classes.find((cl) => cl.id === id);
+    return c ? `${c.name} - ${c.section}` : id;
+  };
 
   return (
     <div>
@@ -125,7 +129,7 @@ export function MaterialsPage() {
             columns={[
               { key: 'title', header: 'Title', render: (m) => m.title },
               { key: 'subject', header: 'Subject', render: (m) => m.subject },
-              { key: 'class', header: 'Class', render: (m) => m.classId },
+              { key: 'class', header: 'Class', render: (m) => classLabel(m.classId) },
               { key: 'type', header: 'Type', render: (m) => <Badge label={m.type.replace('_', ' ')} tone={typeTone[m.type]} /> },
               { key: 'size', header: 'Size', render: (m) => m.sizeLabel ?? '—' },
               {

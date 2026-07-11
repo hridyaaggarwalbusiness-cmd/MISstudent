@@ -25,6 +25,10 @@ export function HomeworkPage() {
   }
 
   const isOverdue = (dueDate: string) => new Date(dueDate) < new Date();
+  const classLabel = (id: string) => {
+    const c = classes.find((cl) => cl.id === id);
+    return c ? `${c.name} - ${c.section}` : id;
+  };
 
   return (
     <div>
@@ -54,7 +58,7 @@ export function HomeworkPage() {
             columns={[
               { key: 'title', header: 'Title', render: (h) => h.title },
               { key: 'subject', header: 'Subject', render: (h) => h.subject },
-              { key: 'class', header: 'Class', render: (h) => h.classId },
+              { key: 'class', header: 'Class', render: (h) => classLabel(h.classId) },
               { key: 'teacher', header: 'Teacher', render: (h) => h.teacherName },
               {
                 key: 'due',
