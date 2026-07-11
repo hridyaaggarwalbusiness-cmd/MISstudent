@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { AnimatedPressable } from './AnimatedPressable';
 import { AppText } from './AppText';
-import { colors, radius } from '@theme';
+import { colors, radius, shadows } from '@theme';
 import { Ionicons } from '@expo/vector-icons';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
@@ -60,7 +60,7 @@ export function Button({
           width: fullWidth ? '100%' : undefined,
           opacity: isDisabled ? 0.5 : 1,
         },
-        variant === 'primary' && styles.primary,
+        variant === 'primary' && [styles.primary, shadows.glow(colors.primary)],
         variant === 'secondary' && styles.secondary,
         variant === 'outline' && styles.outline,
         variant === 'ghost' && styles.ghost,
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.sm,
+    borderRadius: radius.pill,
   },
   primary: {
     backgroundColor: colors.primary,
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   },
   outline: {
     backgroundColor: 'transparent',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
   },
   ghost: {

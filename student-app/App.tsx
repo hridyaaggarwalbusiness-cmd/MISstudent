@@ -11,6 +11,11 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
+import {
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+  Manrope_800ExtraBold,
+} from '@expo-google-fonts/manrope';
 import { RootNavigator } from '@navigation/RootNavigator';
 import { LoginScreen } from '@screens/auth/LoginScreen';
 import { useAuthStore } from '@store/useAuthStore';
@@ -25,6 +30,9 @@ export default function App() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+    Manrope_800ExtraBold,
   });
   const { user, student, initializing, init } = useAuthStore();
 
@@ -46,7 +54,7 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <View style={{ flex: 1, backgroundColor: colors.background }} onLayout={onLayoutRootView}>
-          <StatusBar style="dark" />
+          <StatusBar style="light" />
           {user && student ? <RootNavigator /> : <LoginScreen />}
         </View>
       </SafeAreaProvider>

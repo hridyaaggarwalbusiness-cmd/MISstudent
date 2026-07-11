@@ -22,7 +22,7 @@ export function AttachmentRow({ attachment, onPress, onRemove }: AttachmentRowPr
       style={styles.row}
       disabled={!onPress}
     >
-      <View style={[styles.iconWrap, { backgroundColor: `${color}1A` }]}>
+      <View style={[styles.iconWrap, { backgroundColor: `${color}29` }]}>
         <Ionicons name={attachmentIcon(attachment.type)} size={18} color={color} />
       </View>
       <View style={{ flex: 1, marginLeft: spacing.sm }}>

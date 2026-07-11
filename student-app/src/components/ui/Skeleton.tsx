@@ -32,7 +32,7 @@ export function Skeleton({ width = '100%', height = 16, borderRadius = radius.xs
     <View style={[{ width, height, borderRadius, backgroundColor: colors.surfaceSunken, overflow: 'hidden' }, style]}>
       <Animated.View style={[StyleSheet.absoluteFill, animatedStyle]}>
         <LinearGradient
-          colors={['transparent', 'rgba(255,255,255,0.9)', 'transparent']}
+          colors={['transparent', 'rgba(255,255,255,0.10)', 'transparent']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={StyleSheet.absoluteFill}

@@ -21,8 +21,24 @@ function shadow(elevation: number, opacity: number, radius: number, offsetY: num
 
 export const shadows = {
   none: {},
-  xs: shadow(1, 0.025, 2, 1),
-  sm: shadow(1, 0.04, 6, 2),
-  md: shadow(2, 0.05, 12, 4),
-  lg: shadow(4, 0.07, 20, 8),
+  xs: shadow(1, 0.18, 3, 1),
+  sm: shadow(2, 0.22, 8, 3),
+  md: shadow(4, 0.28, 16, 6),
+  lg: shadow(8, 0.34, 26, 10),
+  glow: (color: string) =>
+    Platform.select({
+      ios: {
+        shadowColor: color,
+        shadowOpacity: 0.45,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 6 },
+      },
+      android: { elevation: 6 },
+      default: {
+        shadowColor: color,
+        shadowOpacity: 0.45,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 6 },
+      },
+    }),
 };

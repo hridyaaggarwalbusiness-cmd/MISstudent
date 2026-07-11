@@ -32,12 +32,12 @@ export function DashboardHeader({
     <View style={styles.wrap}>
       <View style={styles.topRow}>
         <AnimatedPressable onPress={onAvatarPress} style={styles.identity} haptic={false}>
-          <Avatar uri={photoUrl} name={name} size={42} />
+          <Avatar uri={photoUrl} name={name} size={44} ringColor={colors.primary} />
           <View style={{ marginLeft: spacing.sm }}>
             <AppText variant="caption" color={colors.textTertiary}>
               {greetingForNow()}
             </AppText>
-            <AppText variant="h2" numberOfLines={1}>
+            <AppText variant="h1" numberOfLines={1}>
               {firstName}
             </AppText>
           </View>
