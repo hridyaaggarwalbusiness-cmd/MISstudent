@@ -8,6 +8,7 @@ import {
   SkeletonCard,
   EmptyState,
   ErrorState,
+  EdgeFade,
 } from '@components/ui';
 import { MaterialCard } from '@components/materials/MaterialCard';
 import { colors, spacing } from '@theme';
@@ -63,22 +64,25 @@ export function StudyMaterialsScreen() {
       <DetailHeader title="Study Materials" />
       <View style={styles.header}>
         <SearchBar value={query} onChangeText={setQuery} placeholder="Search materials or subject" />
-        <FlatList
-          data={FILTERS}
-          horizontal
-          keyExtractor={(f) => f.key}
-          showsHorizontalScrollIndicator={false}
-          style={{ marginTop: spacing.sm }}
-          contentContainerStyle={{ paddingRight: spacing.lg }}
-          renderItem={({ item }) => (
-            <Chip
-              label={item.label}
-              active={filter === item.key}
-              onPress={() => setFilter(item.key)}
-              style={{ marginRight: spacing.xs }}
-            />
-          )}
-        />
+        <View style={{ position: 'relative' }}>
+          <FlatList
+            data={FILTERS}
+            horizontal
+            keyExtractor={(f) => f.key}
+            showsHorizontalScrollIndicator={false}
+            style={{ marginTop: spacing.sm }}
+            contentContainerStyle={{ paddingRight: spacing.lg }}
+            renderItem={({ item }) => (
+              <Chip
+                label={item.label}
+                active={filter === item.key}
+                onPress={() => setFilter(item.key)}
+                style={{ marginRight: spacing.xs }}
+              />
+            )}
+          />
+          <EdgeFade />
+        </View>
       </View>
 
       {error && !data ? (

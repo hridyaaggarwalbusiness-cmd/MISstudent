@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
-import { AppText } from '@components/ui';
+import { Ionicons } from '@expo/vector-icons';
+import { AppText, EdgeFade } from '@components/ui';
 import { colors, spacing, radius, shadows, accentForKey } from '@theme';
 import { DayOfWeek, TimetablePeriod } from '@/types';
 
@@ -42,7 +43,15 @@ export function TimetableGrid({ periods, todayCode, currentPeriodId }: Timetable
     periods.find((p) => p.day === day && p.periodNumber === periodNumber);
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+    <View>
+      <View style={styles.swipeHint}>
+        <AppText variant="tiny" color={colors.textTertiary}>
+          Swipe to see all 6 days
+        </AppText>
+        <Ionicons name="arrow-forward" size={12} color={colors.textTertiary} style={{ marginLeft: 4 }} />
+      </View>
+      <View style={styles.scrollerWrap}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={true}>
       <View style={styles.tableShadowWrap}>
         <View style={styles.table}>
         <View style={styles.row}>
@@ -116,11 +125,23 @@ export function TimetableGrid({ periods, todayCode, currentPeriodId }: Timetable
         ))}
         </View>
       </View>
-    </ScrollView>
+      </ScrollView>
+      <EdgeFade />
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  swipeHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginBottom: spacing.xs,
+  },
+  scrollerWrap: {
+    position: 'relative',
+  },
   tableShadowWrap: {
     borderRadius: radius.md,
     ...shadows.sm,

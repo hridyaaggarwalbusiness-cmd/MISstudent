@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@navigation/types';
-import { AppText, SearchBar, Chip, SkeletonCard, EmptyState, ErrorState } from '@components/ui';
+import { AppText, SearchBar, Chip, SkeletonCard, EmptyState, ErrorState, EdgeFade } from '@components/ui';
 import { NoticeListItem } from '@components/notices/NoticeListItem';
 import { colors, spacing, layout } from '@theme';
 import { useNoticesStore } from '@store/useNoticesStore';
@@ -73,22 +73,25 @@ export function NoticesScreen() {
         <View style={{ marginTop: spacing.md }}>
           <SearchBar value={query} onChangeText={setQuery} placeholder="Search notices" />
         </View>
-        <FlatList
-          data={FILTERS}
-          horizontal
-          keyExtractor={(f) => f.key}
-          showsHorizontalScrollIndicator={false}
-          style={{ marginTop: spacing.sm }}
-          contentContainerStyle={{ paddingRight: spacing.lg }}
-          renderItem={({ item }) => (
-            <Chip
-              label={item.label}
-              active={filter === item.key}
-              onPress={() => setFilter(item.key)}
-              style={{ marginRight: spacing.xs }}
-            />
-          )}
-        />
+        <View style={{ position: 'relative' }}>
+          <FlatList
+            data={FILTERS}
+            horizontal
+            keyExtractor={(f) => f.key}
+            showsHorizontalScrollIndicator={false}
+            style={{ marginTop: spacing.sm }}
+            contentContainerStyle={{ paddingRight: spacing.lg }}
+            renderItem={({ item }) => (
+              <Chip
+                label={item.label}
+                active={filter === item.key}
+                onPress={() => setFilter(item.key)}
+                style={{ marginRight: spacing.xs }}
+              />
+            )}
+          />
+          <EdgeFade />
+        </View>
       </View>
 
       {error && items.length === 0 ? (
@@ -113,13 +116,16 @@ export function NoticesScreen() {
                 <AppText variant="overline" color={colors.textTertiary} style={{ marginBottom: spacing.sm }}>
                   PINNED
                 </AppText>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {pinned.map((n) => (
-                    <View key={n.id} style={{ width: 270, marginRight: spacing.sm }}>
-                      <NoticeListItem notice={n} onPress={() => navigation.navigate('NoticeDetail', { id: n.id })} />
-                    </View>
-                  ))}
-                </ScrollView>
+                <View style={{ position: 'relative' }}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    {pinned.map((n) => (
+                      <View key={n.id} style={{ width: 270, marginRight: spacing.sm }}>
+                        <NoticeListItem notice={n} onPress={() => navigation.navigate('NoticeDetail', { id: n.id })} />
+                      </View>
+                    ))}
+                  </ScrollView>
+                  <EdgeFade />
+                </View>
               </View>
             ) : null
           }

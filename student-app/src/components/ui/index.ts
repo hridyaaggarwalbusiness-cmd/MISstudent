@@ -20,3 +20,4 @@ export * from './LineChart';
 export * from './SegmentedControl';
 export * from './AttachmentRow';
 export * from './DetailHeader';
+export * from './EdgeFade';

@@ -19,6 +19,7 @@ import { colors, spacing, layout } from '@theme';
 import { repo } from '@data/repositories';
 import { useAsyncResource } from '@hooks/useAsyncResource';
 import { useAuthStore } from '@store/useAuthStore';
+import { abbreviateLabel } from '@utils/text';
 
 export function ResultsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -30,7 +31,7 @@ export function ResultsScreen() {
 
   const trendData = useMemo(() => {
     if (!data) return [];
-    return data.map((r) => ({ label: r.term.replace('Term ', 'T'), value: r.percentage }));
+    return data.map((r) => ({ label: abbreviateLabel(r.examName), value: r.percentage }));
   }, [data]);
 
   const sorted = useMemo(() => (data ? [...data].reverse() : []), [data]);
@@ -39,7 +40,7 @@ export function ResultsScreen() {
   const subjectBreakdown = useMemo(() => {
     if (!latest) return [];
     return latest.subjects.map((s) => ({
-      label: s.subject.length > 4 ? s.subject.slice(0, 4) : s.subject,
+      label: abbreviateLabel(s.subject),
       value: Math.round((s.marksObtained / s.maxMarks) * 1000) / 10,
     }));
   }, [latest]);

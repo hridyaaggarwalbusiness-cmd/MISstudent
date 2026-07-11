@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@navigation/types';
-import { AppText, SearchBar, Chip, IconButton, SkeletonCard, EmptyState, ErrorState } from '@components/ui';
+import { AppText, SearchBar, Chip, IconButton, SkeletonCard, EmptyState, ErrorState, EdgeFade } from '@components/ui';
 import { HomeworkCard } from '@components/homework/HomeworkCard';
 import { HomeworkBoard } from '@components/homework/HomeworkBoard';
 import { colors, spacing, layout } from '@theme';
@@ -94,22 +94,25 @@ export function HomeworkListScreen() {
           <SearchBar value={query} onChangeText={setQuery} placeholder="Search homework or subject" />
         </View>
         {viewMode === 'list' && (
-          <FlatList
-            data={FILTERS}
-            horizontal
-            keyExtractor={(f) => f.key}
-            showsHorizontalScrollIndicator={false}
-            style={{ marginTop: spacing.sm }}
-            contentContainerStyle={{ paddingRight: spacing.lg }}
-            renderItem={({ item }) => (
-              <Chip
-                label={item.label}
-                active={filter === item.key}
-                onPress={() => setFilter(item.key)}
-                style={{ marginRight: spacing.xs }}
-              />
-            )}
-          />
+          <View style={{ position: 'relative' }}>
+            <FlatList
+              data={FILTERS}
+              horizontal
+              keyExtractor={(f) => f.key}
+              showsHorizontalScrollIndicator={false}
+              style={{ marginTop: spacing.sm }}
+              contentContainerStyle={{ paddingRight: spacing.lg }}
+              renderItem={({ item }) => (
+                <Chip
+                  label={item.label}
+                  active={filter === item.key}
+                  onPress={() => setFilter(item.key)}
+                  style={{ marginRight: spacing.xs }}
+                />
+              )}
+            />
+            <EdgeFade />
+          </View>
         )}
       </View>
 

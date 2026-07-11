@@ -21,5 +21,7 @@ export const radius = {
 export const layout = {
   screenPadding: spacing.lg,
   maxContentWidth: 560,
-  tabBarClearance: 32,
+  // Bottom padding reserved on scrollable tab screens so the last row of
+  // content doesn't sit flush against the tab bar once fully scrolled.
+  tabBarClearance: 56,
 };
