@@ -29,6 +29,14 @@ jobs:
         working-directory: admin-app
         run: npm run build
 
+      - name: Install teacher-app dependencies
+        working-directory: teacher-app
+        run: npm ci
+
+      - name: Export teacher-app web build
+        working-directory: teacher-app
+        run: npx expo export --platform web --output-dir dist
+
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
@@ -36,6 +44,11 @@ jobs:
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: firebase hosting:sites:create mis-student-admin --project mis-student-6yhtxk --token "$FIREBASE_TOKEN" || true
+
+      - name: Ensure teacher Hosting site exists
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: firebase hosting:sites:create mis-student-teacher --project mis-student-6yhtxk --token "$FIREBASE_TOKEN" || true
 
       - name: Deploy to Firebase Hosting
         env:

@@ -37,6 +37,21 @@
           "destination": "/index.html"
         }
       ]
+    },
+    {
+      "target": "teacher",
+      "public": "teacher-app/dist",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
     }
   ]
 }
