@@ -12,13 +12,14 @@ import {
 } from '@components/ui';
 import { DashboardHeader } from '@components/dashboard/DashboardHeader';
 import { QuickActionsGrid, QuickAction } from '@components/dashboard/QuickActionsGrid';
+import { StatsStrip, StatItem } from '@components/dashboard/StatsStrip';
 import { PeriodCard } from '@components/dashboard/PeriodCard';
 import { AttendanceSummaryCard } from '@components/dashboard/AttendanceSummaryCard';
 import { LatestMarksCard } from '@components/dashboard/LatestMarksCard';
 import { ExamCountdownCard } from '@components/dashboard/ExamCountdownCard';
 import { HomeworkCard } from '@components/homework/HomeworkCard';
 import { NoticeListItem } from '@components/notices/NoticeListItem';
-import { colors, spacing, layout } from '@theme';
+import { colors, spacing, layout, gradients } from '@theme';
 import { repo } from '@data/repositories';
 import { useAsyncResource } from '@hooks/useAsyncResource';
 import { useStudentStore } from '@store/useStudentStore';
@@ -122,54 +123,106 @@ export function HomeScreen() {
 
   const latestResult = data?.results[data.results.length - 1];
 
+  const nextPeriod = useMemo(
+    () => todaysPeriods.find((p) => p.id === nextPeriodId || p.id === currentPeriodId),
+    [todaysPeriods, nextPeriodId, currentPeriodId],
+  );
+
   const quickActions: QuickAction[] = [
+    {
+      key: 'homework',
+      label: 'Homework',
+      icon: 'book-outline',
+      gradient: gradients.ocean,
+      onPress: () => navigation.navigate('MainTabs', { screen: 'HomeworkTab' }),
+    },
+    {
+      key: 'timetable',
+      label: 'Timetable',
+      icon: 'calendar-outline',
+      gradient: gradients.sunrise,
+      onPress: () => navigation.navigate('MainTabs', { screen: 'TimetableTab' }),
+    },
     {
       key: 'attendance',
       label: 'Attendance',
       icon: 'checkmark-done-outline',
-      bg: colors.successBg,
-      fg: colors.successStrong,
+      gradient: gradients.success,
       onPress: () => navigation.navigate('Attendance'),
     },
     {
       key: 'results',
       label: 'Results',
       icon: 'stats-chart-outline',
-      bg: colors.primarySoft,
-      fg: colors.primary,
+      gradient: gradients.primary,
       onPress: () => navigation.navigate('Results'),
     },
     {
       key: 'materials',
       label: 'Materials',
       icon: 'library-outline',
-      bg: colors.infoBg,
-      fg: colors.infoStrong,
+      gradient: gradients.teal,
       onPress: () => navigation.navigate('StudyMaterials'),
     },
     {
       key: 'calendar',
       label: 'Calendar',
-      icon: 'calendar-outline',
-      bg: colors.warningBg,
-      fg: colors.warningStrong,
+      icon: 'today-outline',
+      gradient: gradients.amber,
       onPress: () => navigation.navigate('AcademicCalendar'),
     },
     {
       key: 'notices',
       label: 'Notices',
       icon: 'megaphone-outline',
-      bg: colors.dangerBg,
-      fg: colors.dangerStrong,
+      gradient: gradients.berry,
       onPress: () => navigation.navigate('MainTabs', { screen: 'NoticesTab' }),
     },
     {
       key: 'profile',
       label: 'Profile',
       icon: 'person-outline',
-      bg: '#F5F3FF',
-      fg: colors.accentViolet,
+      gradient: gradients.violet,
       onPress: () => navigation.navigate('MainTabs', { screen: 'ProfileTab' }),
+    },
+  ];
+
+  const statItems: StatItem[] = [
+    {
+      key: 'pending',
+      icon: 'book-outline',
+      value: String(upcomingHomework.length),
+      label: 'Pending tasks',
+      tint: colors.infoStrong,
+      tintBg: colors.infoBg,
+      onPress: () => navigation.navigate('MainTabs', { screen: 'HomeworkTab' }),
+    },
+    {
+      key: 'attendance-stat',
+      icon: 'checkmark-done-outline',
+      value: `${attendancePct}%`,
+      label: 'Attendance',
+      tint: colors.successStrong,
+      tintBg: colors.successBg,
+      onPress: () => navigation.navigate('Attendance'),
+    },
+    {
+      key: 'notices-stat',
+      icon: 'notifications-outline',
+      value: String(unreadCount),
+      label: 'Unread',
+      tint: colors.dangerStrong,
+      tintBg: colors.dangerBg,
+      onPress: () => navigation.navigate('Notifications'),
+    },
+    {
+      key: 'next-class',
+      icon: 'time-outline',
+      value: nextPeriod ? nextPeriod.startTime : '—',
+      label: nextPeriod ? nextPeriod.subject : 'No more classes',
+      tint: colors.warningStrong,
+      tintBg: colors.warningBg,
+      onPress: () => navigation.navigate('MainTabs', { screen: 'TimetableTab' }),
     },
   ];
 
@@ -213,6 +266,10 @@ export function HomeScreen() {
               <QuickActionsGrid actions={quickActions} />
             </View>
           )}
+        </View>
+
+        <View style={[styles.section, { marginTop: spacing.lg }]}>
+          {loading ? <Skeleton height={80} borderRadius={16} /> : <StatsStrip items={statItems} />}
         </View>
 
         <View style={styles.section}>

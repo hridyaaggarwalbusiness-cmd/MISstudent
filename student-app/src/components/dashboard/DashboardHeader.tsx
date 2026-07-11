@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { AppText, Avatar, IconButton, AnimatedPressable } from '@components/ui';
 import { colors, spacing, gradients, radius } from '@theme';
 import { greetingForNow } from '@utils/date';
+import { format } from 'date-fns';
 
 interface DashboardHeaderProps {
   name: string;
@@ -24,25 +25,17 @@ export function DashboardHeader({
   onAvatarPress,
   onBellPress,
 }: DashboardHeaderProps) {
-  const firstName = name.split(' ')[0];
+  const firstName = name.split(' ')[0] || 'Student';
 
   return (
     <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.wrap}>
-      <View style={styles.row}>
-        <AnimatedPressable onPress={onAvatarPress} style={styles.avatarRow} haptic={false}>
-          <Avatar uri={photoUrl} name={name} size={48} ringColor="rgba(255,255,255,0.5)" />
-          <View style={{ marginLeft: spacing.sm }}>
-            <AppText variant="caption" color="rgba(255,255,255,0.8)">
-              {greetingForNow()},
-            </AppText>
-            <AppText variant="h2" color={colors.textInverse}>
-              {firstName}
-            </AppText>
-            <AppText variant="tiny" color="rgba(255,255,255,0.75)" style={{ marginTop: 1 }}>
-              {className} · Section {section}
-            </AppText>
-          </View>
-        </AnimatedPressable>
+      <View style={[styles.decorCircle, styles.decorCircleLarge]} />
+      <View style={[styles.decorCircle, styles.decorCircleSmall]} />
+
+      <View style={styles.topRow}>
+        <AppText variant="tiny" color="rgba(255,255,255,0.7)">
+          {format(new Date(), 'EEEE, d MMMM')}
+        </AppText>
         <IconButton
           icon="notifications-outline"
           onPress={onBellPress}
@@ -51,6 +44,23 @@ export function DashboardHeader({
           badge={unreadNotifications > 0}
         />
       </View>
+
+      <AnimatedPressable onPress={onAvatarPress} style={styles.avatarRow} haptic={false}>
+        <Avatar uri={photoUrl} name={name} size={54} ringColor="rgba(255,255,255,0.55)" />
+        <View style={{ marginLeft: spacing.sm, flex: 1 }}>
+          <AppText variant="caption" color="rgba(255,255,255,0.8)">
+            {greetingForNow()},
+          </AppText>
+          <AppText variant="h1" color={colors.textInverse} numberOfLines={1}>
+            {firstName}
+          </AppText>
+          <View style={styles.classPill}>
+            <AppText variant="tiny" color={colors.textInverse} style={{ fontSize: 11 }}>
+              {className} · Section {section}
+            </AppText>
+          </View>
+        </View>
+      </AnimatedPressable>
     </LinearGradient>
   );
 }
@@ -62,8 +72,26 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
     borderBottomLeftRadius: radius.xl,
     borderBottomRightRadius: radius.xl,
+    overflow: 'hidden',
   },
-  row: {
+  decorCircle: {
+    position: 'absolute',
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  decorCircleLarge: {
+    width: 180,
+    height: 180,
+    top: -90,
+    right: -50,
+  },
+  decorCircleSmall: {
+    width: 90,
+    height: 90,
+    bottom: -30,
+    left: -20,
+  },
+  topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -71,6 +99,14 @@ const styles = StyleSheet.create({
   avatarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    marginTop: spacing.md,
+  },
+  classPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    marginTop: 4,
   },
 });

@@ -74,24 +74,25 @@ function TabButton({
 }) {
   const progress = useDerivedValue(() => withSpring(focused ? 1 : 0, { damping: 16, stiffness: 180 }));
 
-  const pillStyle = useAnimatedStyle(() => ({
+  const bubbleStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
-    transform: [{ scale: 0.85 + progress.value * 0.15 }],
+    transform: [{ scale: 0.7 + progress.value * 0.3 }],
   }));
 
   return (
     <Pressable style={styles.tabButton} onPress={onPress}>
-      <Animated.View style={[styles.activePill, pillStyle]} />
-      <Ionicons
-        name={icon}
-        size={22}
-        color={focused ? colors.primary : colors.textTertiary}
-        style={{ marginBottom: 3 }}
-      />
+      <View style={styles.iconSlot}>
+        <Animated.View style={[styles.activeBubble, bubbleStyle]} />
+        <Ionicons
+          name={icon}
+          size={20}
+          color={focused ? colors.primary : colors.textTertiary}
+        />
+      </View>
       <AppText
         variant="tiny"
         color={focused ? colors.primary : colors.textTertiary}
-        style={{ fontSize: 10.5 }}
+        style={{ fontSize: 10.5, marginTop: 3 }}
       >
         {label}
       </AppText>
@@ -123,12 +124,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 4,
   },
-  activePill: {
+  iconSlot: {
+    width: 40,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeBubble: {
     position: 'absolute',
-    top: -2,
-    width: 34,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: colors.primary,
+    width: 40,
+    height: 32,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
   },
 });
