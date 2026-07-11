@@ -1,8 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { AppText, Avatar, IconButton, AnimatedPressable } from '@components/ui';
-import { colors, spacing, gradients, radius } from '@theme';
+import { colors, spacing } from '@theme';
 import { greetingForNow } from '@utils/date';
 import { format } from 'date-fns';
 
@@ -14,6 +13,7 @@ interface DashboardHeaderProps {
   unreadNotifications: number;
   onAvatarPress: () => void;
   onBellPress: () => void;
+  onSearchPress: () => void;
 }
 
 export function DashboardHeader({
@@ -24,68 +24,80 @@ export function DashboardHeader({
   unreadNotifications,
   onAvatarPress,
   onBellPress,
+  onSearchPress,
 }: DashboardHeaderProps) {
   const firstName = name.split(' ')[0] || 'Student';
 
   return (
-    <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.wrap}>
+    <View style={styles.wrap}>
       <View style={styles.topRow}>
-        <AppText variant="tiny" color="rgba(255,255,255,0.7)">
-          {format(new Date(), 'EEEE, d MMMM')}
-        </AppText>
-        <IconButton
-          icon="notifications-outline"
-          onPress={onBellPress}
-          color={colors.textInverse}
-          backgroundColor="rgba(255,255,255,0.18)"
-          badge={unreadNotifications > 0}
-        />
-      </View>
-
-      <AnimatedPressable onPress={onAvatarPress} style={styles.avatarRow} haptic={false}>
-        <Avatar uri={photoUrl} name={name} size={54} ringColor="rgba(255,255,255,0.55)" />
-        <View style={{ marginLeft: spacing.sm, flex: 1 }}>
-          <AppText variant="caption" color="rgba(255,255,255,0.8)">
-            {greetingForNow()},
-          </AppText>
-          <AppText variant="h1" color={colors.textInverse} numberOfLines={1}>
-            {firstName}
-          </AppText>
-          <View style={styles.classPill}>
-            <AppText variant="tiny" color={colors.textInverse} style={{ fontSize: 11 }}>
-              {className} · Section {section}
+        <AnimatedPressable onPress={onAvatarPress} style={styles.identity} haptic={false}>
+          <Avatar uri={photoUrl} name={name} size={42} />
+          <View style={{ marginLeft: spacing.sm }}>
+            <AppText variant="caption" color={colors.textTertiary}>
+              {greetingForNow()}
+            </AppText>
+            <AppText variant="h2" numberOfLines={1}>
+              {firstName}
             </AppText>
           </View>
+        </AnimatedPressable>
+        <View style={styles.actions}>
+          <IconButton icon="search-outline" onPress={onSearchPress} size={38} />
+          <IconButton
+            icon="notifications-outline"
+            onPress={onBellPress}
+            size={38}
+            style={{ marginLeft: spacing.xs }}
+            badge={unreadNotifications > 0}
+          />
         </View>
-      </AnimatedPressable>
-    </LinearGradient>
+      </View>
+
+      <View style={styles.metaRow}>
+        <View style={styles.classPill}>
+          <AppText variant="caption" color={colors.textSecondary}>
+            {className} · Section {section}
+          </AppText>
+        </View>
+        <AppText variant="captionRegular" color={colors.textTertiary}>
+          {format(new Date(), 'EEEE, d MMMM')}
+        </AppText>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xxl,
-    borderBottomLeftRadius: radius.lg,
-    borderBottomRightRadius: radius.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.md,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  avatarRow: {
+  identity: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 1,
+  },
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: spacing.md,
   },
   classPill: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-    marginTop: 4,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
   },
 });

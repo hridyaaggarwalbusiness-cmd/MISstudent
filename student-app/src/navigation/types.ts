@@ -18,6 +18,7 @@ export type RootStackParamList = {
   NoticeDetail: { id: string };
   AcademicCalendar: undefined;
   Notifications: undefined;
+  Search: undefined;
 };
 
 declare global {

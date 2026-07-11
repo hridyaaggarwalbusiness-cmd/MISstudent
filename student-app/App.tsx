@@ -11,10 +11,6 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
-import {
-  PlusJakartaSans_600SemiBold,
-  PlusJakartaSans_700Bold,
-} from '@expo-google-fonts/plus-jakarta-sans';
 import { RootNavigator } from '@navigation/RootNavigator';
 import { LoginScreen } from '@screens/auth/LoginScreen';
 import { useAuthStore } from '@store/useAuthStore';
@@ -29,8 +25,6 @@ export default function App() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
-    PlusJakartaSans_600SemiBold,
-    PlusJakartaSans_700Bold,
   });
   const { user, student, initializing, init } = useAuthStore();
 

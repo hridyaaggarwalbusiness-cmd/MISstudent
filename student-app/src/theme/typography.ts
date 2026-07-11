@@ -5,24 +5,22 @@ export const fontFamily = {
   medium: 'Inter_500Medium',
   semibold: 'Inter_600SemiBold',
   bold: 'Inter_700Bold',
-  display: 'PlusJakartaSans_700Bold',
-  displaySemibold: 'PlusJakartaSans_600SemiBold',
 };
 
 type Variant = TextStyle & { fontFamily: string };
 
 export const typography: Record<string, Variant> = {
-  displayLg: { fontFamily: fontFamily.display, fontSize: 30, lineHeight: 38, letterSpacing: -0.4 },
-  displayMd: { fontFamily: fontFamily.display, fontSize: 24, lineHeight: 31, letterSpacing: -0.3 },
-  h1: { fontFamily: fontFamily.displaySemibold, fontSize: 22, lineHeight: 28, letterSpacing: -0.2 },
-  h2: { fontFamily: fontFamily.semibold, fontSize: 18, lineHeight: 24 },
-  h3: { fontFamily: fontFamily.semibold, fontSize: 16, lineHeight: 22 },
-  bodyLg: { fontFamily: fontFamily.regular, fontSize: 16, lineHeight: 23 },
+  displayLg: { fontFamily: fontFamily.bold, fontSize: 30, lineHeight: 36, letterSpacing: -0.6 },
+  displayMd: { fontFamily: fontFamily.bold, fontSize: 24, lineHeight: 30, letterSpacing: -0.4 },
+  h1: { fontFamily: fontFamily.semibold, fontSize: 21, lineHeight: 27, letterSpacing: -0.3 },
+  h2: { fontFamily: fontFamily.semibold, fontSize: 17, lineHeight: 23, letterSpacing: -0.15 },
+  h3: { fontFamily: fontFamily.semibold, fontSize: 15, lineHeight: 21 },
+  bodyLg: { fontFamily: fontFamily.regular, fontSize: 16, lineHeight: 24 },
   body: { fontFamily: fontFamily.regular, fontSize: 14, lineHeight: 20 },
   bodyMedium: { fontFamily: fontFamily.medium, fontSize: 14, lineHeight: 20 },
   bodySemibold: { fontFamily: fontFamily.semibold, fontSize: 14, lineHeight: 20 },
-  caption: { fontFamily: fontFamily.medium, fontSize: 12, lineHeight: 16 },
-  captionRegular: { fontFamily: fontFamily.regular, fontSize: 12, lineHeight: 16 },
-  overline: { fontFamily: fontFamily.semibold, fontSize: 11, lineHeight: 14, letterSpacing: 0.6 },
-  tiny: { fontFamily: fontFamily.medium, fontSize: 10, lineHeight: 13 },
+  caption: { fontFamily: fontFamily.medium, fontSize: 12.5, lineHeight: 17 },
+  captionRegular: { fontFamily: fontFamily.regular, fontSize: 12.5, lineHeight: 17 },
+  overline: { fontFamily: fontFamily.semibold, fontSize: 11, lineHeight: 14, letterSpacing: 0.8 },
+  tiny: { fontFamily: fontFamily.medium, fontSize: 10.5, lineHeight: 14 },
 };

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@navigation/types';
@@ -19,7 +20,7 @@ import { LatestMarksCard } from '@components/dashboard/LatestMarksCard';
 import { ExamCountdownCard } from '@components/dashboard/ExamCountdownCard';
 import { HomeworkCard } from '@components/homework/HomeworkCard';
 import { NoticeListItem } from '@components/notices/NoticeListItem';
-import { colors, spacing, layout } from '@theme';
+import { colors, spacing, layout, radius } from '@theme';
 import { repo } from '@data/repositories';
 import { useAsyncResource } from '@hooks/useAsyncResource';
 import { useStudentStore } from '@store/useStudentStore';
@@ -236,14 +237,14 @@ export function HomeScreen() {
 
   if (error && !data) {
     return (
-      <View style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <ErrorState onRetry={refresh} />
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <DashboardHeader
         name={student?.name ?? 'Student'}
         photoUrl={student?.photoUrl}
@@ -252,6 +253,7 @@ export function HomeScreen() {
         unreadNotifications={unreadCount}
         onAvatarPress={() => navigation.navigate('MainTabs', { screen: 'ProfileTab' })}
         onBellPress={() => navigation.navigate('Notifications')}
+        onSearchPress={() => navigation.navigate('Search')}
       />
       <ScrollView
         style={{ flex: 1 }}
@@ -266,7 +268,7 @@ export function HomeScreen() {
           />
         }
       >
-        <View style={{ marginTop: -spacing.xl, paddingHorizontal: spacing.lg }}>
+        <View style={{ paddingHorizontal: spacing.lg }}>
           {loading ? (
             <SkeletonCard lines={2} />
           ) : (
@@ -408,7 +410,7 @@ export function HomeScreen() {
           )}
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -421,7 +423,7 @@ const styles = StyleSheet.create({
   },
   quickActionsCard: {
     backgroundColor: colors.surface,
-    borderRadius: 20,
+    borderRadius: radius.lg,
     padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.borderSoft,

@@ -21,8 +21,8 @@ function shadow(elevation: number, opacity: number, radius: number, offsetY: num
 
 export const shadows = {
   none: {},
-  xs: shadow(1, 0.04, 3, 1),
-  sm: shadow(2, 0.06, 8, 2),
-  md: shadow(4, 0.08, 16, 4),
-  lg: shadow(8, 0.1, 24, 8),
+  xs: shadow(1, 0.025, 2, 1),
+  sm: shadow(1, 0.04, 6, 2),
+  md: shadow(2, 0.05, 12, 4),
+  lg: shadow(4, 0.07, 20, 8),
 };

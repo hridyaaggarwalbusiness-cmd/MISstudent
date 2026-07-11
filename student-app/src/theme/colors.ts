@@ -2,106 +2,123 @@ export const palette = {
   white: '#FFFFFF',
   black: '#000000',
 
-  indigo50: '#EEF2FF',
-  indigo100: '#E0E7FF',
-  indigo200: '#C7D2FE',
-  indigo400: '#818CF8',
-  indigo500: '#6366F1',
-  indigo600: '#4F46E5',
-  indigo700: '#4338CA',
+  // Neutral ink scale — cool, slightly desaturated grays (not pure black/gray)
+  gray50: '#FAFAFB',
+  gray100: '#F4F4F7',
+  gray150: '#ECECF1',
+  gray200: '#E1E1E8',
+  gray300: '#CBCBD6',
+  gray400: '#9E9EAE',
+  gray500: '#77778B',
+  gray600: '#5A5A6E',
+  gray700: '#40404F',
+  gray800: '#26262F',
+  gray900: '#15151C',
+  gray950: '#0C0C11',
 
-  violet500: '#8B5CF6',
-  violet600: '#7C3AED',
+  // Brand — a single, confident indigo-violet
+  brand50: '#F4F4FE',
+  brand100: '#E7E7FD',
+  brand200: '#C9C9FA',
+  brand300: '#A5A4F5',
+  brand400: '#8180F0',
+  brand500: '#5B58EA',
+  brand600: '#4640D1',
+  brand700: '#3730A8',
 
-  emerald50: '#ECFDF5',
-  emerald100: '#D1FAE5',
-  emerald500: '#10B981',
-  emerald600: '#059669',
+  // Semantic accents
+  green50: '#EFFCF4',
+  green500: '#18A957',
+  green600: '#128245',
 
-  amber50: '#FFFBEB',
-  amber100: '#FEF3C7',
-  amber500: '#F59E0B',
-  amber600: '#D97706',
+  amber50: '#FFF9EC',
+  amber500: '#DA8B0A',
+  amber600: '#B06D06',
 
-  rose50: '#FFF1F2',
-  rose100: '#FFE4E6',
-  rose500: '#F43F5E',
-  rose600: '#E11D48',
+  red50: '#FEF2F2',
+  red500: '#DE3730',
+  red600: '#B5231D',
 
-  sky50: '#F0F9FF',
-  sky100: '#E0F2FE',
-  sky500: '#0EA5E9',
-  sky600: '#0284C7',
+  blue50: '#EFF5FF',
+  blue500: '#2568EB',
+  blue600: '#1A4FC4',
 
-  slate50: '#F8FAFC',
-  slate100: '#F1F5F9',
-  slate200: '#E2E8F0',
-  slate300: '#CBD5E1',
-  slate400: '#94A3B8',
-  slate500: '#64748B',
-  slate600: '#475569',
-  slate700: '#334155',
-  slate800: '#1E293B',
-  slate900: '#0F172A',
+  violet50: '#F7F2FF',
+  violet500: '#8646E8',
+  violet600: '#6D31C9',
+
+  rose50: '#FFF1F4',
+  rose500: '#E23A72',
+  rose600: '#BC1F57',
+
+  sky50: '#EEF9FF',
+  sky500: '#0B93D6',
+  sky600: '#0876AE',
+
+  emerald50: '#EDFCF6',
+  emerald500: '#0FA97A',
+  emerald600: '#0C8863',
 };
 
 export const colors = {
   // Brand
-  primary: palette.indigo600,
-  primaryLight: palette.indigo100,
-  primarySoft: palette.indigo50,
-  primaryDark: palette.indigo700,
-  secondary: palette.violet600,
+  primary: palette.brand500,
+  primaryLight: palette.brand200,
+  primarySoft: palette.brand50,
+  primaryDark: palette.brand600,
+  secondary: palette.violet500,
 
   // Surfaces
-  background: '#F7F8FC',
+  background: palette.gray50,
   surface: palette.white,
-  surfaceAlt: palette.slate50,
+  surfaceAlt: palette.gray100,
+  surfaceSunken: palette.gray150,
   surfaceRaised: palette.white,
-  border: palette.slate200,
-  borderSoft: '#EDEFF6',
-  overlay: 'rgba(15, 23, 42, 0.55)',
+  border: palette.gray200,
+  borderSoft: palette.gray150,
+  borderStrong: palette.gray300,
+  overlay: 'rgba(12, 12, 17, 0.55)',
 
   // Text
-  textPrimary: palette.slate900,
-  textSecondary: palette.slate500,
-  textTertiary: palette.slate400,
+  textPrimary: palette.gray900,
+  textSecondary: palette.gray600,
+  textTertiary: palette.gray400,
   textInverse: palette.white,
-  textLink: palette.indigo600,
+  textLink: palette.brand500,
 
   // Semantic
-  success: palette.emerald500,
-  successBg: palette.emerald50,
-  successStrong: palette.emerald600,
+  success: palette.green500,
+  successBg: palette.green50,
+  successStrong: palette.green600,
   warning: palette.amber500,
   warningBg: palette.amber50,
   warningStrong: palette.amber600,
-  danger: palette.rose500,
-  dangerBg: palette.rose50,
-  dangerStrong: palette.rose600,
-  info: palette.sky500,
-  infoBg: palette.sky50,
-  infoStrong: palette.sky600,
+  danger: palette.red500,
+  dangerBg: palette.red50,
+  dangerStrong: palette.red600,
+  info: palette.blue500,
+  infoBg: palette.blue50,
+  infoStrong: palette.blue600,
 
-  // Grades / status accents used across cards
-  accentIndigo: palette.indigo600,
+  // Grades / status accents used across cards, calendars, attachments
+  accentIndigo: palette.brand500,
   accentViolet: palette.violet500,
   accentSky: palette.sky500,
   accentEmerald: palette.emerald500,
   accentAmber: palette.amber500,
   accentRose: palette.rose500,
 
-  shadow: '#0F172A',
+  shadow: palette.gray900,
 };
 
 // Deterministic color coding used for subjects, categories, avatars, etc.
 export const accentPairs: { bg: string; fg: string }[] = [
-  { bg: palette.indigo50, fg: palette.indigo600 },
+  { bg: palette.brand50, fg: palette.brand600 },
   { bg: palette.emerald50, fg: palette.emerald600 },
   { bg: palette.amber50, fg: palette.amber600 },
   { bg: palette.rose50, fg: palette.rose600 },
   { bg: palette.sky50, fg: palette.sky600 },
-  { bg: '#F5F3FF', fg: palette.violet600 },
+  { bg: palette.violet50, fg: palette.violet600 },
 ];
 
 export function accentForKey(key: string) {
@@ -115,5 +132,5 @@ export function accentForKey(key: string) {
 }
 
 export const gradients = {
-  primary: [palette.indigo600, palette.violet600] as const,
+  primary: [palette.brand500, palette.brand700] as const,
 };

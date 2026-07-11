@@ -1,11 +1,10 @@
 import React, { useEffect } from 'react';
 import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText, Card, Button, Avatar, SkeletonCard } from '@components/ui';
 import { InfoRow } from '@components/profile/InfoRow';
-import { colors, spacing, radius, gradients, layout } from '@theme';
+import { colors, spacing, layout } from '@theme';
 import { useStudentStore } from '@store/useStudentStore';
 import { useAuthStore } from '@store/useAuthStore';
 import { friendlyDate } from '@utils/date';
@@ -31,29 +30,29 @@ export function ProfileScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
-          <Avatar uri={student.photoUrl} name={student.name} size={88} ringColor="rgba(255,255,255,0.6)" />
-          <AppText variant="h1" color={colors.textInverse} style={{ marginTop: spacing.sm }}>
+        <View style={styles.header}>
+          <Avatar uri={student.photoUrl} name={student.name} size={80} />
+          <AppText variant="h1" style={{ marginTop: spacing.sm }}>
             {student.name}
           </AppText>
-          <AppText variant="body" color="rgba(255,255,255,0.85)" style={{ marginTop: 2 }}>
+          <AppText variant="body" color={colors.textSecondary} style={{ marginTop: 2 }}>
             {student.className} · Section {student.section}
           </AppText>
           <View style={styles.badgeRow}>
             <View style={styles.headerBadge}>
-              <AppText variant="caption" color={colors.textInverse}>
+              <AppText variant="caption" color={colors.textSecondary}>
                 Roll No. {student.rollNumber}
               </AppText>
             </View>
             {student.house && (
               <View style={styles.headerBadge}>
-                <AppText variant="caption" color={colors.textInverse}>
+                <AppText variant="caption" color={colors.textSecondary}>
                   {student.house}
                 </AppText>
               </View>
             )}
           </View>
-        </LinearGradient>
+        </View>
 
         <View style={styles.section}>
           <SectionLabel icon="school-outline" title="Academic Information" />
@@ -134,17 +133,17 @@ const styles = StyleSheet.create({
   content: { paddingBottom: layout.tabBarClearance },
   header: {
     alignItems: 'center',
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xl,
-    borderBottomLeftRadius: radius.xl,
-    borderBottomRightRadius: radius.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
   badgeRow: { flexDirection: 'row', marginTop: spacing.sm },
   headerBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: colors.surfaceAlt,
     paddingHorizontal: spacing.sm,
     paddingVertical: 5,
-    borderRadius: radius.pill,
+    borderRadius: 999,
     marginHorizontal: 4,
   },
   section: { paddingHorizontal: spacing.lg, marginTop: spacing.lg },

@@ -15,7 +15,7 @@ interface CardProps extends ViewProps {
 export function Card({
   onPress,
   padded = true,
-  elevation = 'sm',
+  elevation = 'none',
   bordered = true,
   style,
   children,
