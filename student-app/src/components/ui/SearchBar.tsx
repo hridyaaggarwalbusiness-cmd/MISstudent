@@ -49,11 +49,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.pill,
+    borderRadius: radius.sm,
     borderWidth: 1,
     borderColor: colors.borderSoft,
     paddingHorizontal: spacing.md,
-    height: 46,
+    height: 44,
   },
   input: {
     flex: 1,

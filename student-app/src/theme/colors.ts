@@ -79,7 +79,6 @@ export const colors = {
   textSecondary: palette.gray600,
   textTertiary: palette.gray400,
   textInverse: palette.white,
-  textOnAccent: palette.gray900,
   textLink: palette.blue500,
 
   // Semantic
@@ -96,9 +95,17 @@ export const colors = {
   infoBg: '#EAF7FF',
   infoStrong: palette.sky600,
 
-  // Extra vivid accents used only for the home-screen action tiles
-  tileTeal: palette.teal500,
-  tileOrange: palette.orange500,
+  // Muted, deep-toned accents used only for the home-screen action tiles —
+  // deliberately deeper than the "500" semantic tones so a single white
+  // text/icon color reads cleanly on every tile without special-casing.
+  tileBlue: palette.blue600,
+  tileGreen: palette.green600,
+  tileYellow: palette.amber600,
+  tileRed: palette.red600,
+  tileViolet: palette.violet600,
+  tileTeal: palette.teal600,
+  tileOrange: palette.orange600,
+  tileSky: palette.sky600,
 
   // Grades / status accents used across cards, calendars, attachments
   accentIndigo: palette.blue500,

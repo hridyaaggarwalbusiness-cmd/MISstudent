@@ -13,8 +13,8 @@ export const fontFamily = {
 type Variant = TextStyle & { fontFamily: string };
 
 export const typography: Record<string, Variant> = {
-  displayLg: { fontFamily: fontFamily.displayExtraBold, fontSize: 32, lineHeight: 38, letterSpacing: -0.8 },
-  displayMd: { fontFamily: fontFamily.displayExtraBold, fontSize: 26, lineHeight: 32, letterSpacing: -0.6 },
+  displayLg: { fontFamily: fontFamily.display, fontSize: 28, lineHeight: 35, letterSpacing: -0.5 },
+  displayMd: { fontFamily: fontFamily.display, fontSize: 23, lineHeight: 29, letterSpacing: -0.3 },
   h1: { fontFamily: fontFamily.display, fontSize: 22, lineHeight: 28, letterSpacing: -0.4 },
   h2: { fontFamily: fontFamily.displaySemibold, fontSize: 18, lineHeight: 24, letterSpacing: -0.2 },
   h3: { fontFamily: fontFamily.displaySemibold, fontSize: 15.5, lineHeight: 21 },

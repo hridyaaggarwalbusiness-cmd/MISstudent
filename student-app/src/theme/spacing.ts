@@ -10,16 +10,16 @@ export const spacing = {
 };
 
 export const radius = {
-  xs: 8,
-  sm: 12,
-  md: 16,
-  lg: 22,
-  xl: 28,
+  xs: 6,
+  sm: 8,
+  md: 14,
+  lg: 16,
+  xl: 20,
   pill: 999,
 };
 
 export const layout = {
   screenPadding: spacing.lg,
   maxContentWidth: 560,
-  tabBarClearance: 108,
+  tabBarClearance: 32,
 };

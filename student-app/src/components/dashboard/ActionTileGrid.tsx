@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AnimatedPressable, AppText } from '@components/ui';
-import { radius, spacing, shadows } from '@theme';
+import { radius, spacing } from '@theme';
 
 export interface ActionTile {
   key: string;
@@ -20,11 +20,13 @@ export function ActionTileGrid({ tiles }: { tiles: ActionTile[] }) {
         <AnimatedPressable
           key={tile.key}
           onPress={tile.onPress}
-          style={[styles.tile, { backgroundColor: tile.color }, shadows.sm]}
-          scaleTo={0.96}
+          style={[styles.tile, { backgroundColor: tile.color }]}
+          scaleTo={0.97}
         >
-          <Ionicons name={tile.icon} size={22} color={tile.textColor} />
-          <AppText variant="bodySemibold" color={tile.textColor} style={{ marginTop: 8 }} numberOfLines={1}>
+          <View style={[styles.iconWrap, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
+            <Ionicons name={tile.icon} size={17} color={tile.textColor} />
+          </View>
+          <AppText variant="bodyMedium" color={tile.textColor} style={{ marginTop: spacing.sm }} numberOfLines={1}>
             {tile.label}
           </AppText>
         </AnimatedPressable>
@@ -42,8 +44,15 @@ const styles = StyleSheet.create({
   tile: {
     flexBasis: '47%',
     flexGrow: 1,
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
+  },
+  iconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
