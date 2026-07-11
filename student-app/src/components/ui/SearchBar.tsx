@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     marginLeft: spacing.xs,
     fontSize: 14,
     color: colors.textPrimary,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: 'Inter_500Medium',
   },
   filterBtn: {
     marginLeft: spacing.xs,

@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { AnimatedPressable } from './AnimatedPressable';
 import { AppText } from './AppText';
-import { colors, radius } from '@theme';
+import { colors, radius, shadows } from '@theme';
 import { Ionicons } from '@expo/vector-icons';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
@@ -27,9 +27,9 @@ interface ButtonProps {
 }
 
 const sizeMap: Record<Size, { height: number; fontSize: number; paddingH: number; iconSize: number }> = {
-  sm: { height: 34, fontSize: 13, paddingH: 14, iconSize: 15 },
-  md: { height: 46, fontSize: 14.5, paddingH: 20, iconSize: 17 },
-  lg: { height: 52, fontSize: 15.5, paddingH: 24, iconSize: 19 },
+  sm: { height: 36, fontSize: 13.5, paddingH: 14, iconSize: 15 },
+  md: { height: 48, fontSize: 15, paddingH: 20, iconSize: 17 },
+  lg: { height: 54, fontSize: 16, paddingH: 24, iconSize: 19 },
 };
 
 export function Button({
@@ -60,11 +60,11 @@ export function Button({
           width: fullWidth ? '100%' : undefined,
           opacity: isDisabled ? 0.5 : 1,
         },
-        variant === 'primary' && styles.primary,
+        variant === 'primary' && [styles.primary, shadows.sm],
         variant === 'secondary' && styles.secondary,
         variant === 'outline' && styles.outline,
         variant === 'ghost' && styles.ghost,
-        variant === 'danger' && styles.danger,
+        variant === 'danger' && [styles.danger, shadows.sm],
         style,
       ]}
     >
@@ -107,9 +107,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   outline: {
-    backgroundColor: 'transparent',
+    backgroundColor: colors.surface,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
   },
   ghost: {
     backgroundColor: 'transparent',

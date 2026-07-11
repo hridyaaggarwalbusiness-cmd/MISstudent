@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     padding: spacing.sm,
     fontSize: 14,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: 'Inter_500Medium',
     color: colors.textPrimary,
     textAlignVertical: 'top',
   },

@@ -2,18 +2,20 @@ export const palette = {
   white: '#FFFFFF',
   black: '#000000',
 
-  // Neutral ink scale — cool, slightly desaturated grays
-  gray50: '#F8F9FC',
-  gray100: '#F1F3F8',
-  gray150: '#E9EBF2',
-  gray200: '#E1E4ED',
-  gray300: '#CBD1DE',
-  gray400: '#9AA0B1',
-  gray500: '#767C8E',
-  gray600: '#5B5F6E',
-  gray700: '#3F4250',
-  gray800: '#282A35',
-  gray900: '#12141C',
+  // Neutral ink scale — cool, slightly desaturated grays. Darker/higher
+  // contrast across the board than a typical pastel scale on purpose: low
+  // contrast reads as "faded" rather than "restrained".
+  gray50: '#F3F5FA',
+  gray100: '#E9ECF3',
+  gray150: '#DEE2EC',
+  gray200: '#CDD2E0',
+  gray300: '#B2B8CB',
+  gray400: '#828A9E',
+  gray500: '#616980',
+  gray600: '#454C61',
+  gray700: '#333849',
+  gray800: '#1E212B',
+  gray900: '#0B0C12',
 
   // Brand — confident blue
   blue300: '#A9C1FF',

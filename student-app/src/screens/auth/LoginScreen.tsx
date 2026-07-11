@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: spacing.xs,
     fontSize: 15,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: 'Inter_500Medium',
     color: colors.textPrimary,
   },
   errorBox: {
