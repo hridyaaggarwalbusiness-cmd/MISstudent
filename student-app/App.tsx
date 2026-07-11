@@ -54,7 +54,7 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <View style={{ flex: 1, backgroundColor: colors.background }} onLayout={onLayoutRootView}>
-          <StatusBar style="light" />
+          <StatusBar style="dark" />
           {user && student ? <RootNavigator /> : <LoginScreen />}
         </View>
       </SafeAreaProvider>

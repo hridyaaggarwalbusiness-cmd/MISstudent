@@ -36,7 +36,7 @@ export function Screen({
       edges={edges}
       style={[styles.safe, { backgroundColor }, style]}
     >
-      <StatusBar barStyle="light-content" backgroundColor={backgroundColor} />
+      <StatusBar barStyle="dark-content" backgroundColor={backgroundColor} />
       {scroll ? (
         <ScrollView
           style={styles.flex}

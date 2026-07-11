@@ -2,114 +2,123 @@ export const palette = {
   white: '#FFFFFF',
   black: '#000000',
 
-  // Deep charcoal-navy neutral scale (dark-mode canvas)
-  night950: '#08090C',
-  night900: '#0E0F14',
-  night850: '#14151C',
-  night800: '#1A1C25',
-  night750: '#20222C',
-  night700: '#282A36',
-  night600: '#383B48',
-  night500: '#52566A',
-  night400: '#767C93',
-  night300: '#9CA1B5',
-  night200: '#C2C5D3',
-  night100: '#E4E5EC',
-  night50: '#F5F6F9',
+  // Neutral ink scale — cool, slightly desaturated grays
+  gray50: '#F8F9FC',
+  gray100: '#F1F3F8',
+  gray150: '#E9EBF2',
+  gray200: '#E1E4ED',
+  gray300: '#CBD1DE',
+  gray400: '#9AA0B1',
+  gray500: '#767C8E',
+  gray600: '#5B5F6E',
+  gray700: '#3F4250',
+  gray800: '#282A35',
+  gray900: '#12141C',
 
-  // Brand — electric azure blue
-  blue300: '#8FB1FF',
-  blue400: '#5F8FFC',
-  blue500: '#3E7BFA',
-  blue600: '#2C5FDB',
-  blue700: '#1F49B0',
+  // Brand — confident blue
+  blue300: '#A9C1FF',
+  blue400: '#6690FF',
+  blue500: '#3E6BFA',
+  blue600: '#2C52D9',
+  blue700: '#2140AD',
 
-  // Warm secondary accent
-  amber400: '#FBBF63',
-  amber500: '#F0A340',
-  amber600: '#C77D1D',
+  violet400: '#B3A0F8',
+  violet500: '#8B5CF6',
+  violet600: '#6D3FD6',
 
-  green400: '#4ADE80',
-  green500: '#2ECC71',
-  green600: '#1FA35A',
+  green400: '#5FD892',
+  green500: '#22A55E',
+  green600: '#16803F',
 
-  red400: '#FF9891',
-  red500: '#F1584F',
-  red600: '#D33B34',
+  amber400: '#FBC55D',
+  amber500: '#F0A93B',
+  amber600: '#B4720C',
 
-  cyan400: '#67E0F0',
-  cyan500: '#22B8CF',
-  cyan600: '#1595A8',
+  red400: '#FF8A8D',
+  red500: '#E5484D',
+  red600: '#C22A2F',
 
-  violet400: '#C4B5FD',
-  violet500: '#A78BFA',
-  violet600: '#8259E8',
+  teal400: '#4FD1C8',
+  teal500: '#0EA5A0',
+  teal600: '#0A7A76',
 
-  rose400: '#FDA4C1',
-  rose500: '#F0629A',
-  rose600: '#D63E79',
+  orange400: '#FFA662',
+  orange500: '#F2711F',
+  orange600: '#C4560F',
+
+  sky400: '#7DD3FC',
+  sky500: '#0EA5E9',
+  sky600: '#0876AE',
+
+  rose400: '#FB9DBE',
+  rose500: '#E5487A',
+  rose600: '#BD2E5D',
 };
 
 export const colors = {
   // Brand
   primary: palette.blue500,
-  primaryLight: palette.blue400,
-  primarySoft: 'rgba(62, 123, 250, 0.16)',
+  primaryLight: palette.blue300,
+  primarySoft: '#EAF0FF',
   primaryDark: palette.blue600,
-  secondary: palette.amber500,
+  secondary: palette.violet500,
 
-  // Surfaces — dark canvas, lighter surfaces sit "above" it
-  background: palette.night950,
-  surface: palette.night900,
-  surfaceAlt: palette.night850,
-  surfaceRaised: palette.night800,
-  surfaceSunken: palette.night950,
-  border: 'rgba(255, 255, 255, 0.10)',
-  borderSoft: 'rgba(255, 255, 255, 0.06)',
-  borderStrong: 'rgba(255, 255, 255, 0.18)',
-  overlay: 'rgba(4, 5, 8, 0.78)',
+  // Surfaces
+  background: palette.gray50,
+  surface: palette.white,
+  surfaceAlt: palette.gray100,
+  surfaceRaised: palette.white,
+  surfaceSunken: palette.gray150,
+  border: palette.gray200,
+  borderSoft: palette.gray150,
+  borderStrong: palette.gray300,
+  overlay: 'rgba(18, 20, 28, 0.55)',
 
   // Text
-  textPrimary: '#F4F5F8',
-  textSecondary: '#9CA1B2',
-  textTertiary: '#666B7C',
-  textInverse: '#FFFFFF',
-  textOnAccent: '#0A0B0F',
-  textLink: palette.blue400,
+  textPrimary: palette.gray900,
+  textSecondary: palette.gray600,
+  textTertiary: palette.gray400,
+  textInverse: palette.white,
+  textOnAccent: palette.gray900,
+  textLink: palette.blue500,
 
   // Semantic
   success: palette.green500,
-  successBg: 'rgba(46, 204, 113, 0.16)',
-  successStrong: palette.green400,
+  successBg: '#E9FBF1',
+  successStrong: palette.green600,
   warning: palette.amber500,
-  warningBg: 'rgba(240, 163, 64, 0.16)',
-  warningStrong: palette.amber400,
+  warningBg: '#FFF6E4',
+  warningStrong: palette.amber600,
   danger: palette.red500,
-  dangerBg: 'rgba(241, 88, 79, 0.16)',
-  dangerStrong: palette.red400,
-  info: palette.cyan500,
-  infoBg: 'rgba(34, 184, 207, 0.16)',
-  infoStrong: palette.cyan400,
+  dangerBg: '#FFEEEE',
+  dangerStrong: palette.red600,
+  info: palette.sky500,
+  infoBg: '#EAF7FF',
+  infoStrong: palette.sky600,
+
+  // Extra vivid accents used only for the home-screen action tiles
+  tileTeal: palette.teal500,
+  tileOrange: palette.orange500,
 
   // Grades / status accents used across cards, calendars, attachments
-  accentIndigo: palette.blue400,
-  accentViolet: palette.violet400,
-  accentSky: palette.cyan400,
-  accentEmerald: palette.green400,
-  accentAmber: palette.amber400,
-  accentRose: palette.rose400,
+  accentIndigo: palette.blue500,
+  accentViolet: palette.violet500,
+  accentSky: palette.sky500,
+  accentEmerald: palette.green500,
+  accentAmber: palette.amber500,
+  accentRose: palette.rose500,
 
-  shadow: palette.black,
+  shadow: palette.gray900,
 };
 
 // Deterministic color coding used for subjects, categories, avatars, etc.
 export const accentPairs: { bg: string; fg: string }[] = [
-  { bg: 'rgba(95, 143, 252, 0.16)', fg: palette.blue300 },
-  { bg: 'rgba(74, 222, 128, 0.16)', fg: palette.green400 },
-  { bg: 'rgba(251, 191, 99, 0.16)', fg: palette.amber400 },
-  { bg: 'rgba(240, 98, 154, 0.16)', fg: palette.rose400 },
-  { bg: 'rgba(103, 224, 240, 0.16)', fg: palette.cyan400 },
-  { bg: 'rgba(196, 181, 253, 0.16)', fg: palette.violet400 },
+  { bg: '#EAF0FF', fg: palette.blue600 },
+  { bg: '#E9FBF1', fg: palette.green600 },
+  { bg: '#FFF6E4', fg: palette.amber600 },
+  { bg: '#FFEEEE', fg: palette.rose600 },
+  { bg: '#EAF7FF', fg: palette.sky600 },
+  { bg: '#F3EEFF', fg: palette.violet600 },
 ];
 
 export function accentForKey(key: string) {
@@ -124,5 +133,5 @@ export function accentForKey(key: string) {
 
 export const gradients = {
   primary: [palette.blue400, palette.blue600] as const,
-  glass: ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.0)'] as const,
+  glass: ['rgba(255,255,255,0.6)', 'rgba(255,255,255,0.0)'] as const,
 };

@@ -91,7 +91,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderSoft,
-    borderTopColor: colors.borderStrong,
     borderRadius: radius.lg,
     padding: spacing.md,
   },

@@ -47,7 +47,7 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   return (
     <View style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 14) }]}>
       <View style={styles.pill}>
-        <BlurView intensity={55} tint="dark" style={StyleSheet.absoluteFill} />
+        <BlurView intensity={65} tint="light" style={StyleSheet.absoluteFill} />
         <View style={styles.tint} />
         <View style={styles.row}>
           {state.routes.map((route, index) => {
@@ -136,8 +136,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.borderStrong,
-    ...Platform.select({ android: { backgroundColor: 'rgba(14,15,20,0.92)' } }),
+    borderColor: colors.borderSoft,
+    ...shadows.md,
+    ...Platform.select({ android: { backgroundColor: 'rgba(255,255,255,0.96)' } }),
   },
   tint: {
     position: 'absolute',
@@ -145,7 +146,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(14, 15, 20, 0.62)',
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
   },
   row: {
     flexDirection: 'row',

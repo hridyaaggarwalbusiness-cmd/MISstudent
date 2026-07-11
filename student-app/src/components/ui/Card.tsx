@@ -55,6 +55,5 @@ const styles = StyleSheet.create({
   border: {
     borderWidth: 1,
     borderColor: colors.borderSoft,
-    borderTopColor: colors.borderStrong,
   },
 });

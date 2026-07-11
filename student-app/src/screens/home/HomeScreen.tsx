@@ -13,7 +13,7 @@ import {
 } from '@components/ui';
 import { DashboardHeader } from '@components/dashboard/DashboardHeader';
 import { BentoStats } from '@components/dashboard/BentoStats';
-import { QuickActionsRow, QuickAction } from '@components/dashboard/QuickActionsGrid';
+import { ActionTileGrid, ActionTile } from '@components/dashboard/ActionTileGrid';
 import { PeriodCard } from '@components/dashboard/PeriodCard';
 import { LatestMarksCard } from '@components/dashboard/LatestMarksCard';
 import { ExamCountdownCard } from '@components/dashboard/ExamCountdownCard';
@@ -129,62 +129,70 @@ export function HomeScreen() {
     [todaysPeriods, nextPeriodId, currentPeriodId],
   );
 
-  const quickActions: QuickAction[] = [
+  const actionTiles: ActionTile[] = [
     {
       key: 'homework',
       label: 'Homework',
       icon: 'book-outline',
-      bg: colors.infoBg,
-      fg: colors.infoStrong,
+      color: colors.primary,
+      textColor: colors.textInverse,
       onPress: () => navigation.navigate('MainTabs', { screen: 'HomeworkTab' }),
     },
     {
       key: 'timetable',
       label: 'Timetable',
       icon: 'calendar-outline',
-      bg: colors.primarySoft,
-      fg: colors.primary,
+      color: colors.success,
+      textColor: colors.textInverse,
       onPress: () => navigation.navigate('MainTabs', { screen: 'TimetableTab' }),
-    },
-    {
-      key: 'attendance',
-      label: 'Attendance',
-      icon: 'checkmark-done-outline',
-      bg: colors.successBg,
-      fg: colors.successStrong,
-      onPress: () => navigation.navigate('Attendance'),
-    },
-    {
-      key: 'results',
-      label: 'Results',
-      icon: 'stats-chart-outline',
-      bg: colors.primarySoft,
-      fg: colors.secondary,
-      onPress: () => navigation.navigate('Results'),
-    },
-    {
-      key: 'materials',
-      label: 'Materials',
-      icon: 'library-outline',
-      bg: colors.infoBg,
-      fg: colors.infoStrong,
-      onPress: () => navigation.navigate('StudyMaterials'),
     },
     {
       key: 'calendar',
       label: 'Calendar',
       icon: 'today-outline',
-      bg: colors.warningBg,
-      fg: colors.warningStrong,
+      color: colors.warning,
+      textColor: colors.textOnAccent,
       onPress: () => navigation.navigate('AcademicCalendar'),
+    },
+    {
+      key: 'results',
+      label: 'Exams & Results',
+      icon: 'stats-chart-outline',
+      color: colors.danger,
+      textColor: colors.textInverse,
+      onPress: () => navigation.navigate('Results'),
+    },
+    {
+      key: 'attendance',
+      label: 'Attendance',
+      icon: 'checkmark-done-outline',
+      color: colors.secondary,
+      textColor: colors.textInverse,
+      onPress: () => navigation.navigate('Attendance'),
+    },
+    {
+      key: 'materials',
+      label: 'Materials',
+      icon: 'library-outline',
+      color: colors.tileTeal,
+      textColor: colors.textInverse,
+      onPress: () => navigation.navigate('StudyMaterials'),
     },
     {
       key: 'notices',
       label: 'Notices',
       icon: 'megaphone-outline',
-      bg: colors.dangerBg,
-      fg: colors.dangerStrong,
+      color: colors.tileOrange,
+      textColor: colors.textInverse,
       onPress: () => navigation.navigate('MainTabs', { screen: 'NoticesTab' }),
+    },
+    {
+      key: 'notifications',
+      label: 'Notifications',
+      icon: 'notifications-outline',
+      color: colors.info,
+      textColor: colors.textInverse,
+      onPress: () => navigation.navigate('Notifications'),
     },
   ];
 
@@ -223,6 +231,14 @@ export function HomeScreen() {
       >
         <View style={{ paddingHorizontal: spacing.lg }}>
           {loading ? (
+            <Skeleton height={280} borderRadius={18} />
+          ) : (
+            <ActionTileGrid tiles={actionTiles} />
+          )}
+        </View>
+
+        <View style={styles.section}>
+          {loading ? (
             <Skeleton height={150} borderRadius={18} />
           ) : (
             <BentoStats
@@ -238,10 +254,6 @@ export function HomeScreen() {
               onTimetablePress={() => navigation.navigate('MainTabs', { screen: 'TimetableTab' })}
             />
           )}
-        </View>
-
-        <View style={[styles.section, { paddingLeft: spacing.lg }]}>
-          <QuickActionsRow actions={quickActions} />
         </View>
 
         <View style={styles.section}>
