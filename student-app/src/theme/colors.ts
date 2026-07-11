@@ -116,13 +116,4 @@ export function accentForKey(key: string) {
 
 export const gradients = {
   primary: [palette.indigo600, palette.violet600] as const,
-  sunrise: ['#6366F1', '#8B5CF6', '#EC4899'] as const,
-  ocean: [palette.sky500, palette.indigo600] as const,
-  success: [palette.emerald500, '#059669'] as const,
-  dark: [palette.slate800, palette.slate900] as const,
-  amber: [palette.amber500, '#EA580C'] as const,
-  berry: [palette.rose500, palette.violet600] as const,
-  violet: [palette.violet500, palette.indigo700] as const,
-  teal: ['#14B8A6', palette.sky600] as const,
-  slateGrad: [palette.slate600, palette.slate800] as const,
 };

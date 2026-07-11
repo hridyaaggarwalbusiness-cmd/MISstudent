@@ -25,20 +25,4 @@ export const shadows = {
   sm: shadow(2, 0.06, 8, 2),
   md: shadow(4, 0.08, 16, 4),
   lg: shadow(8, 0.1, 24, 8),
-  colored: (color: string) =>
-    Platform.select({
-      ios: {
-        shadowColor: color,
-        shadowOpacity: 0.28,
-        shadowRadius: 14,
-        shadowOffset: { width: 0, height: 8 },
-      },
-      android: { elevation: 6 },
-      default: {
-        shadowColor: color,
-        shadowOpacity: 0.28,
-        shadowRadius: 14,
-        shadowOffset: { width: 0, height: 8 },
-      },
-    }),
 };

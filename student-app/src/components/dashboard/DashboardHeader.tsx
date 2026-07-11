@@ -29,9 +29,6 @@ export function DashboardHeader({
 
   return (
     <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.wrap}>
-      <View style={[styles.decorCircle, styles.decorCircleLarge]} />
-      <View style={[styles.decorCircle, styles.decorCircleSmall]} />
-
       <View style={styles.topRow}>
         <AppText variant="tiny" color="rgba(255,255,255,0.7)">
           {format(new Date(), 'EEEE, d MMMM')}
@@ -70,26 +67,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.xxl,
-    borderBottomLeftRadius: radius.xl,
-    borderBottomRightRadius: radius.xl,
-    overflow: 'hidden',
-  },
-  decorCircle: {
-    position: 'absolute',
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  decorCircleLarge: {
-    width: 180,
-    height: 180,
-    top: -90,
-    right: -50,
-  },
-  decorCircleSmall: {
-    width: 90,
-    height: 90,
-    bottom: -30,
-    left: -20,
+    borderBottomLeftRadius: radius.lg,
+    borderBottomRightRadius: radius.lg,
   },
   topRow: {
     flexDirection: 'row',

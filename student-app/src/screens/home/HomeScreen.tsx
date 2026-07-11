@@ -19,7 +19,7 @@ import { LatestMarksCard } from '@components/dashboard/LatestMarksCard';
 import { ExamCountdownCard } from '@components/dashboard/ExamCountdownCard';
 import { HomeworkCard } from '@components/homework/HomeworkCard';
 import { NoticeListItem } from '@components/notices/NoticeListItem';
-import { colors, spacing, layout, gradients } from '@theme';
+import { colors, spacing, layout } from '@theme';
 import { repo } from '@data/repositories';
 import { useAsyncResource } from '@hooks/useAsyncResource';
 import { useStudentStore } from '@store/useStudentStore';
@@ -133,56 +133,64 @@ export function HomeScreen() {
       key: 'homework',
       label: 'Homework',
       icon: 'book-outline',
-      gradient: gradients.ocean,
+      bg: colors.infoBg,
+      fg: colors.infoStrong,
       onPress: () => navigation.navigate('MainTabs', { screen: 'HomeworkTab' }),
     },
     {
       key: 'timetable',
       label: 'Timetable',
       icon: 'calendar-outline',
-      gradient: gradients.sunrise,
+      bg: colors.primarySoft,
+      fg: colors.primary,
       onPress: () => navigation.navigate('MainTabs', { screen: 'TimetableTab' }),
     },
     {
       key: 'attendance',
       label: 'Attendance',
       icon: 'checkmark-done-outline',
-      gradient: gradients.success,
+      bg: colors.successBg,
+      fg: colors.successStrong,
       onPress: () => navigation.navigate('Attendance'),
     },
     {
       key: 'results',
       label: 'Results',
       icon: 'stats-chart-outline',
-      gradient: gradients.primary,
+      bg: '#F5F3FF',
+      fg: colors.secondary,
       onPress: () => navigation.navigate('Results'),
     },
     {
       key: 'materials',
       label: 'Materials',
       icon: 'library-outline',
-      gradient: gradients.teal,
+      bg: colors.infoBg,
+      fg: colors.infoStrong,
       onPress: () => navigation.navigate('StudyMaterials'),
     },
     {
       key: 'calendar',
       label: 'Calendar',
       icon: 'today-outline',
-      gradient: gradients.amber,
+      bg: colors.warningBg,
+      fg: colors.warningStrong,
       onPress: () => navigation.navigate('AcademicCalendar'),
     },
     {
       key: 'notices',
       label: 'Notices',
       icon: 'megaphone-outline',
-      gradient: gradients.berry,
+      bg: colors.dangerBg,
+      fg: colors.dangerStrong,
       onPress: () => navigation.navigate('MainTabs', { screen: 'NoticesTab' }),
     },
     {
       key: 'profile',
       label: 'Profile',
       icon: 'person-outline',
-      gradient: gradients.violet,
+      bg: colors.primarySoft,
+      fg: colors.primary,
       onPress: () => navigation.navigate('MainTabs', { screen: 'ProfileTab' }),
     },
   ];
