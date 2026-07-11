@@ -1,11 +1,12 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet, ViewStyle, DimensionValue } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
-  withSequence,
   withTiming,
+  Easing,
 } from 'react-native-reanimated';
 import { colors, radius } from '@theme';
 
@@ -17,29 +18,27 @@ interface SkeletonProps {
 }
 
 export function Skeleton({ width = '100%', height = 16, borderRadius = radius.xs, style }: SkeletonProps) {
-  const opacity = useSharedValue(0.5);
+  const sweep = useSharedValue(-1);
 
   useEffect(() => {
-    opacity.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 700 }),
-        withTiming(0.5, { duration: 700 }),
-      ),
-      -1,
-      true,
-    );
-  }, [opacity]);
+    sweep.value = withRepeat(withTiming(1, { duration: 1100, easing: Easing.linear }), -1, false);
+  }, [sweep]);
 
-  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: sweep.value * 220 }],
+  }));
 
   return (
-    <Animated.View
-      style={[
-        { width, height, borderRadius, backgroundColor: colors.surfaceAlt },
-        animatedStyle,
-        style,
-      ]}
-    />
+    <View style={[{ width, height, borderRadius, backgroundColor: colors.surfaceSunken, overflow: 'hidden' }, style]}>
+      <Animated.View style={[StyleSheet.absoluteFill, animatedStyle]}>
+        <LinearGradient
+          colors={['transparent', 'rgba(255,255,255,0.7)', 'transparent']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
+    </View>
   );
 }
 

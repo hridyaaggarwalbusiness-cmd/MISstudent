@@ -1,13 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, ScrollView, StyleSheet, TextInput, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet, TextInput, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp } from '@react-navigation/native';
-import { AppText, Card, Chip, Button, DetailHeader, EmptyState } from '@components/ui';
+import { AppText, Card, Chip, Button, DetailHeader, EmptyState, IconButton } from '@components/ui';
 import { colors, spacing, radius } from '@theme';
 import { RootStackParamList } from '@navigation/types';
 import { useAuthStore } from '@store/useAuthStore';
 import { repo } from '@data/repositories';
 import { Exam, Student, ExamResult } from '@/types';
+
+const emptyExamForm = { name: '', subject: '', date: '', startTime: '', endTime: '', room: '' };
 
 function gradeFor(pct: number): string {
   if (pct >= 90) return 'A+';
@@ -29,6 +31,9 @@ export function ResultEntryScreen() {
   const [existingResults, setExistingResults] = useState<ExamResult[]>([]);
   const [marks, setMarks] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
+  const [creatingExam, setCreatingExam] = useState(false);
+  const [examForm, setExamForm] = useState(emptyExamForm);
+  const [savingExam, setSavingExam] = useState(false);
 
   useEffect(() => {
     if (!classId) return;
@@ -95,16 +100,75 @@ export function ResultEntryScreen() {
     }
   };
 
+  const openCreateExam = () => {
+    setExamForm({ ...emptyExamForm, subject: teacher?.subjects?.[0] ?? '' });
+    setCreatingExam(true);
+  };
+
+  const saveNewExam = async () => {
+    if (!classId) return;
+    if (!examForm.name.trim() || !examForm.subject.trim() || !examForm.date.trim()) {
+      Alert.alert('Missing details', 'Please provide at least a name, subject and date.');
+      return;
+    }
+    setSavingExam(true);
+    try {
+      const created = await repo.exams.create({
+        classId,
+        name: examForm.name.trim(),
+        subject: examForm.subject.trim(),
+        date: examForm.date.trim(),
+        startTime: examForm.startTime.trim(),
+        endTime: examForm.endTime.trim(),
+        room: examForm.room.trim(),
+        status: 'upcoming',
+      });
+      setCreatingExam(false);
+      setSelectedExamId(created.id);
+    } catch (e) {
+      Alert.alert('Could not create exam', e instanceof Error ? e.message : 'Please try again.');
+    } finally {
+      setSavingExam(false);
+    }
+  };
+
+  const examFormModal = (
+    <Modal visible={creatingExam} transparent animationType="fade" onRequestClose={() => setCreatingExam(false)}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalCard}>
+          <AppText variant="h2">New Exam</AppText>
+          <FormField label="Name (e.g. Unit Test 2)" value={examForm.name} onChangeText={(v) => setExamForm((f) => ({ ...f, name: v }))} />
+          <FormField label="Subject" value={examForm.subject} onChangeText={(v) => setExamForm((f) => ({ ...f, subject: v }))} />
+          <FormField label="Date (YYYY-MM-DD)" value={examForm.date} onChangeText={(v) => setExamForm((f) => ({ ...f, date: v }))} />
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <View style={{ flex: 1 }}>
+              <FormField label="Start (HH:mm)" value={examForm.startTime} onChangeText={(v) => setExamForm((f) => ({ ...f, startTime: v }))} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <FormField label="End (HH:mm)" value={examForm.endTime} onChangeText={(v) => setExamForm((f) => ({ ...f, endTime: v }))} />
+            </View>
+          </View>
+          <FormField label="Room" value={examForm.room} onChangeText={(v) => setExamForm((f) => ({ ...f, room: v }))} />
+          <View style={{ flexDirection: 'row', marginTop: spacing.lg, gap: spacing.sm }}>
+            <Button label="Cancel" variant="outline" onPress={() => setCreatingExam(false)} style={{ flex: 1 }} />
+            <Button label="Create" onPress={saveNewExam} loading={savingExam} style={{ flex: 1 }} />
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
   if (!selectedExamId) {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <DetailHeader title="Enter Marks" />
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <AppText variant="h3" style={{ marginBottom: spacing.sm }}>
-            Select an exam
-          </AppText>
+          <View style={styles.selectHeaderRow}>
+            <AppText variant="h3">Select an exam</AppText>
+            <IconButton icon="add" onPress={openCreateExam} backgroundColor={colors.primary} color={colors.textInverse} size={32} />
+          </View>
           {mySubjectExams.length === 0 ? (
-            <EmptyState icon="document-text-outline" title="No exams found" />
+            <EmptyState icon="document-text-outline" title="No exams found" message="Tap + to schedule your first exam." />
           ) : (
             mySubjectExams.map((exam) => (
               <Chip
@@ -116,6 +180,7 @@ export function ResultEntryScreen() {
             ))
           )}
         </ScrollView>
+        {examFormModal}
       </SafeAreaView>
     );
   }
@@ -164,10 +229,35 @@ export function ResultEntryScreen() {
   );
 }
 
+function FormField({
+  label,
+  value,
+  onChangeText,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+}) {
+  return (
+    <View style={{ marginTop: spacing.md }}>
+      <AppText variant="caption" color={colors.textSecondary} style={{ marginBottom: 4 }}>
+        {label}
+      </AppText>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        style={styles.input}
+        placeholderTextColor={colors.textTertiary}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
   row: { flexDirection: 'row', alignItems: 'center' },
+  selectHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
   marksInput: {
     width: 64,
     height: 40,
@@ -177,6 +267,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
     fontFamily: 'Inter_500Medium',
+    color: colors.textPrimary,
+  },
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: spacing.lg },
+  modalCard: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg },
+  input: {
+    height: 44,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.sm,
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
     color: colors.textPrimary,
   },
 });

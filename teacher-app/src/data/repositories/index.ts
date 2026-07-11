@@ -191,6 +191,13 @@ export const repo = {
       const q = query(collection(db, 'calendarEvents'), orderBy('date', 'asc'));
       return onSnapshot(q, (snap) => cb(snap.docs.map((d) => withId<CalendarEvent>(d))));
     },
+    list: (): Promise<CalendarEvent[]> =>
+      new Promise((resolve) => {
+        const unsub = repo.calendar.subscribeAll((items) => {
+          resolve(items);
+          unsub();
+        });
+      }),
   },
 
   // Firebase Storage isn't provisioned on this project, so attachments are

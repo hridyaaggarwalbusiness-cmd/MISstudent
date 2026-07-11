@@ -5,10 +5,9 @@ import {
   ViewStyle,
   StyleProp,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { AnimatedPressable } from './AnimatedPressable';
 import { AppText } from './AppText';
-import { colors, radius, gradients } from '@theme';
+import { colors, radius, shadows } from '@theme';
 import { Ionicons } from '@expo/vector-icons';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
@@ -28,9 +27,9 @@ interface ButtonProps {
 }
 
 const sizeMap: Record<Size, { height: number; fontSize: number; paddingH: number; iconSize: number }> = {
-  sm: { height: 36, fontSize: 13, paddingH: 14, iconSize: 16 },
-  md: { height: 48, fontSize: 15, paddingH: 20, iconSize: 18 },
-  lg: { height: 56, fontSize: 16, paddingH: 24, iconSize: 20 },
+  sm: { height: 36, fontSize: 13.5, paddingH: 14, iconSize: 15 },
+  md: { height: 48, fontSize: 15, paddingH: 20, iconSize: 17 },
+  lg: { height: 54, fontSize: 16, paddingH: 24, iconSize: 19 },
 };
 
 export function Button({
@@ -47,88 +46,43 @@ export function Button({
 }: ButtonProps) {
   const dims = sizeMap[size];
   const isDisabled = disabled || loading;
+  const textColor = textColorFor(variant);
 
-  const content = (
-    <>
+  return (
+    <AnimatedPressable
+      onPress={isDisabled ? undefined : onPress}
+      disabled={isDisabled}
+      style={[
+        styles.base,
+        {
+          height: dims.height,
+          paddingHorizontal: dims.paddingH,
+          width: fullWidth ? '100%' : undefined,
+          opacity: isDisabled ? 0.5 : 1,
+        },
+        variant === 'primary' && [styles.primary, shadows.sm],
+        variant === 'secondary' && styles.secondary,
+        variant === 'outline' && styles.outline,
+        variant === 'ghost' && styles.ghost,
+        variant === 'danger' && [styles.danger, shadows.sm],
+        style,
+      ]}
+    >
       {loading ? (
-        <ActivityIndicator
-          size="small"
-          color={variant === 'outline' || variant === 'ghost' ? colors.primary : colors.textInverse}
-        />
+        <ActivityIndicator size="small" color={textColor} />
       ) : (
         <>
           {icon && iconPosition === 'left' && (
-            <Ionicons
-              name={icon}
-              size={dims.iconSize}
-              color={textColorFor(variant)}
-              style={{ marginRight: 8 }}
-            />
+            <Ionicons name={icon} size={dims.iconSize} color={textColor} style={{ marginRight: 7 }} />
           )}
-          <AppText
-            variant={size === 'sm' ? 'bodySemibold' : 'bodySemibold'}
-            color={textColorFor(variant)}
-            style={{ fontSize: dims.fontSize }}
-          >
+          <AppText variant="bodySemibold" color={textColor} style={{ fontSize: dims.fontSize }}>
             {label}
           </AppText>
           {icon && iconPosition === 'right' && (
-            <Ionicons
-              name={icon}
-              size={dims.iconSize}
-              color={textColorFor(variant)}
-              style={{ marginLeft: 8 }}
-            />
+            <Ionicons name={icon} size={dims.iconSize} color={textColor} style={{ marginLeft: 7 }} />
           )}
         </>
       )}
-    </>
-  );
-
-  const baseStyle: StyleProp<ViewStyle> = [
-    styles.base,
-    {
-      height: dims.height,
-      paddingHorizontal: dims.paddingH,
-      width: fullWidth ? '100%' : undefined,
-      opacity: isDisabled ? 0.55 : 1,
-    },
-    variant === 'secondary' && styles.secondary,
-    variant === 'outline' && styles.outline,
-    variant === 'ghost' && styles.ghost,
-    variant === 'danger' && styles.danger,
-    style,
-  ];
-
-  if (variant === 'primary') {
-    return (
-      <AnimatedPressable
-        onPress={isDisabled ? undefined : onPress}
-        disabled={isDisabled}
-        style={[{ width: fullWidth ? '100%' : undefined }, style]}
-      >
-        <LinearGradient
-          colors={gradients.primary}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[
-            styles.base,
-            {
-              height: dims.height,
-              paddingHorizontal: dims.paddingH,
-              opacity: isDisabled ? 0.6 : 1,
-            },
-          ]}
-        >
-          {content}
-        </LinearGradient>
-      </AnimatedPressable>
-    );
-  }
-
-  return (
-    <AnimatedPressable onPress={isDisabled ? undefined : onPress} disabled={isDisabled} style={baseStyle}>
-      {content}
     </AnimatedPressable>
   );
 }
@@ -144,15 +98,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
+  },
+  primary: {
+    backgroundColor: colors.primary,
   },
   secondary: {
     backgroundColor: colors.primarySoft,
   },
   outline: {
-    backgroundColor: 'transparent',
+    backgroundColor: colors.surface,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
   },
   ghost: {
     backgroundColor: 'transparent',

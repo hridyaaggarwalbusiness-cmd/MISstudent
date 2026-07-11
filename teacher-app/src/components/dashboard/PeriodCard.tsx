@@ -10,9 +10,12 @@ interface PeriodCardProps {
   isNext?: boolean;
   style?: StyleProp<ViewStyle>;
   compact?: boolean;
+  // Overrides the default "{teacher} · {room}" subtitle — useful on the
+  // teacher app, where showing your own name back to you is redundant.
+  subtitle?: string;
 }
 
-export function PeriodCard({ period, isCurrent, isNext, style, compact }: PeriodCardProps) {
+export function PeriodCard({ period, isCurrent, isNext, style, compact, subtitle }: PeriodCardProps) {
   if (period.isBreak) {
     return (
       <View style={[styles.breakWrap, style]}>
@@ -53,7 +56,7 @@ export function PeriodCard({ period, isCurrent, isNext, style, compact }: Period
             {isNext && !isCurrent && <Badge label="Next" tone="primary" size="sm" />}
           </View>
           <AppText variant="caption" color={colors.textSecondary} numberOfLines={1} style={{ marginTop: 2 }}>
-            {period.teacher} {period.room ? `· ${period.room}` : ''}
+            {subtitle ?? `${period.teacher}${period.room ? ` · ${period.room}` : ''}`}
           </AppText>
         </View>
       </View>

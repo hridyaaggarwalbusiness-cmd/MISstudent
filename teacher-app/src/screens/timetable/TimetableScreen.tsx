@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { AppText, Card, Chip, Button, EmptyState } from '@components/ui';
+import { AppText, Card, Chip, Button, EmptyState, EdgeFade } from '@components/ui';
 import { colors, spacing, radius, layout } from '@theme';
 import { useAuthStore } from '@store/useAuthStore';
 import { repo } from '@data/repositories';
@@ -77,22 +77,24 @@ export function TimetableScreen() {
         </AppText>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.dayPicker}
-        contentContainerStyle={{ paddingHorizontal: spacing.lg }}
-      >
-        {DAYS.map((day) => (
-          <Chip
-            key={day}
-            label={dayFullName[day]}
-            active={selectedDay === day}
-            onPress={() => setSelectedDay(day)}
-            style={{ marginRight: spacing.xs }}
-          />
-        ))}
-      </ScrollView>
+      <View style={[styles.dayPicker, { position: 'relative' }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: spacing.lg }}
+        >
+          {DAYS.map((day) => (
+            <Chip
+              key={day}
+              label={dayFullName[day]}
+              active={selectedDay === day}
+              onPress={() => setSelectedDay(day)}
+              style={{ marginRight: spacing.xs }}
+            />
+          ))}
+        </ScrollView>
+        <EdgeFade />
+      </View>
 
       <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
         {!periods ? null : dayPeriods.length === 0 ? (

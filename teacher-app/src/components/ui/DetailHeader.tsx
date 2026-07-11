@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { IconButton } from './IconButton';
 import { AppText } from './AppText';
-import { spacing } from '@theme';
+import { colors, spacing } from '@theme';
 
 interface DetailHeaderProps {
   title?: string;
@@ -32,5 +32,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderSoft,
   },
 });

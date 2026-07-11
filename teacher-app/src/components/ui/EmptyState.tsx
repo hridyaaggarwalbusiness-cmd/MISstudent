@@ -27,7 +27,7 @@ export function EmptyState({
   return (
     <View style={[styles.container, compact && styles.compact, style]}>
       <View style={styles.iconWrap}>
-        <Ionicons name={icon} size={30} color={colors.primary} />
+        <Ionicons name={icon} size={34} color={colors.primary} />
       </View>
       <AppText variant="h3" align="center" style={{ marginTop: spacing.md }}>
         {title}
@@ -60,8 +60,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
   },
   iconWrap: {
-    width: 64,
-    height: 64,
+    width: 72,
+    height: 72,
     borderRadius: radius.lg,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',

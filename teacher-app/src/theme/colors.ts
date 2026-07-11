@@ -2,106 +2,141 @@ export const palette = {
   white: '#FFFFFF',
   black: '#000000',
 
-  indigo50: '#EEF2FF',
-  indigo100: '#E0E7FF',
-  indigo200: '#C7D2FE',
-  indigo400: '#818CF8',
-  indigo500: '#6366F1',
-  indigo600: '#4F46E5',
-  indigo700: '#4338CA',
+  // Neutral ink scale — cool, slightly desaturated grays. Darker/higher
+  // contrast across the board than a typical pastel scale on purpose: low
+  // contrast reads as "faded" rather than "restrained".
+  gray50: '#F3F5FA',
+  gray100: '#E9ECF3',
+  gray150: '#DEE2EC',
+  gray200: '#CDD2E0',
+  gray300: '#B2B8CB',
+  gray400: '#828A9E',
+  gray500: '#616980',
+  gray600: '#454C61',
+  gray700: '#333849',
+  gray800: '#1E212B',
+  gray900: '#0B0C12',
 
+  // Brand — confident blue (kept for accent coding, but not the primary
+  // brand hue here — that's indigo below, so the teacher app reads as a
+  // distinct role in the suite while sharing the same design language)
+  blue300: '#A9C1FF',
+  blue400: '#6690FF',
+  blue500: '#3E6BFA',
+  blue600: '#2C52D9',
+  blue700: '#2140AD',
+
+  // Brand — teacher app's identity color
+  indigo300: '#B4B3FA',
+  indigo400: '#8482F5',
+  indigo500: '#5F5CE8',
+  indigo600: '#4A47CC',
+  indigo700: '#3B389E',
+
+  violet400: '#B3A0F8',
   violet500: '#8B5CF6',
-  violet600: '#7C3AED',
+  violet600: '#6D3FD6',
 
-  emerald50: '#ECFDF5',
-  emerald100: '#D1FAE5',
-  emerald500: '#10B981',
-  emerald600: '#059669',
+  green400: '#5FD892',
+  green500: '#22A55E',
+  green600: '#16803F',
 
-  amber50: '#FFFBEB',
-  amber100: '#FEF3C7',
-  amber500: '#F59E0B',
-  amber600: '#D97706',
+  amber400: '#FBC55D',
+  amber500: '#F0A93B',
+  amber600: '#B4720C',
 
-  rose50: '#FFF1F2',
-  rose100: '#FFE4E6',
-  rose500: '#F43F5E',
-  rose600: '#E11D48',
+  red400: '#FF8A8D',
+  red500: '#E5484D',
+  red600: '#C22A2F',
 
-  sky50: '#F0F9FF',
-  sky100: '#E0F2FE',
+  teal400: '#4FD1C8',
+  teal500: '#0EA5A0',
+  teal600: '#0A7A76',
+
+  orange400: '#FFA662',
+  orange500: '#F2711F',
+  orange600: '#C4560F',
+
+  sky400: '#7DD3FC',
   sky500: '#0EA5E9',
-  sky600: '#0284C7',
+  sky600: '#0876AE',
 
-  slate50: '#F8FAFC',
-  slate100: '#F1F5F9',
-  slate200: '#E2E8F0',
-  slate300: '#CBD5E1',
-  slate400: '#94A3B8',
-  slate500: '#64748B',
-  slate600: '#475569',
-  slate700: '#334155',
-  slate800: '#1E293B',
-  slate900: '#0F172A',
+  rose400: '#FB9DBE',
+  rose500: '#E5487A',
+  rose600: '#BD2E5D',
 };
 
 export const colors = {
   // Brand
-  primary: palette.indigo600,
-  primaryLight: palette.indigo100,
-  primarySoft: palette.indigo50,
-  primaryDark: palette.indigo700,
-  secondary: palette.violet600,
+  primary: palette.indigo500,
+  primaryLight: palette.indigo300,
+  primarySoft: '#EDECFE',
+  primaryDark: palette.indigo600,
+  secondary: palette.violet500,
 
   // Surfaces
-  background: '#F7F8FC',
+  background: palette.gray50,
   surface: palette.white,
-  surfaceAlt: palette.slate50,
+  surfaceAlt: palette.gray100,
   surfaceRaised: palette.white,
-  border: palette.slate200,
-  borderSoft: '#EDEFF6',
-  overlay: 'rgba(15, 23, 42, 0.55)',
+  surfaceSunken: palette.gray150,
+  border: palette.gray200,
+  borderSoft: palette.gray150,
+  borderStrong: palette.gray300,
+  overlay: 'rgba(18, 20, 28, 0.55)',
 
   // Text
-  textPrimary: palette.slate900,
-  textSecondary: palette.slate500,
-  textTertiary: palette.slate400,
+  textPrimary: palette.gray900,
+  textSecondary: palette.gray600,
+  textTertiary: palette.gray400,
   textInverse: palette.white,
-  textLink: palette.indigo600,
+  textLink: palette.indigo500,
 
   // Semantic
-  success: palette.emerald500,
-  successBg: palette.emerald50,
-  successStrong: palette.emerald600,
+  success: palette.green500,
+  successBg: '#E9FBF1',
+  successStrong: palette.green600,
   warning: palette.amber500,
-  warningBg: palette.amber50,
+  warningBg: '#FFF6E4',
   warningStrong: palette.amber600,
-  danger: palette.rose500,
-  dangerBg: palette.rose50,
-  dangerStrong: palette.rose600,
+  danger: palette.red500,
+  dangerBg: '#FFEEEE',
+  dangerStrong: palette.red600,
   info: palette.sky500,
-  infoBg: palette.sky50,
+  infoBg: '#EAF7FF',
   infoStrong: palette.sky600,
 
-  // Grades / status accents used across cards
-  accentIndigo: palette.indigo600,
+  // Muted, deep-toned accents used only for the home-screen action tiles —
+  // deliberately deeper than the "500" semantic tones so a single white
+  // text/icon color reads cleanly on every tile without special-casing.
+  tileBlue: palette.blue600,
+  tileGreen: palette.green600,
+  tileYellow: palette.amber600,
+  tileRed: palette.red600,
+  tileViolet: palette.violet600,
+  tileTeal: palette.teal600,
+  tileOrange: palette.orange600,
+  tileSky: palette.sky600,
+
+  // Grades / status accents used across cards, calendars, attachments
+  accentIndigo: palette.indigo500,
   accentViolet: palette.violet500,
   accentSky: palette.sky500,
-  accentEmerald: palette.emerald500,
+  accentEmerald: palette.green500,
   accentAmber: palette.amber500,
   accentRose: palette.rose500,
 
-  shadow: '#0F172A',
+  shadow: palette.gray900,
 };
 
 // Deterministic color coding used for subjects, categories, avatars, etc.
 export const accentPairs: { bg: string; fg: string }[] = [
-  { bg: palette.indigo50, fg: palette.indigo600 },
-  { bg: palette.emerald50, fg: palette.emerald600 },
-  { bg: palette.amber50, fg: palette.amber600 },
-  { bg: palette.rose50, fg: palette.rose600 },
-  { bg: palette.sky50, fg: palette.sky600 },
-  { bg: '#F5F3FF', fg: palette.violet600 },
+  { bg: '#EDECFE', fg: palette.indigo600 },
+  { bg: '#E9FBF1', fg: palette.green600 },
+  { bg: '#FFF6E4', fg: palette.amber600 },
+  { bg: '#FFEEEE', fg: palette.rose600 },
+  { bg: '#EAF7FF', fg: palette.sky600 },
+  { bg: '#F3EEFF', fg: palette.violet600 },
 ];
 
 export function accentForKey(key: string) {
@@ -115,9 +150,6 @@ export function accentForKey(key: string) {
 }
 
 export const gradients = {
-  primary: [palette.indigo600, palette.violet600] as const,
-  sunrise: ['#6366F1', '#8B5CF6', '#EC4899'] as const,
-  ocean: [palette.sky500, palette.indigo600] as const,
-  success: [palette.emerald500, '#059669'] as const,
-  dark: [palette.slate800, palette.slate900] as const,
+  primary: [palette.indigo400, palette.indigo600] as const,
+  glass: ['rgba(255,255,255,0.6)', 'rgba(255,255,255,0.0)'] as const,
 };
