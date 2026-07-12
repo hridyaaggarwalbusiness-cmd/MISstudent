@@ -12,6 +12,7 @@ const sections: { label: string; links: { to: string; icon: string; label: strin
       { to: '/classes', icon: '🏫', label: 'Classes' },
       { to: '/teachers', icon: '🧑‍🏫', label: 'Teachers' },
       { to: '/students', icon: '🎓', label: 'Students' },
+      { to: '/admins', icon: '🛡️', label: 'Admins' },
     ],
   },
   {

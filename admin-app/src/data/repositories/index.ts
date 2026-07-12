@@ -38,6 +38,7 @@ import type {
   ExamResult,
   AttendanceRecord,
   Role,
+  AppUser,
 } from '@/types';
 
 function withId<T>(d: { id: string; data: () => unknown }): T {
@@ -69,6 +70,12 @@ async function createAuthAccountWithoutSignIn(
   }
 }
 
+// teacher/student accounts get a matching profile doc in their own
+// collection (teachers/{uid} or students/{uid}); admins only need the
+// users/{uid} role doc, since every security rule's isAdmin() check reads
+// straight from there.
+const PROFILE_COLLECTION: Partial<Record<Role, string>> = { teacher: 'teachers', student: 'students' };
+
 async function createSchoolUser(role: Role, payload: {
   email: string;
   password: string;
@@ -82,10 +89,13 @@ async function createSchoolUser(role: Role, payload: {
     email: payload.email,
     displayName: payload.displayName,
   });
-  await setDoc(doc(db, role === 'teacher' ? 'teachers' : 'students', uid), {
-    id: uid,
-    ...payload.profile,
-  });
+  const profileCollection = PROFILE_COLLECTION[role];
+  if (profileCollection) {
+    await setDoc(doc(db, profileCollection, uid), {
+      id: uid,
+      ...payload.profile,
+    });
+  }
   return uid;
 }
 
@@ -96,7 +106,10 @@ async function createSchoolUser(role: Role, payload: {
 // gone - it just leaves a harmless orphaned credential behind.
 async function revokeSchoolUser(role: Role, uid: string): Promise<void> {
   await deleteDoc(doc(db, 'users', uid));
-  await deleteDoc(doc(db, role === 'teacher' ? 'teachers' : 'students', uid));
+  const profileCollection = PROFILE_COLLECTION[role];
+  if (profileCollection) {
+    await deleteDoc(doc(db, profileCollection, uid));
+  }
 }
 
 export const repo = {
@@ -111,6 +124,16 @@ export const repo = {
       onSnapshot(collection(db, 'classes'), (snap) => cb(snap.docs.map((d) => withId<SchoolClass>(d)))),
     upsert: (item: SchoolClass) => setDoc(doc(db, 'classes', item.id), item, { merge: true }),
     remove: (id: string) => deleteDoc(doc(db, 'classes', id)),
+  },
+
+  admins: {
+    subscribeAll: (cb: (items: AppUser[]) => void): Unsubscribe => {
+      const q = query(collection(db, 'users'), where('role', '==', 'admin'));
+      return onSnapshot(q, (snap) => cb(snap.docs.map((d) => withId<AppUser>(d))));
+    },
+    create: (payload: { email: string; password: string; displayName: string }) =>
+      createSchoolUser('admin', { ...payload, profile: {} }),
+    remove: (id: string) => revokeSchoolUser('admin', id),
   },
 
   teachers: {

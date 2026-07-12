@@ -4,15 +4,18 @@ import { Badge } from '@/components/ui/Badge';
 import { Table, tableStyles } from '@/components/ui/Table';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { PageHeader, pageHeaderStyles } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
 import { repo } from '@/data/repositories';
+import { getErrorMessage } from '@/utils/errors';
 import type { Homework, SchoolClass } from '@/types';
 
 export function HomeworkPage() {
   const { data: homework, loading } = useCollection<Homework>((cb) => repo.homework.subscribeAll(cb));
   const { data: classes } = useCollection<SchoolClass>((cb) => repo.classes.subscribeAll(cb));
   const [classFilter, setClassFilter] = useState('');
+  const [listError, setListError] = useState('');
 
   const filtered = useMemo(
     () => (classFilter ? homework.filter((h) => h.classId === classFilter) : homework),
@@ -21,7 +24,12 @@ export function HomeworkPage() {
 
   async function onDelete(id: string) {
     if (!confirm('Delete this homework assignment?')) return;
-    await repo.homework.remove(id);
+    setListError('');
+    try {
+      await repo.homework.remove(id);
+    } catch (e) {
+      setListError(getErrorMessage(e));
+    }
   }
 
   const isOverdue = (dueDate: string) => new Date(dueDate) < new Date();
@@ -45,6 +53,12 @@ export function HomeworkPage() {
           </select>
         }
       />
+
+      {listError && (
+        <div style={{ marginBottom: 16 }}>
+          <ErrorBanner message={listError} />
+        </div>
+      )}
 
       <Card padded={false}>
         {loading ? (

@@ -7,9 +7,11 @@ import { Table } from '@/components/ui/Table';
 import { TextField, SelectField } from '@/components/ui/FormField';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { PageHeader } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
 import { repo } from '@/data/repositories';
+import { getErrorMessage } from '@/utils/errors';
 import type { SchoolClass, Teacher } from '@/types';
 import { tableStyles } from '@/components/ui/Table';
 
@@ -21,23 +23,34 @@ export function ClassesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<SchoolClass>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [listError, setListError] = useState('');
 
   function openCreate() {
     setForm(emptyForm);
+    setError('');
     setModalOpen(true);
   }
 
   function openEdit(cls: SchoolClass) {
     setForm(cls);
+    setError('');
     setModalOpen(true);
   }
 
   async function onSave() {
+    if (!form.name.trim() || !form.section.trim()) {
+      setError('Class name and section are required.');
+      return;
+    }
+    setError('');
     setSaving(true);
     try {
       const id = form.id || `${form.name.toLowerCase().replace(/\s+/g, '')}-${form.section.toLowerCase()}`;
       await repo.classes.upsert({ ...form, id });
       setModalOpen(false);
+    } catch (e) {
+      setError(getErrorMessage(e));
     } finally {
       setSaving(false);
     }
@@ -45,7 +58,12 @@ export function ClassesPage() {
 
   async function onDelete(id: string) {
     if (!confirm('Delete this class? This cannot be undone.')) return;
-    await repo.classes.remove(id);
+    setListError('');
+    try {
+      await repo.classes.remove(id);
+    } catch (e) {
+      setListError(getErrorMessage(e));
+    }
   }
 
   const teacherName = (id: string) => teachers.find((t) => t.id === id)?.name ?? '—';
@@ -60,6 +78,12 @@ export function ClassesPage() {
           </Button>
         }
       />
+
+      {listError && (
+        <div style={{ marginBottom: 16 }}>
+          <ErrorBanner message={listError} />
+        </div>
+      )}
 
       <Card padded={false}>
         {loading ? (
@@ -124,6 +148,7 @@ export function ClassesPage() {
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {error && <ErrorBanner message={error} />}
           <TextField
             label="Grade / Class Name"
             placeholder="e.g. Grade 9"

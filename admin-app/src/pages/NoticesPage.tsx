@@ -6,10 +6,12 @@ import { Modal } from '@/components/ui/Modal';
 import { TextField, TextAreaField, SelectField } from '@/components/ui/FormField';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { PageHeader } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
 import { repo } from '@/data/repositories';
 import { useAuthStore } from '@/store/useAuthStore';
+import { getErrorMessage } from '@/utils/errors';
 import type { Notice, NoticeCategory, SchoolClass } from '@/types';
 import { tableStyles } from '@/components/ui/Table';
 import styles from './NoticesPage.module.css';
@@ -32,9 +34,12 @@ export function NoticesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [listError, setListError] = useState('');
 
   function openCreate() {
     setForm(emptyForm);
+    setError('');
     setModalOpen(true);
   }
 
@@ -48,6 +53,11 @@ export function NoticesPage() {
   }
 
   async function onSave() {
+    if (!form.title.trim() || !form.body.trim()) {
+      setError('Title and message are required.');
+      return;
+    }
+    setError('');
     setSaving(true);
     try {
       await repo.notices.upsert({
@@ -62,6 +72,8 @@ export function NoticesPage() {
         pinned: form.pinned,
       });
       setModalOpen(false);
+    } catch (e) {
+      setError(getErrorMessage(e));
     } finally {
       setSaving(false);
     }
@@ -69,7 +81,12 @@ export function NoticesPage() {
 
   async function onDelete(id: string) {
     if (!confirm('Delete this notice?')) return;
-    await repo.notices.remove(id);
+    setListError('');
+    try {
+      await repo.notices.remove(id);
+    } catch (e) {
+      setListError(getErrorMessage(e));
+    }
   }
 
   function classLabel(id: string) {
@@ -87,6 +104,12 @@ export function NoticesPage() {
           </Button>
         }
       />
+
+      {listError && (
+        <div style={{ marginBottom: 16 }}>
+          <ErrorBanner message={listError} />
+        </div>
+      )}
 
       {loading ? (
         <Card>
@@ -141,6 +164,7 @@ export function NoticesPage() {
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {error && <ErrorBanner message={error} />}
           <TextField label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           <TextAreaField label="Message" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
           <SelectField

@@ -8,9 +8,11 @@ import { Table, tableStyles } from '@/components/ui/Table';
 import { TextField, TextAreaField, SelectField } from '@/components/ui/FormField';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { PageHeader } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
 import { repo } from '@/data/repositories';
+import { getErrorMessage } from '@/utils/errors';
 import type { CalendarEvent, CalendarEventType } from '@/types';
 
 const typeTone: Record<CalendarEventType, 'success' | 'danger' | 'violet' | 'info' | 'neutral' | 'warning'> = {
@@ -37,22 +39,33 @@ export function CalendarPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<Omit<CalendarEvent, 'id'> & { id?: string }>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [listError, setListError] = useState('');
 
   function openCreate() {
     setForm(emptyForm);
+    setError('');
     setModalOpen(true);
   }
 
   function openEdit(ev: CalendarEvent) {
     setForm(ev);
+    setError('');
     setModalOpen(true);
   }
 
   async function onSave() {
+    if (!form.title.trim() || !form.date) {
+      setError('Title and date are required.');
+      return;
+    }
+    setError('');
     setSaving(true);
     try {
       await repo.calendar.upsert({ ...form, id: form.id ?? '' } as CalendarEvent);
       setModalOpen(false);
+    } catch (e) {
+      setError(getErrorMessage(e));
     } finally {
       setSaving(false);
     }
@@ -60,7 +73,12 @@ export function CalendarPage() {
 
   async function onDelete(id: string) {
     if (!confirm('Delete this event?')) return;
-    await repo.calendar.remove(id);
+    setListError('');
+    try {
+      await repo.calendar.remove(id);
+    } catch (e) {
+      setListError(getErrorMessage(e));
+    }
   }
 
   return (
@@ -73,6 +91,12 @@ export function CalendarPage() {
           </Button>
         }
       />
+
+      {listError && (
+        <div style={{ marginBottom: 16 }}>
+          <ErrorBanner message={listError} />
+        </div>
+      )}
 
       <Card padded={false}>
         {loading ? (
@@ -136,6 +160,7 @@ export function CalendarPage() {
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {error && <ErrorBanner message={error} />}
           <TextField label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <TextField label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />

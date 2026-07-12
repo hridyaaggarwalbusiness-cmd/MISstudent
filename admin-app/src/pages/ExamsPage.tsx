@@ -7,9 +7,11 @@ import { Table, tableStyles } from '@/components/ui/Table';
 import { TextField, SelectField } from '@/components/ui/FormField';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { PageHeader } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
 import { repo } from '@/data/repositories';
+import { getErrorMessage } from '@/utils/errors';
 import type { Exam, SchoolClass, ExamStatus } from '@/types';
 
 const emptyForm: Omit<Exam, 'id'> = {
@@ -36,22 +38,33 @@ export function ExamsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<Omit<Exam, 'id'> & { id?: string }>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [listError, setListError] = useState('');
 
   function openCreate() {
     setForm(emptyForm);
+    setError('');
     setModalOpen(true);
   }
 
   function openEdit(exam: Exam) {
     setForm(exam);
+    setError('');
     setModalOpen(true);
   }
 
   async function onSave() {
+    if (!form.name.trim() || !form.subject.trim() || !form.classId || !form.date) {
+      setError('Exam name, subject, class and date are required.');
+      return;
+    }
+    setError('');
     setSaving(true);
     try {
       await repo.exams.upsert({ ...form, id: form.id ?? '' } as Exam);
       setModalOpen(false);
+    } catch (e) {
+      setError(getErrorMessage(e));
     } finally {
       setSaving(false);
     }
@@ -59,7 +72,12 @@ export function ExamsPage() {
 
   async function onDelete(id: string) {
     if (!confirm('Delete this exam?')) return;
-    await repo.exams.remove(id);
+    setListError('');
+    try {
+      await repo.exams.remove(id);
+    } catch (e) {
+      setListError(getErrorMessage(e));
+    }
   }
 
   function classLabel(id: string) {
@@ -77,6 +95,12 @@ export function ExamsPage() {
           </Button>
         }
       />
+
+      {listError && (
+        <div style={{ marginBottom: 16 }}>
+          <ErrorBanner message={listError} />
+        </div>
+      )}
 
       <Card padded={false}>
         {loading ? (
@@ -131,6 +155,7 @@ export function ExamsPage() {
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {error && <ErrorBanner message={error} />}
           <TextField label="Exam Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <TextField label="Subject" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
           <SelectField label="Class" value={form.classId} onChange={(e) => setForm({ ...form, classId: e.target.value })}>

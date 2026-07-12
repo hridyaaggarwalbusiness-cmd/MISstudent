@@ -4,9 +4,11 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { TextField, SelectField } from '@/components/ui/FormField';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { PageHeader, pageHeaderStyles } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
 import { repo } from '@/data/repositories';
+import { getErrorMessage } from '@/utils/errors';
 import type { SchoolClass, Teacher, TimetablePeriod, DayOfWeek } from '@/types';
 import styles from './TimetablePage.module.css';
 
@@ -31,6 +33,7 @@ export function TimetablePage() {
   const [activeCell, setActiveCell] = useState<{ day: DayOfWeek; periodNumber: number } | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (classes.length && !classId) setClassId(classes[0].id);
@@ -61,11 +64,21 @@ export function TimetablePage() {
           }
         : emptyForm,
     );
+    setError('');
     setModalOpen(true);
   }
 
   async function onSave() {
     if (!activeCell || !classId) return;
+    if (!form.isBreak && !form.subject.trim()) {
+      setError('Subject is required (or mark this as a break).');
+      return;
+    }
+    if (!form.startTime || !form.endTime) {
+      setError('Start and end time are required.');
+      return;
+    }
+    setError('');
     setSaving(true);
     try {
       const teacher = teachers.find((t) => t.id === form.teacherId);
@@ -84,6 +97,8 @@ export function TimetablePage() {
         isBreak: form.isBreak,
       });
       setModalOpen(false);
+    } catch (e) {
+      setError(getErrorMessage(e));
     } finally {
       setSaving(false);
     }
@@ -91,9 +106,14 @@ export function TimetablePage() {
 
   async function onRemove() {
     if (!activeCell || !classId) return;
-    const id = `${classId}_${activeCell.day}_${activeCell.periodNumber}`;
-    await repo.timetable.remove(id);
-    setModalOpen(false);
+    setError('');
+    try {
+      const id = `${classId}_${activeCell.day}_${activeCell.periodNumber}`;
+      await repo.timetable.remove(id);
+      setModalOpen(false);
+    } catch (e) {
+      setError(getErrorMessage(e));
+    }
   }
 
   return (
@@ -172,6 +192,7 @@ export function TimetablePage() {
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {error && <ErrorBanner message={error} />}
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600 }}>
             <input
               type="checkbox"

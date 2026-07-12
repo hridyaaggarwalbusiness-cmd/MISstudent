@@ -7,10 +7,12 @@ import { Table, tableStyles } from '@/components/ui/Table';
 import { TextField, SelectField } from '@/components/ui/FormField';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { PageHeader, pageHeaderStyles } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
 import { repo, MAX_ATTACHMENT_BYTES } from '@/data/repositories';
 import { useAuthStore } from '@/store/useAuthStore';
+import { getErrorMessage } from '@/utils/errors';
 import type { StudyMaterial, MaterialType, SchoolClass } from '@/types';
 
 const typeTone: Record<MaterialType, 'primary' | 'violet' | 'info' | 'warning' | 'success' | 'neutral'> = {
@@ -37,12 +39,15 @@ export function MaterialsPage() {
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState('');
   const [form, setForm] = useState({ title: '', description: '', subject: '', type: 'note' as MaterialType, classId: '' });
+  const [error, setError] = useState('');
+  const [listError, setListError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function openCreate() {
     setForm({ title: '', description: '', subject: '', type: 'note', classId: '' });
     setFile(null);
     setFileError('');
+    setError('');
     setModalOpen(true);
   }
 
@@ -57,7 +62,11 @@ export function MaterialsPage() {
   }
 
   async function onUpload() {
-    if (!file || !form.classId) return;
+    if (!file || !form.classId) {
+      setError('Select a class and a file to upload.');
+      return;
+    }
+    setError('');
     setUploading(true);
     try {
       const path = `studyMaterials/${Date.now()}_${file.name}`;
@@ -80,6 +89,8 @@ export function MaterialsPage() {
         sizeLabel: sizeLabel(file.size),
       });
       setModalOpen(false);
+    } catch (e) {
+      setError(getErrorMessage(e));
     } finally {
       setUploading(false);
     }
@@ -87,7 +98,12 @@ export function MaterialsPage() {
 
   async function onDelete(id: string) {
     if (!confirm('Delete this study material?')) return;
-    await repo.materials.remove(id);
+    setListError('');
+    try {
+      await repo.materials.remove(id);
+    } catch (e) {
+      setListError(getErrorMessage(e));
+    }
   }
 
   const filtered = classFilter ? materials.filter((m) => m.classId === classFilter) : materials;
@@ -116,6 +132,12 @@ export function MaterialsPage() {
           </>
         }
       />
+
+      {listError && (
+        <div style={{ marginBottom: 16 }}>
+          <ErrorBanner message={listError} />
+        </div>
+      )}
 
       <Card padded={false}>
         {loading ? (
@@ -170,6 +192,7 @@ export function MaterialsPage() {
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {error && <ErrorBanner message={error} />}
           <TextField label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           <TextField label="Subject" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
           <SelectField label="Class" value={form.classId} onChange={(e) => setForm({ ...form, classId: e.target.value })}>

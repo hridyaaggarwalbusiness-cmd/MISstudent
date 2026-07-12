@@ -7,9 +7,13 @@ import { Table, tableStyles } from '@/components/ui/Table';
 import { TextField, SelectField } from '@/components/ui/FormField';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorBanner } from '@/components/ui/ErrorBanner';
+import { BulkImportModal, type BulkImportColumn } from '@/components/import/BulkImportModal';
 import { PageHeader, pageHeaderStyles } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
 import { repo } from '@/data/repositories';
+import { getErrorMessage } from '@/utils/errors';
+import { generateTempPassword } from '@/utils/password';
 import type { Student, SchoolClass } from '@/types';
 import styles from './TeachersPage.module.css';
 
@@ -57,12 +61,28 @@ function initials(name: string) {
   return name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
 }
 
+interface ImportRow {
+  name: string;
+  email: string;
+  password: string;
+  classId: string;
+  className: string;
+  section: string;
+  rollNumber: string;
+  admissionNumber: string;
+  phone: string;
+  guardianPhone: string;
+}
+
 export function StudentsPage() {
   const { data: students, loading } = useCollection<Student>((cb) => repo.students.subscribeAll(cb));
   const { data: classes } = useCollection<SchoolClass>((cb) => repo.classes.subscribeAll(cb));
   const [modalOpen, setModalOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [listError, setListError] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [search, setSearch] = useState('');
 
@@ -79,39 +99,57 @@ export function StudentsPage() {
 
   function openCreate() {
     setForm(emptyForm);
+    setError('');
     setModalOpen(true);
   }
 
+  function validate(f: FormState): string | null {
+    if (!f.name.trim()) return 'Full name is required.';
+    if (!/^\S+@\S+\.\S+$/.test(f.email.trim())) return 'Enter a valid email address.';
+    if (f.password.length < 6) return 'Password must be at least 6 characters.';
+    if (!f.classId) return 'Select a class.';
+    if (!f.rollNumber.trim()) return 'Roll number is required.';
+    return null;
+  }
+
   async function onCreate() {
+    const validationError = validate(form);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    setError('');
     setSaving(true);
     try {
       const cls = classes.find((c) => c.id === form.classId);
       await repo.students.create({
-        email: form.email,
+        email: form.email.trim(),
         password: form.password,
-        displayName: form.name,
+        displayName: form.name.trim(),
         profile: {
-          name: form.name,
+          name: form.name.trim(),
           classId: form.classId,
           className: cls?.name ?? '',
           section: cls?.section ?? '',
-          rollNumber: form.rollNumber,
-          admissionNumber: form.admissionNumber,
+          rollNumber: form.rollNumber.trim(),
+          admissionNumber: form.admissionNumber.trim(),
           dateOfBirth: form.dateOfBirth,
           bloodGroup: form.bloodGroup,
           gender: form.gender,
-          email: form.email,
-          phone: form.phone,
-          address: form.address,
-          fatherName: form.fatherName,
-          motherName: form.motherName,
-          guardianPhone: form.guardianPhone,
-          emergencyContactName: form.emergencyContactName,
-          emergencyContactPhone: form.emergencyContactPhone,
-          emergencyContactRelation: form.emergencyContactRelation,
+          email: form.email.trim(),
+          phone: form.phone.trim(),
+          address: form.address.trim(),
+          fatherName: form.fatherName.trim(),
+          motherName: form.motherName.trim(),
+          guardianPhone: form.guardianPhone.trim(),
+          emergencyContactName: form.emergencyContactName.trim(),
+          emergencyContactPhone: form.emergencyContactPhone.trim(),
+          emergencyContactRelation: form.emergencyContactRelation.trim(),
         },
       });
       setModalOpen(false);
+    } catch (e) {
+      setError(getErrorMessage(e));
     } finally {
       setSaving(false);
     }
@@ -119,7 +157,80 @@ export function StudentsPage() {
 
   async function onDelete(id: string) {
     if (!confirm('Remove this student? Their account access will be revoked.')) return;
-    await repo.students.remove(id);
+    setListError('');
+    try {
+      await repo.students.remove(id);
+    } catch (e) {
+      setListError(getErrorMessage(e));
+    }
+  }
+
+  const importColumns: BulkImportColumn[] = [
+    { key: 'name', label: 'Name', required: true },
+    { key: 'email', label: 'Email', required: true },
+    { key: 'class', label: 'Class', required: true, aliases: ['classes'] },
+    { key: 'rollNumber', label: 'Roll Number', aliases: ['roll no', 'roll'], required: true },
+    { key: 'password', label: 'Password', aliases: ['temporary password'] },
+    { key: 'admissionNumber', label: 'Admission Number', aliases: ['admission no'] },
+    { key: 'phone', label: 'Phone' },
+    { key: 'guardianPhone', label: 'Guardian Phone' },
+  ];
+
+  function mapImportRow(cells: Record<string, string>): { value: ImportRow } | { error: string } {
+    const name = (cells.name ?? '').trim();
+    const email = (cells.email ?? '').trim();
+    const classLabel = (cells.class ?? '').trim();
+    const rollNumber = (cells.rollNumber ?? '').trim();
+
+    if (!name) return { error: 'Missing name' };
+    if (!/^\S+@\S+\.\S+$/.test(email)) return { error: 'Invalid or missing email' };
+    if (!rollNumber) return { error: 'Missing roll number' };
+    const cls = classes.find((c) => `${c.name} - ${c.section}`.toLowerCase() === classLabel.toLowerCase());
+    if (!cls) return { error: `Class not found: "${classLabel}" (expected format "Class 9 - B")` };
+
+    return {
+      value: {
+        name,
+        email,
+        password: (cells.password ?? '').trim() || generateTempPassword(),
+        classId: cls.id,
+        className: cls.name,
+        section: cls.section,
+        rollNumber,
+        admissionNumber: (cells.admissionNumber ?? '').trim(),
+        phone: (cells.phone ?? '').trim(),
+        guardianPhone: (cells.guardianPhone ?? '').trim(),
+      },
+    };
+  }
+
+  async function importStudentRow(row: ImportRow): Promise<string> {
+    await repo.students.create({
+      email: row.email,
+      password: row.password,
+      displayName: row.name,
+      profile: {
+        name: row.name,
+        classId: row.classId,
+        className: row.className,
+        section: row.section,
+        rollNumber: row.rollNumber,
+        admissionNumber: row.admissionNumber,
+        dateOfBirth: '',
+        bloodGroup: '',
+        gender: '',
+        email: row.email,
+        phone: row.phone,
+        address: '',
+        fatherName: '',
+        motherName: '',
+        guardianPhone: row.guardianPhone,
+        emergencyContactName: '',
+        emergencyContactPhone: '',
+        emergencyContactRelation: '',
+      },
+    });
+    return `password: ${row.password}`;
   }
 
   return (
@@ -146,12 +257,21 @@ export function StudentsPage() {
                 </option>
               ))}
             </select>
+            <Button variant="outline" onClick={() => setImportOpen(true)} icon="📋">
+              Bulk Import
+            </Button>
             <Button onClick={openCreate} icon="+">
               Add Student
             </Button>
           </>
         }
       />
+
+      {listError && (
+        <div style={{ marginBottom: 16 }}>
+          <ErrorBanner message={listError} />
+        </div>
+      )}
 
       <Card padded={false}>
         {loading ? (
@@ -221,6 +341,11 @@ export function StudentsPage() {
         </>
       }>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          {error && (
+            <div style={{ gridColumn: '1 / -1' }}>
+              <ErrorBanner message={error} />
+            </div>
+          )}
           <TextField label="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <SelectField label="Class" value={form.classId} onChange={(e) => setForm({ ...form, classId: e.target.value })}>
             <option value="">Select class</option>
@@ -234,6 +359,7 @@ export function StudentsPage() {
           <TextField
             label="Temporary Password"
             type="password"
+            hint="At least 6 characters"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
@@ -284,6 +410,16 @@ export function StudentsPage() {
           </div>
         </div>
       </Modal>
+
+      <BulkImportModal<ImportRow>
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Bulk Import Students"
+        columns={importColumns}
+        mapRow={mapImportRow}
+        previewLabel={(v) => `${v.name} <${v.email}> · ${v.className} - ${v.section} · Roll ${v.rollNumber}`}
+        importRow={importStudentRow}
+      />
     </div>
   );
 }
