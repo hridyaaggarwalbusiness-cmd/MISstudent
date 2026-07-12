@@ -1,19 +1,27 @@
 import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Table } from '@/components/ui/Table';
+import { StatStrip } from '@/components/ui/StatStrip';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader, pageHeaderStyles } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
 import { repo } from '@/data/repositories';
 import type { ExamResult, SchoolClass, Student } from '@/types';
+import styles from './ResultsPage.module.css';
 
 const gradeTone = (grade: string) => {
   if (grade.startsWith('A')) return 'success' as const;
   if (grade.startsWith('B')) return 'info' as const;
   if (grade.startsWith('C')) return 'warning' as const;
   return 'danger' as const;
+};
+
+const gradeBarColor: Record<ReturnType<typeof gradeTone>, string> = {
+  success: 'var(--color-success)',
+  info: 'var(--color-info)',
+  warning: 'var(--color-warning)',
+  danger: 'var(--color-danger)',
 };
 
 export function ResultsPage() {
@@ -28,6 +36,30 @@ export function ResultsPage() {
   );
 
   const studentName = (id: string) => students.find((s) => s.id === id)?.name ?? id;
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, ExamResult[]>();
+    for (const r of filtered) {
+      const key = `${r.examId || r.examName}`;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(r);
+    }
+    return Array.from(map.entries())
+      .map(([key, rows]) => ({ key, rows, examName: rows[0].examName, date: rows[0].date }))
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [filtered]);
+
+  const avgPct = filtered.length
+    ? Math.round((filtered.reduce((s, r) => s + (r.marksObtained / (r.maxMarks || 1)) * 100, 0) / filtered.length) * 10) / 10
+    : 0;
+  const atRisk = filtered.filter((r) => r.marksObtained / (r.maxMarks || 1) < 0.4).length;
+
+  const stats = [
+    { icon: '📊', label: 'Total Results', value: filtered.length, tone: 'primary' as const },
+    { icon: '📈', label: 'Average Score', value: `${avgPct}%`, tone: 'info' as const },
+    { icon: '🧪', label: 'Exams Recorded', value: grouped.length, tone: 'violet' as const },
+    { icon: '⚠️', label: 'Below 40%', value: atRisk, tone: atRisk > 0 ? ('danger' as const) : ('success' as const) },
+  ];
 
   return (
     <div>
@@ -45,28 +77,51 @@ export function ResultsPage() {
         }
       />
 
-      <Card padded={false}>
-        {loading ? (
-          <div style={{ padding: 20 }}>
-            <SkeletonRows count={6} />
-          </div>
-        ) : filtered.length === 0 ? (
+      {!loading && filtered.length > 0 && <StatStrip items={stats} />}
+
+      {loading ? (
+        <Card>
+          <SkeletonRows count={6} />
+        </Card>
+      ) : filtered.length === 0 ? (
+        <Card>
           <EmptyState icon="📊" title="No results yet" description="Results entered by teachers will appear here in real time." />
-        ) : (
-          <Table
-            columns={[
-              { key: 'student', header: 'Student', render: (r) => studentName(r.studentId) },
-              { key: 'exam', header: 'Exam', render: (r) => r.examName },
-              { key: 'subject', header: 'Subject', render: (r) => r.subject },
-              { key: 'marks', header: 'Marks', render: (r) => `${r.marksObtained} / ${r.maxMarks}` },
-              { key: 'grade', header: 'Grade', render: (r) => <Badge label={r.grade} tone={gradeTone(r.grade)} /> },
-              { key: 'remark', header: 'Remark', render: (r) => r.teacherRemark || '—' },
-            ]}
-            rows={filtered}
-            rowKey={(r) => r.id}
-          />
-        )}
-      </Card>
+        </Card>
+      ) : (
+        grouped.map((group) => (
+          <div key={group.key} className={styles.examGroup}>
+            <div className={styles.examHeader}>
+              <span className={styles.examName}>{group.examName}</span>
+              <span className={styles.examMeta}>
+                {group.rows.length} result{group.rows.length === 1 ? '' : 's'} · {group.date}
+              </span>
+            </div>
+            <Card padded={false}>
+              {group.rows.map((r) => {
+                const pct = Math.round((r.marksObtained / (r.maxMarks || 1)) * 100);
+                const tone = gradeTone(r.grade);
+                return (
+                  <div key={r.id} className={styles.resultRow}>
+                    <span className={styles.studentName}>{studentName(r.studentId)}</span>
+                    <span className={styles.subject}>{r.subject}</span>
+                    <div className={styles.barTrack}>
+                      <div
+                        className={styles.barFill}
+                        style={{ width: `${Math.min(100, Math.max(0, pct))}%`, background: gradeBarColor[tone] }}
+                      />
+                    </div>
+                    <span className={styles.marks}>
+                      {r.marksObtained}/{r.maxMarks} ({pct}%)
+                    </span>
+                    <Badge label={r.grade} tone={tone} />
+                    <span className={styles.remark}>{r.teacherRemark || '—'}</span>
+                  </div>
+                );
+              })}
+            </Card>
+          </div>
+        ))
+      )}
     </div>
   );
 }

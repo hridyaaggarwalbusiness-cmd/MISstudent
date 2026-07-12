@@ -1,21 +1,35 @@
-import { useState } from 'react';
-import { format, parseISO } from 'date-fns';
+import { useMemo, useState } from 'react';
+import {
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameDay,
+  isSameMonth,
+  isWithinInterval,
+  parseISO,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+  subMonths,
+} from 'date-fns';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
-import { Table, tableStyles } from '@/components/ui/Table';
 import { TextField, TextAreaField, SelectField } from '@/components/ui/FormField';
-import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { PageHeader } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
 import { repo } from '@/data/repositories';
 import { getErrorMessage } from '@/utils/errors';
+import { TONE_COLORS } from '@/utils/toneColors';
+import type { BadgeTone } from '@/components/ui/Badge';
 import type { CalendarEvent, CalendarEventType } from '@/types';
+import styles from './CalendarPage.module.css';
 
-const typeTone: Record<CalendarEventType, 'success' | 'danger' | 'violet' | 'info' | 'neutral' | 'warning'> = {
+const typeTone: Record<CalendarEventType, BadgeTone> = {
   holiday: 'success',
   exam: 'danger',
   function: 'violet',
@@ -24,6 +38,8 @@ const typeTone: Record<CalendarEventType, 'success' | 'danger' | 'violet' | 'inf
   competition: 'warning',
   other: 'neutral',
 };
+
+const eventTypes: CalendarEventType[] = ['holiday', 'exam', 'function', 'sports', 'meeting', 'competition', 'other'];
 
 const emptyForm: Omit<CalendarEvent, 'id'> = {
   title: '',
@@ -34,16 +50,38 @@ const emptyForm: Omit<CalendarEvent, 'id'> = {
   location: '',
 };
 
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function safeParse(dateStr: string): Date | null {
+  try {
+    const d = parseISO(dateStr);
+    return Number.isNaN(d.getTime()) ? null : d;
+  } catch {
+    return null;
+  }
+}
+
+function eventsOnDay(events: CalendarEvent[], day: Date): CalendarEvent[] {
+  return events.filter((e) => {
+    const start = safeParse(e.date);
+    if (!start) return false;
+    const end = (e.endDate && safeParse(e.endDate)) || start;
+    return isWithinInterval(startOfDay(day), { start: startOfDay(start), end: startOfDay(end) });
+  });
+}
+
 export function CalendarPage() {
   const { data: events, loading } = useCollection<CalendarEvent>((cb) => repo.calendar.subscribeAll(cb));
+  const [monthCursor, setMonthCursor] = useState(() => startOfMonth(new Date()));
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<Omit<CalendarEvent, 'id'> & { id?: string }>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [listError, setListError] = useState('');
 
-  function openCreate() {
-    setForm(emptyForm);
+  function openCreate(date?: Date) {
+    setForm({ ...emptyForm, date: date ? format(date, 'yyyy-MM-dd') : '' });
     setError('');
     setModalOpen(true);
   }
@@ -76,17 +114,35 @@ export function CalendarPage() {
     setListError('');
     try {
       await repo.calendar.remove(id);
+      setModalOpen(false);
     } catch (e) {
       setListError(getErrorMessage(e));
     }
   }
+
+  const gridDays = useMemo(() => {
+    const start = startOfWeek(startOfMonth(monthCursor));
+    const end = endOfWeek(endOfMonth(monthCursor));
+    return eachDayOfInterval({ start, end });
+  }, [monthCursor]);
+
+  const upcoming = useMemo(() => {
+    const today = startOfDay(new Date());
+    return [...events]
+      .filter((e) => {
+        const start = safeParse(e.date);
+        const end = (e.endDate && safeParse(e.endDate)) || start;
+        return end && end >= today;
+      })
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [events]);
 
   return (
     <div>
       <PageHeader
         description="Manage holidays, exams and school events"
         toolbar={
-          <Button onClick={openCreate} icon="+">
+          <Button onClick={() => openCreate()} icon="+">
             Add Event
           </Button>
         }
@@ -98,51 +154,114 @@ export function CalendarPage() {
         </div>
       )}
 
-      <Card padded={false}>
-        {loading ? (
-          <div style={{ padding: 20 }}>
-            <SkeletonRows count={5} />
-          </div>
-        ) : events.length === 0 ? (
-          <EmptyState icon="📅" title="No events yet" description="Add holidays and events to the academic calendar." action={<Button onClick={openCreate}>Add Event</Button>} />
-        ) : (
-          <Table
-            columns={[
-              { key: 'title', header: 'Event', render: (e) => e.title },
-              {
-                key: 'date',
-                header: 'Date',
-                render: (e) => {
-                  try {
-                    return format(parseISO(e.date), 'd MMM yyyy');
-                  } catch {
-                    return e.date;
-                  }
-                },
-              },
-              { key: 'type', header: 'Type', render: (e) => <Badge label={e.type} tone={typeTone[e.type]} /> },
-              { key: 'location', header: 'Location', render: (e) => e.location || '—' },
-              {
-                key: 'actions',
-                header: '',
-                align: 'right',
-                render: (e) => (
-                  <div className={tableStyles.actions}>
-                    <button className={tableStyles.iconButton} onClick={() => openEdit(e)}>
-                      ✏️
-                    </button>
-                    <button className={[tableStyles.iconButton, tableStyles.danger].join(' ')} onClick={() => onDelete(e.id)}>
-                      🗑️
-                    </button>
+      {loading ? (
+        <Card>
+          <div style={{ padding: 20, color: 'var(--color-text-tertiary)' }}>Loading calendar…</div>
+        </Card>
+      ) : (
+        <div className={styles.layout}>
+          <Card>
+            <div className={styles.monthBar}>
+              <span className={styles.monthLabel}>{format(monthCursor, 'MMMM yyyy')}</span>
+              <div className={styles.monthNav}>
+                <button className={styles.todayBtn} onClick={() => setMonthCursor(startOfMonth(new Date()))}>
+                  Today
+                </button>
+                <button className={styles.navBtn} onClick={() => setMonthCursor((m) => subMonths(m, 1))} aria-label="Previous month">
+                  ‹
+                </button>
+                <button className={styles.navBtn} onClick={() => setMonthCursor((m) => addMonths(m, 1))} aria-label="Next month">
+                  ›
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.legend}>
+              {eventTypes.map((t) => (
+                <span key={t} className={styles.legendItem}>
+                  <span className={styles.legendDot} style={{ background: TONE_COLORS[typeTone[t]].solid }} />
+                  {t}
+                </span>
+              ))}
+            </div>
+
+            <div className={styles.weekHeader}>
+              {WEEKDAYS.map((d) => (
+                <div key={d} className={styles.weekHeaderCell}>
+                  {d}
+                </div>
+              ))}
+            </div>
+            <div className={styles.monthGrid}>
+              {gridDays.map((day) => {
+                const dayEvents = eventsOnDay(events, day);
+                const inMonth = isSameMonth(day, monthCursor);
+                const today = isSameDay(day, new Date());
+                const shown = dayEvents.slice(0, 3);
+                const overflow = dayEvents.length - shown.length;
+                return (
+                  <div
+                    key={day.toISOString()}
+                    className={[styles.dayCell, !inMonth && styles.dayCellOutside, today && styles.dayCellToday]
+                      .filter(Boolean)
+                      .join(' ')}
+                    onClick={() => (dayEvents.length === 1 ? openEdit(dayEvents[0]) : openCreate(day))}
+                  >
+                    <span className={styles.dayNumber}>
+                      {today ? <span className={styles.dayNumberBadge}>{day.getDate()}</span> : day.getDate()}
+                    </span>
+                    {shown.map((e) => (
+                      <span
+                        key={e.id}
+                        className={styles.eventChip}
+                        style={{ background: TONE_COLORS[typeTone[e.type]].bg, color: TONE_COLORS[typeTone[e.type]].color }}
+                        onClick={(evt) => {
+                          evt.stopPropagation();
+                          openEdit(e);
+                        }}
+                      >
+                        {e.title}
+                      </span>
+                    ))}
+                    {overflow > 0 && <span className={styles.eventMore}>+{overflow} more</span>}
                   </div>
-                ),
-              },
-            ]}
-            rows={events}
-            rowKey={(e) => e.id}
-          />
-        )}
-      </Card>
+                );
+              })}
+            </div>
+          </Card>
+
+          <div>
+            <div className={styles.agendaTitle}>Upcoming Events</div>
+            {upcoming.length === 0 ? (
+              <Card>
+                <EmptyState icon="📅" title="No upcoming events" description="Add holidays and events to the academic calendar." action={<Button onClick={() => openCreate()}>Add Event</Button>} />
+              </Card>
+            ) : (
+              <div className={styles.agendaList}>
+                {upcoming.map((e) => {
+                  const d = safeParse(e.date);
+                  const tone = typeTone[e.type];
+                  return (
+                    <div key={e.id} className={styles.agendaCard} onClick={() => openEdit(e)}>
+                      <div className={styles.agendaDateChip} style={{ background: TONE_COLORS[tone].bg, color: TONE_COLORS[tone].color }}>
+                        <span className={styles.agendaDay}>{d ? d.getDate() : '--'}</span>
+                        <span className={styles.agendaMonth}>{d ? MONTH_ABBR[d.getMonth()] : ''}</span>
+                      </div>
+                      <div className={styles.agendaBody}>
+                        <div className={styles.agendaEventTitle}>{e.title}</div>
+                        <div className={styles.agendaMeta}>
+                          {e.type}
+                          {e.location ? ` · ${e.location}` : ''}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <Modal
         open={modalOpen}
@@ -150,6 +269,11 @@ export function CalendarPage() {
         onClose={() => setModalOpen(false)}
         footer={
           <>
+            {form.id && (
+              <Button variant="danger" onClick={() => onDelete(form.id!)}>
+                Delete
+              </Button>
+            )}
             <Button variant="ghost" onClick={() => setModalOpen(false)}>
               Cancel
             </Button>

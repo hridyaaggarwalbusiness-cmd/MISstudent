@@ -13,6 +13,12 @@
   color: var(--color-text-tertiary);
   text-align: center;
   padding: 10px 4px;
+  border-radius: var(--radius-sm);
+}
+
+.dayHeaderToday {
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
 }
 
 .periodLabel {
@@ -25,7 +31,7 @@
 }
 
 .cell {
-  min-height: 76px;
+  min-height: 82px;
   border-radius: var(--radius-md);
   border: 1.5px dashed var(--color-border);
   padding: 10px;
@@ -33,30 +39,56 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
-  transition: border-color 0.12s ease, background 0.12s ease;
+  gap: 3px;
+  transition: border-color 0.12s ease, background 0.12s ease, transform 0.12s ease;
 }
 
 .cell:hover {
   border-color: var(--color-primary);
-  background: var(--color-primary-soft);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.cellToday {
+  background: var(--color-surface-alt);
 }
 
 .cellFilled {
   border-style: solid;
+  border-color: transparent;
+  border-left: 4px solid var(--accent-color, var(--color-primary));
+  background: var(--accent-bg, var(--color-primary-soft));
+}
+
+.cellBreak {
+  border-style: solid;
   border-color: var(--color-border-soft);
-  background: var(--color-surface-alt);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-surface-alt),
+    var(--color-surface-alt) 6px,
+    var(--color-border-soft) 6px,
+    var(--color-border-soft) 12px
+  );
+  justify-content: center;
+  align-items: center;
 }
 
 .cellSubject {
   font-size: 13px;
   font-weight: 700;
   color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cellMeta {
-  font-size: 11px;
-  color: var(--color-text-tertiary);
+  font-size: 10.5px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cellEmpty {

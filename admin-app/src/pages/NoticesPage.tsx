@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { formatDistanceToNow } from 'date-fns';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -25,11 +26,32 @@ const categoryTone: Record<NoticeCategory, 'neutral' | 'success' | 'violet' | 'd
   competition: 'warning',
 };
 
+const categoryIcon: Record<NoticeCategory, string> = {
+  general: '📋',
+  holiday: '🌴',
+  event: '🎉',
+  exam: '🧪',
+  circular: '📄',
+  competition: '🏆',
+};
+
+function relativeTime(iso: string): string {
+  try {
+    return formatDistanceToNow(new Date(iso), { addSuffix: true });
+  } catch {
+    return '';
+  }
+}
+
 const emptyForm = { title: '', body: '', category: 'general' as NoticeCategory, targetClassIds: [] as string[], pinned: false };
 
 export function NoticesPage() {
   const { data: notices, loading } = useCollection<Notice>((cb) => repo.notices.subscribeAll(cb));
   const { data: classes } = useCollection<SchoolClass>((cb) => repo.classes.subscribeAll(cb));
+  const sortedNotices = useMemo(
+    () => [...notices].sort((a, b) => Number(b.pinned) - Number(a.pinned)),
+    [notices],
+  );
   const profile = useAuthStore((s) => s.profile);
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -121,18 +143,23 @@ export function NoticesPage() {
         </Card>
       ) : (
         <div className={styles.list}>
-          {notices.map((n) => (
-            <Card key={n.id} className={styles.noticeCard}>
+          {sortedNotices.map((n) => (
+            <Card key={n.id} className={[styles.noticeCard, n.pinned && styles.noticeCardPinned].filter(Boolean).join(' ')}>
               <div className={styles.noticeHeader}>
-                <div>
-                  <div className={styles.noticeTitle}>
-                    {n.pinned && '📌 '}
-                    {n.title}
-                  </div>
-                  <div className={styles.noticeMeta}>
-                    <span>{n.postedByName}</span>
-                    <span>·</span>
-                    <span>{n.targetClassIds.length ? n.targetClassIds.map(classLabel).join(', ') : 'All classes'}</span>
+                <div className={styles.noticeHeaderLeft}>
+                  <div className={styles.categoryIconChip}>{categoryIcon[n.category]}</div>
+                  <div>
+                    <div className={styles.noticeTitle}>
+                      {n.pinned && <span className={styles.pinBadge}>📌 Pinned</span>}
+                      {n.title}
+                    </div>
+                    <div className={styles.noticeMeta}>
+                      <span>{n.postedByName}</span>
+                      <span>·</span>
+                      <span>{relativeTime(n.postedAt)}</span>
+                      <span>·</span>
+                      <span>{n.targetClassIds.length ? n.targetClassIds.map(classLabel).join(', ') : 'All classes'}</span>
+                    </div>
                   </div>
                 </div>
                 <div className={styles.actions}>

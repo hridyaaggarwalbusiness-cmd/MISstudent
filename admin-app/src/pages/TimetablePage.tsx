@@ -9,11 +9,14 @@ import { PageHeader, pageHeaderStyles } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
 import { repo } from '@/data/repositories';
 import { getErrorMessage } from '@/utils/errors';
+import { subjectAccentStyle } from '@/utils/subjectVisuals';
 import type { SchoolClass, Teacher, TimetablePeriod, DayOfWeek } from '@/types';
 import styles from './TimetablePage.module.css';
 
 const days: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const periodNumbers = [1, 2, 3, 4, 5, 6, 7, 8];
+const WEEKDAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const todayAbbr = WEEKDAY_ABBR[new Date().getDay()];
 
 const emptyForm = {
   subject: '',
@@ -138,7 +141,7 @@ export function TimetablePage() {
           <div className={styles.grid}>
             <div />
             {days.map((d) => (
-              <div key={d} className={styles.dayHeader}>
+              <div key={d} className={[styles.dayHeader, d === todayAbbr && styles.dayHeaderToday].filter(Boolean).join(' ')}>
                 {d}
               </div>
             ))}
@@ -150,16 +153,25 @@ export function TimetablePage() {
                   return (
                     <div
                       key={`${day}-${pNum}`}
-                      className={[styles.cell, period && styles.cellFilled].filter(Boolean).join(' ')}
+                      className={[
+                        styles.cell,
+                        period && !period.isBreak && styles.cellFilled,
+                        period?.isBreak && styles.cellBreak,
+                        day === todayAbbr && styles.cellToday,
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      style={period && !period.isBreak ? subjectAccentStyle(period.subject) : undefined}
                       onClick={() => openCell(day, pNum)}
                     >
                       {period ? (
                         <>
-                          <span className={styles.cellSubject}>{period.isBreak ? 'Break' : period.subject}</span>
+                          <span className={styles.cellSubject}>{period.isBreak ? '☕ Break' : period.subject}</span>
                           <span className={styles.cellMeta}>
                             {period.startTime}-{period.endTime}
                           </span>
-                          {!period.isBreak && <span className={styles.cellMeta}>{period.teacher}</span>}
+                          {!period.isBreak && <span className={styles.cellMeta}>👤 {period.teacher}</span>}
+                          {!period.isBreak && period.room && <span className={styles.cellMeta}>📍 {period.room}</span>}
                         </>
                       ) : (
                         <span className={styles.cellEmpty}>+</span>

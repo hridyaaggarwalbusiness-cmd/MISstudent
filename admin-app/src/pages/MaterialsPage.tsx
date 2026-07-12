@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
-import { Table, tableStyles } from '@/components/ui/Table';
+import { tableStyles } from '@/components/ui/Table';
 import { TextField, SelectField } from '@/components/ui/FormField';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -13,15 +13,27 @@ import { useCollection } from '@/hooks/useCollection';
 import { repo, MAX_ATTACHMENT_BYTES } from '@/data/repositories';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getErrorMessage } from '@/utils/errors';
+import { TONE_COLORS } from '@/utils/toneColors';
+import type { BadgeTone } from '@/components/ui/Badge';
 import type { StudyMaterial, MaterialType, SchoolClass } from '@/types';
+import styles from './MaterialsPage.module.css';
 
-const typeTone: Record<MaterialType, 'primary' | 'violet' | 'info' | 'warning' | 'success' | 'neutral'> = {
+const typeTone: Record<MaterialType, BadgeTone> = {
   note: 'primary',
   presentation: 'violet',
   worksheet: 'info',
   question_bank: 'warning',
   video: 'success',
   other: 'neutral',
+};
+
+const typeIcon: Record<MaterialType, string> = {
+  note: '📄',
+  presentation: '🖥️',
+  worksheet: '📝',
+  question_bank: '❓',
+  video: '🎥',
+  other: '📁',
 };
 
 function sizeLabel(bytes: number) {
@@ -139,42 +151,45 @@ export function MaterialsPage() {
         </div>
       )}
 
-      <Card padded={false}>
-        {loading ? (
-          <div style={{ padding: 20 }}>
-            <SkeletonRows count={5} />
-          </div>
-        ) : filtered.length === 0 ? (
+      {loading ? (
+        <Card>
+          <SkeletonRows count={5} />
+        </Card>
+      ) : filtered.length === 0 ? (
+        <Card>
           <EmptyState icon="📚" title="No materials yet" description="Upload the first study material for a class." action={<Button onClick={openCreate}>Upload</Button>} />
-        ) : (
-          <Table
-            columns={[
-              { key: 'title', header: 'Title', render: (m) => m.title },
-              { key: 'subject', header: 'Subject', render: (m) => m.subject },
-              { key: 'class', header: 'Class', render: (m) => classLabel(m.classId) },
-              { key: 'type', header: 'Type', render: (m) => <Badge label={m.type.replace('_', ' ')} tone={typeTone[m.type]} /> },
-              { key: 'size', header: 'Size', render: (m) => m.sizeLabel ?? '—' },
-              {
-                key: 'actions',
-                header: '',
-                align: 'right',
-                render: (m) => (
-                  <div className={tableStyles.actions}>
-                    <a className={tableStyles.iconButton} href={m.attachment.url} target="_blank" rel="noreferrer">
-                      ⬇️
-                    </a>
-                    <button className={[tableStyles.iconButton, tableStyles.danger].join(' ')} onClick={() => onDelete(m.id)}>
-                      🗑️
-                    </button>
-                  </div>
-                ),
-              },
-            ]}
-            rows={filtered}
-            rowKey={(m) => m.id}
-          />
-        )}
-      </Card>
+        </Card>
+      ) : (
+        <div className={styles.grid}>
+          {filtered.map((m) => (
+            <div key={m.id} className={styles.card}>
+              <div className={styles.topRow}>
+                <div className={styles.iconChip} style={{ background: TONE_COLORS[typeTone[m.type]].bg }}>
+                  {typeIcon[m.type]}
+                </div>
+                <Badge label={m.type.replace('_', ' ')} tone={typeTone[m.type]} />
+              </div>
+              <div className={styles.title}>{m.title}</div>
+              <div className={styles.meta}>
+                <span>📘 {m.subject || '—'}</span>
+                <span>🏫 {classLabel(m.classId)}</span>
+                <span>👤 {m.uploadedByName}</span>
+              </div>
+              <div className={styles.footer}>
+                <span className={styles.size}>{m.sizeLabel ?? '—'}</span>
+                <div className={styles.actions}>
+                  <a className={tableStyles.iconButton} href={m.attachment.url} target="_blank" rel="noreferrer">
+                    ⬇️
+                  </a>
+                  <button className={[tableStyles.iconButton, tableStyles.danger].join(' ')} onClick={() => onDelete(m.id)}>
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <Modal
         open={modalOpen}
