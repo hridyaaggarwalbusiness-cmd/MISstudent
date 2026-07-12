@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Unsubscribe } from 'firebase/firestore';
-import { Attachment, Homework } from '@/types';
+import { Homework } from '@/types';
 import { repo } from '@data/repositories';
 import { useAuthStore } from '@store/useAuthStore';
 
@@ -10,7 +10,6 @@ interface HomeworkState {
   loaded: boolean;
   unsub: Unsubscribe | null;
   fetch: (force?: boolean) => Promise<void>;
-  submit: (id: string, payload: { attachments: Attachment[]; note?: string }) => Promise<void>;
 }
 
 export const useHomeworkStore = create<HomeworkState>((set, get) => ({
@@ -30,11 +29,5 @@ export const useHomeworkStore = create<HomeworkState>((set, get) => ({
       set({ items, loading: false, loaded: true });
     });
     set({ unsub });
-  },
-
-  submit: async (id, payload) => {
-    const { student } = useAuthStore.getState();
-    if (!student) return;
-    await repo.homework.submit(id, student.id, payload);
   },
 }));

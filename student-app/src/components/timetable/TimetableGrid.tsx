@@ -113,11 +113,6 @@ export function TimetableGrid({ periods, todayCode, currentPeriodId }: Timetable
                   <AppText variant="caption" color={accent.fg} numberOfLines={2}>
                     {period.subject}
                   </AppText>
-                  {!!period.room && (
-                    <AppText variant="tiny" color={accent.fg} numberOfLines={1} style={{ marginTop: 2, opacity: 0.8 }}>
-                      {period.room}
-                    </AppText>
-                  )}
                 </View>
               );
             })}

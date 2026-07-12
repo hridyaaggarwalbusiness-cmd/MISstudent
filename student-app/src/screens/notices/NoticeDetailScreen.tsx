@@ -3,20 +3,20 @@ import { View, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { AppText, Card, Badge, BadgeTone, DetailHeader, AttachmentRow, ErrorState } from '@components/ui';
-import { colors, spacing } from '@theme';
+import { AppText, Card, DetailHeader, AttachmentRow, ErrorState } from '@components/ui';
+import { colors, spacing, radius } from '@theme';
 import { RootStackParamList } from '@navigation/types';
 import { useNoticesStore } from '@store/useNoticesStore';
 import { friendlyDate } from '@utils/date';
 import { NoticeCategory } from '@/types';
 
-const categoryMeta: Record<NoticeCategory, { label: string; tone: BadgeTone; icon: keyof typeof Ionicons.glyphMap }> = {
-  general: { label: 'General', tone: 'neutral', icon: 'information-circle-outline' },
-  holiday: { label: 'Holiday', tone: 'danger', icon: 'sunny-outline' },
-  event: { label: 'Event', tone: 'primary', icon: 'sparkles-outline' },
-  exam: { label: 'Exam', tone: 'warning', icon: 'document-text-outline' },
-  circular: { label: 'Circular', tone: 'info', icon: 'reader-outline' },
-  competition: { label: 'Competition', tone: 'success', icon: 'ribbon-outline' },
+const categoryMeta: Record<NoticeCategory, { label: string; icon: keyof typeof Ionicons.glyphMap; bg: string; fg: string }> = {
+  general: { label: 'General', icon: 'information-circle-outline', bg: colors.surfaceAlt, fg: colors.textSecondary },
+  holiday: { label: 'Holiday', icon: 'sunny-outline', bg: colors.dangerBg, fg: colors.dangerStrong },
+  event: { label: 'Event', icon: 'sparkles-outline', bg: colors.primarySoft, fg: colors.primary },
+  exam: { label: 'Exam', icon: 'document-text-outline', bg: colors.warningBg, fg: colors.warningStrong },
+  circular: { label: 'Circular', icon: 'reader-outline', bg: colors.infoBg, fg: colors.infoStrong },
+  competition: { label: 'Competition', icon: 'ribbon-outline', bg: colors.successBg, fg: colors.successStrong },
 };
 
 export function NoticeDetailScreen() {
@@ -46,16 +46,22 @@ export function NoticeDetailScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <DetailHeader title="Notice" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Badge label={meta.label} tone={meta.tone} />
-        <AppText variant="displayMd" style={{ marginTop: spacing.sm }}>
+        <View style={styles.headerRow}>
+          <View style={[styles.iconWrap, { backgroundColor: meta.bg }]}>
+            <Ionicons name={meta.icon} size={22} color={meta.fg} />
+          </View>
+          <View style={{ marginLeft: spacing.sm }}>
+            <AppText variant="caption" color={meta.fg} style={{ fontWeight: '700' }}>
+              {meta.label.toUpperCase()}
+            </AppText>
+            <AppText variant="tiny" color={colors.textTertiary}>
+              {notice.postedBy} · {friendlyDate(notice.postedAt)}
+            </AppText>
+          </View>
+        </View>
+        <AppText variant="displayMd" style={{ marginTop: spacing.md }}>
           {notice.title}
         </AppText>
-        <View style={styles.metaRow}>
-          <Ionicons name="person-circle-outline" size={16} color={colors.textSecondary} />
-          <AppText variant="caption" color={colors.textSecondary} style={{ marginLeft: 6 }}>
-            {notice.postedBy} · {friendlyDate(notice.postedAt)}
-          </AppText>
-        </View>
 
         <Card style={{ marginTop: spacing.lg }}>
           <AppText variant="body" style={{ lineHeight: 23 }}>
@@ -81,5 +87,12 @@ export function NoticeDetailScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
-  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm },
+  headerRow: { flexDirection: 'row', alignItems: 'center' },
+  iconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

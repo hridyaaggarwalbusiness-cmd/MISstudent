@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { startOfMonth, endOfMonth, eachDayOfInterval, getDay, format, formatISO, isSameDay } from 'date-fns';
+import { startOfMonth, endOfMonth, eachDayOfInterval, getDay, format, formatISO, isSameDay, parseISO } from 'date-fns';
 import { AppText, AnimatedPressable } from '@components/ui';
 import { colors, radius } from '@theme';
 import { CalendarEvent } from '@/types';
@@ -26,11 +26,19 @@ interface EventCalendarProps {
 }
 
 export function EventCalendar({ monthDate, events, selectedDate, onSelectDate }: EventCalendarProps) {
+  // Marks every day an event spans (not just its start date), so a
+  // multi-day event like a two-day sports meet shows a dot on each day.
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
     events.forEach((e) => {
-      const key = e.date;
-      map.set(key, [...(map.get(key) ?? []), e]);
+      const start = parseISO(e.date);
+      const end = e.endDate ? parseISO(e.endDate) : start;
+      if (Number.isNaN(start.getTime())) return;
+      const span = Number.isNaN(end.getTime()) || end < start ? [start] : eachDayOfInterval({ start, end });
+      span.forEach((day) => {
+        const key = formatISO(day, { representation: 'date' });
+        map.set(key, [...(map.get(key) ?? []), e]);
+      });
     });
     return map;
   }, [events]);

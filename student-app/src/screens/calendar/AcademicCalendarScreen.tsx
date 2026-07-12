@@ -1,7 +1,15 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { addMonths, subMonths, format, isSameDay, isSameMonth } from 'date-fns';
+import {
+  addMonths,
+  subMonths,
+  format,
+  isSameDay,
+  startOfMonth,
+  endOfMonth,
+  areIntervalsOverlapping,
+} from 'date-fns';
 import {
   AppText,
   Card,
@@ -10,14 +18,12 @@ import {
   DetailHeader,
   SkeletonCard,
   EmptyState,
-  ErrorState,
 } from '@components/ui';
 import { EventCalendar } from '@components/calendar/EventCalendar';
 import { CalendarEventCard } from '@components/calendar/CalendarEventCard';
 import { colors, spacing, layout } from '@theme';
 import { repo } from '@data/repositories';
-import { useAsyncResource } from '@hooks/useAsyncResource';
-import { CalendarEventType } from '@/types';
+import { CalendarEvent, CalendarEventType } from '@/types';
 
 type FilterKey = 'all' | CalendarEventType;
 
@@ -32,25 +38,62 @@ const FILTERS: { key: FilterKey; label: string }[] = [
 ];
 
 export function AcademicCalendarScreen() {
-  const { data, loading, refreshing, error, refresh } = useAsyncResource(() => repo.calendar.list(), []);
+  const [data, setData] = useState<CalendarEvent[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [monthDate, setMonthDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [filter, setFilter] = useState<FilterKey>('all');
+
+  // Live subscription (not a one-shot fetch) so events an admin adds, edits
+  // or removes show up on the calendar immediately, same as Homework/Notices.
+  useEffect(() => {
+    const unsub = repo.calendar.subscribeAll((items) => {
+      setData(items);
+      setLoading(false);
+      setRefreshing(false);
+    });
+    return unsub;
+  }, []);
+
+  // Data is always live via the subscription above, so "refresh" is just a
+  // brief visual acknowledgement of the pull gesture rather than a refetch.
+  const refresh = () => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 400);
+  };
 
   const filteredEvents = useMemo(() => {
     if (!data) return [];
     return filter === 'all' ? data : data.filter((e) => e.type === filter);
   }, [data, filter]);
 
-  const monthEvents = useMemo(
-    () => filteredEvents.filter((e) => isSameMonth(new Date(e.date), monthDate)),
-    [filteredEvents, monthDate],
-  );
+  // Includes multi-day events that only partially overlap the visible
+  // month (e.g. an event that starts on the last day of the prior month).
+  const monthEvents = useMemo(() => {
+    const monthStart = startOfMonth(monthDate);
+    const monthEnd = endOfMonth(monthDate);
+    return filteredEvents.filter((e) => {
+      const start = new Date(e.date);
+      const end = e.endDate ? new Date(e.endDate) : start;
+      if (Number.isNaN(start.getTime())) return false;
+      const safeEnd = Number.isNaN(end.getTime()) || end < start ? start : end;
+      return areIntervalsOverlapping({ start: monthStart, end: monthEnd }, { start, end: safeEnd }, { inclusive: true });
+    });
+  }, [filteredEvents, monthDate]);
 
   const agendaEvents = useMemo(() => {
+    const eventRange = (e: (typeof filteredEvents)[number]) => {
+      const start = new Date(e.date);
+      const end = e.endDate ? new Date(e.endDate) : start;
+      return { start, end: Number.isNaN(end.getTime()) || end < start ? start : end };
+    };
     const list = selectedDate
-      ? filteredEvents.filter((e) => isSameDay(new Date(e.date), selectedDate))
-      : filteredEvents.filter((e) => new Date(e.date) >= new Date(new Date().toDateString()));
+      ? filteredEvents.filter((e) => {
+          const { start, end } = eventRange(e);
+          return selectedDate >= start && selectedDate <= end;
+        })
+      : filteredEvents.filter((e) => eventRange(e).end >= new Date(new Date().toDateString()));
     return [...list].sort((a, b) => a.date.localeCompare(b.date));
   }, [filteredEvents, selectedDate]);
 
@@ -58,65 +101,61 @@ export function AcademicCalendarScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <DetailHeader title="Academic Calendar" />
 
-      {error && !data ? (
-        <ErrorState onRetry={refresh} />
-      ) : (
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} colors={[colors.primary]} />
-          }
-        >
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.md }}>
-            {FILTERS.map((f) => (
-              <Chip
-                key={f.key}
-                label={f.label}
-                active={filter === f.key}
-                onPress={() => setFilter(f.key)}
-                style={{ marginRight: spacing.xs }}
-              />
-            ))}
-          </ScrollView>
-
-          {loading && !data ? (
-            <SkeletonCard lines={4} />
-          ) : (
-            <>
-              <Card>
-                <View style={styles.monthNav}>
-                  <IconButton icon="chevron-back" onPress={() => setMonthDate((d) => subMonths(d, 1))} size={34} />
-                  <AppText variant="h3">{format(monthDate, 'MMMM yyyy')}</AppText>
-                  <IconButton icon="chevron-forward" onPress={() => setMonthDate((d) => addMonths(d, 1))} size={34} />
-                </View>
-                <EventCalendar
-                  monthDate={monthDate}
-                  events={monthEvents}
-                  selectedDate={selectedDate}
-                  onSelectDate={(d) => setSelectedDate((prev) => (prev && isSameDay(prev, d) ? null : d))}
-                />
-              </Card>
-
-              <View style={styles.sectionTitle}>
-                <AppText variant="h3">
-                  {selectedDate ? `Events on ${format(selectedDate, 'd MMM yyyy')}` : 'Upcoming Events'}
-                </AppText>
-              </View>
-
-              {agendaEvents.length === 0 ? (
-                <EmptyState
-                  icon="calendar-outline"
-                  title={selectedDate ? 'No events on this day' : 'No upcoming events'}
-                  compact
-                />
-              ) : (
-                agendaEvents.map((event) => <CalendarEventCard key={event.id} event={event} />)
-              )}
-            </>
-          )}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} colors={[colors.primary]} />
+        }
+      >
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.md }}>
+          {FILTERS.map((f) => (
+            <Chip
+              key={f.key}
+              label={f.label}
+              active={filter === f.key}
+              onPress={() => setFilter(f.key)}
+              style={{ marginRight: spacing.xs }}
+            />
+          ))}
         </ScrollView>
-      )}
+
+        {loading && !data ? (
+          <SkeletonCard lines={4} />
+        ) : (
+          <>
+            <Card>
+              <View style={styles.monthNav}>
+                <IconButton icon="chevron-back" onPress={() => setMonthDate((d) => subMonths(d, 1))} size={34} />
+                <AppText variant="h3">{format(monthDate, 'MMMM yyyy')}</AppText>
+                <IconButton icon="chevron-forward" onPress={() => setMonthDate((d) => addMonths(d, 1))} size={34} />
+              </View>
+              <EventCalendar
+                monthDate={monthDate}
+                events={monthEvents}
+                selectedDate={selectedDate}
+                onSelectDate={(d) => setSelectedDate((prev) => (prev && isSameDay(prev, d) ? null : d))}
+              />
+            </Card>
+
+            <View style={styles.sectionTitle}>
+              <AppText variant="h3">
+                {selectedDate ? `Events on ${format(selectedDate, 'd MMM yyyy')}` : 'Upcoming Events'}
+              </AppText>
+            </View>
+
+            {agendaEvents.length === 0 ? (
+              <EmptyState
+                icon="calendar-outline"
+                title={selectedDate ? 'No events on this day' : 'No upcoming events'}
+                compact
+              />
+            ) : (
+              agendaEvents.map((event) => <CalendarEventCard key={event.id} event={event} />)
+            )}
+          </>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }

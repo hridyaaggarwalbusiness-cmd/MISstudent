@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Card, AppText, Badge, BadgeTone } from '@components/ui';
-import { colors, spacing, accentForKey } from '@theme';
+import { Card, AppText } from '@components/ui';
+import { colors, spacing, radius, accentForKey } from '@theme';
 import { Homework } from '@/types';
 import { dueInLabel, friendlyDateShort } from '@utils/date';
 
@@ -11,57 +11,45 @@ interface HomeworkCardProps {
   onPress: () => void;
 }
 
-const statusMeta: Record<Homework['status'], { label: string; tone: BadgeTone }> = {
-  pending: { label: 'Pending', tone: 'warning' },
-  submitted: { label: 'Submitted', tone: 'info' },
-  graded: { label: 'Graded', tone: 'success' },
-  overdue: { label: 'Overdue', tone: 'danger' },
-};
-
 export function HomeworkCard({ homework, onPress }: HomeworkCardProps) {
   const accent = accentForKey(homework.subject);
-  const status = statusMeta[homework.status];
   const due = dueInLabel(homework.dueDate);
-  const isSettled = homework.status === 'submitted' || homework.status === 'graded';
-  const showUrgent = due.overdue && !isSettled;
+  const dueColor = due.overdue ? colors.danger : due.urgent ? colors.warningStrong : colors.textTertiary;
 
   return (
-    <Card onPress={onPress} style={[styles.card, { borderLeftWidth: 3, borderLeftColor: accent.fg }]}>
+    <Card onPress={onPress} elevation="xs" style={styles.card}>
       <View style={styles.row}>
         <View style={[styles.iconWrap, { backgroundColor: accent.bg }]}>
-          <Ionicons name="book-outline" size={20} color={accent.fg} />
+          <Ionicons name="book-outline" size={22} color={accent.fg} />
         </View>
         <View style={{ flex: 1, marginLeft: spacing.sm }}>
           <View style={styles.topRow}>
-            <AppText variant="caption" color={accent.fg}>
-              {homework.subject}
+            <AppText variant="caption" color={accent.fg} style={{ fontWeight: '700' }}>
+              {homework.subject.toUpperCase()}
             </AppText>
-            <Badge label={status.label} tone={status.tone} size="sm" />
+            <View style={[styles.duePill, { backgroundColor: `${dueColor}17` }]}>
+              <AppText variant="tiny" color={dueColor} style={{ fontWeight: '700' }}>
+                {due.label}
+              </AppText>
+            </View>
           </View>
-          <AppText variant="bodySemibold" numberOfLines={2} style={{ marginTop: 3, fontSize: 15 }}>
+          <AppText variant="bodySemibold" numberOfLines={2} style={styles.title}>
             {homework.title}
           </AppText>
           <View style={styles.metaRow}>
-            <Ionicons
-              name="time-outline"
-              size={13}
-              color={showUrgent ? colors.danger : colors.textTertiary}
-            />
-            <AppText
-              variant="tiny"
-              color={showUrgent ? colors.danger : colors.textTertiary}
-              style={{ marginLeft: 4 }}
-            >
-              {isSettled ? `Due ${friendlyDateShort(homework.dueDate)}` : due.label}
+            <Ionicons name="person-outline" size={13} color={colors.textTertiary} />
+            <AppText variant="tiny" color={colors.textTertiary} style={{ marginLeft: 4 }}>
+              {homework.teacher}
+            </AppText>
+            <AppText variant="tiny" color={colors.textTertiary} style={{ marginHorizontal: 6 }}>
+              ·
+            </AppText>
+            <AppText variant="tiny" color={colors.textTertiary}>
+              Due {friendlyDateShort(homework.dueDate)}
             </AppText>
             {homework.attachments.length > 0 && (
               <View style={styles.metaRow}>
-                <Ionicons
-                  name="attach-outline"
-                  size={13}
-                  color={colors.textTertiary}
-                  style={{ marginLeft: 10 }}
-                />
+                <Ionicons name="attach-outline" size={13} color={colors.textTertiary} style={{ marginLeft: 8 }} />
                 <AppText variant="tiny" color={colors.textTertiary} style={{ marginLeft: 2 }}>
                   {homework.attachments.length}
                 </AppText>
@@ -84,9 +72,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -95,9 +83,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  duePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  title: {
+    marginTop: 4,
+    fontSize: 15.5,
+    lineHeight: 21,
+  },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: 7,
   },
 });
