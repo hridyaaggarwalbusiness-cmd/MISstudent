@@ -8,6 +8,8 @@ import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { BulkImportModal, type BulkImportColumn } from '@/components/import/BulkImportModal';
+import { SpreadsheetGrid, type SpreadsheetRowStatus } from '@/components/ui/SpreadsheetGrid';
+import { ViewToggle } from '@/components/ui/ViewToggle';
 import { PageHeader } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
 import { repo } from '@/data/repositories';
@@ -44,6 +46,8 @@ export function AdminsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [listError, setListError] = useState('');
+  const [view, setView] = useState<'list' | 'spreadsheet'>('list');
+  const [cellStatus, setCellStatus] = useState<Record<number, SpreadsheetRowStatus>>({});
 
   function openCreate() {
     setForm(emptyForm);
@@ -117,12 +121,51 @@ export function AdminsPage() {
     return `password: ${row.password}`;
   }
 
+  const spreadsheetColumns = [
+    { key: 'name', label: 'Name', required: true, width: '220px' },
+    { key: 'email', label: 'Email', readOnly: true, width: '260px' },
+  ];
+
+  const spreadsheetRows = admins.map((a) => ({ name: a.displayName, email: a.email }));
+  const spreadsheetRowStatuses = admins.map((_, i) => cellStatus[i]);
+
+  function flashStatus(rowIndex: number, status: SpreadsheetRowStatus, holdMs = 1800) {
+    setCellStatus((prev) => ({ ...prev, [rowIndex]: status }));
+    if (status.tone === 'success') {
+      setTimeout(() => {
+        setCellStatus((prev) => {
+          if (prev[rowIndex] !== status) return prev;
+          const next = { ...prev };
+          delete next[rowIndex];
+          return next;
+        });
+      }, holdMs);
+    }
+  }
+
+  async function onSpreadsheetCellCommit(rowIndex: number, key: string, value: string) {
+    const admin = admins[rowIndex];
+    if (!admin || key !== 'name') return;
+    if (!value.trim()) {
+      flashStatus(rowIndex, { tone: 'error', message: 'Name is required' });
+      return;
+    }
+    flashStatus(rowIndex, { tone: 'busy' });
+    try {
+      await repo.admins.update(admin.id, { displayName: value.trim() });
+      flashStatus(rowIndex, { tone: 'success' });
+    } catch (e) {
+      flashStatus(rowIndex, { tone: 'error', message: getErrorMessage(e) });
+    }
+  }
+
   return (
     <div>
       <PageHeader
         description="Manage who has full administrative access to the school console"
         toolbar={
           <>
+            <ViewToggle value={view} onChange={setView} />
             <Button variant="outline" onClick={() => setImportOpen(true)} icon="📋">
               Bulk Import
             </Button>
@@ -139,6 +182,19 @@ export function AdminsPage() {
         </div>
       )}
 
+      {!loading && admins.length > 0 && view === 'spreadsheet' ? (
+        <div style={{ marginBottom: 16 }}>
+          <div className={styles.subtitle} style={{ marginBottom: 8 }}>
+            Edit any cell to update it live. Email is fixed to the sign-in account and can't be changed here.
+          </div>
+          <SpreadsheetGrid
+            columns={spreadsheetColumns}
+            rows={spreadsheetRows}
+            rowStatuses={spreadsheetRowStatuses}
+            onCellCommit={onSpreadsheetCellCommit}
+          />
+        </div>
+      ) : (
       <Card padded={false}>
         {loading ? (
           <div style={{ padding: 20 }}>
@@ -191,6 +247,7 @@ export function AdminsPage() {
           />
         )}
       </Card>
+      )}
 
       <Modal
         open={modalOpen}
@@ -232,7 +289,6 @@ export function AdminsPage() {
         title="Bulk Import Admins"
         columns={importColumns}
         mapRow={mapImportRow}
-        previewLabel={(v) => `${v.name} <${v.email}>`}
         importRow={importAdminRow}
       />
     </div>

@@ -9,11 +9,14 @@ import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { BulkImportModal, type BulkImportColumn } from '@/components/import/BulkImportModal';
+import { SpreadsheetGrid, type SpreadsheetRowStatus } from '@/components/ui/SpreadsheetGrid';
+import { ViewToggle } from '@/components/ui/ViewToggle';
 import { PageHeader, pageHeaderStyles } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
 import { repo } from '@/data/repositories';
 import { getErrorMessage } from '@/utils/errors';
 import { generateTempPassword } from '@/utils/password';
+import { resolveSingleClassLabel } from '@/utils/classLabels';
 import type { Student, SchoolClass } from '@/types';
 import styles from './TeachersPage.module.css';
 
@@ -85,6 +88,8 @@ export function StudentsPage() {
   const [listError, setListError] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [view, setView] = useState<'list' | 'spreadsheet'>('list');
+  const [cellStatus, setCellStatus] = useState<Record<number, SpreadsheetRowStatus>>({});
 
   const filtered = useMemo(
     () =>
@@ -185,8 +190,9 @@ export function StudentsPage() {
     if (!name) return { error: 'Missing name' };
     if (!/^\S+@\S+\.\S+$/.test(email)) return { error: 'Invalid or missing email' };
     if (!rollNumber) return { error: 'Missing roll number' };
-    const cls = classes.find((c) => `${c.name} - ${c.section}`.toLowerCase() === classLabel.toLowerCase());
-    if (!cls) return { error: `Class not found: "${classLabel}" (expected format "Class 9 - B")` };
+    const resolved = resolveSingleClassLabel(classLabel, classes);
+    if ('error' in resolved) return { error: resolved.error };
+    const cls = resolved.cls;
 
     return {
       value: {
@@ -233,6 +239,84 @@ export function StudentsPage() {
     return `password: ${row.password}`;
   }
 
+  const spreadsheetColumns = [
+    { key: 'name', label: 'Name', required: true, width: '170px' },
+    { key: 'email', label: 'Email', readOnly: true, width: '190px' },
+    { key: 'class', label: 'Class', width: '130px' },
+    { key: 'rollNumber', label: 'Roll No.', width: '100px' },
+    { key: 'admissionNumber', label: 'Admission No.', width: '130px' },
+    { key: 'phone', label: 'Phone', width: '120px' },
+    { key: 'guardianPhone', label: 'Guardian Phone', width: '140px' },
+  ];
+
+  const spreadsheetRows = filtered.map((s) => ({
+    name: s.name,
+    email: s.email,
+    class: `${s.className} - ${s.section}`,
+    rollNumber: s.rollNumber,
+    admissionNumber: s.admissionNumber,
+    phone: s.phone,
+    guardianPhone: s.guardianPhone,
+  }));
+
+  const spreadsheetRowStatuses = filtered.map((_, i) => cellStatus[i]);
+
+  function flashStatus(rowIndex: number, status: SpreadsheetRowStatus, holdMs = 1800) {
+    setCellStatus((prev) => ({ ...prev, [rowIndex]: status }));
+    if (status.tone === 'success') {
+      setTimeout(() => {
+        setCellStatus((prev) => {
+          if (prev[rowIndex] !== status) return prev;
+          const next = { ...prev };
+          delete next[rowIndex];
+          return next;
+        });
+      }, holdMs);
+    }
+  }
+
+  async function onSpreadsheetCellCommit(rowIndex: number, key: string, value: string) {
+    const student = filtered[rowIndex];
+    if (!student) return;
+
+    if (key === 'class') {
+      const resolved = resolveSingleClassLabel(value, classes);
+      if ('error' in resolved) {
+        flashStatus(rowIndex, { tone: 'error', message: resolved.error });
+        return;
+      }
+      flashStatus(rowIndex, { tone: 'busy' });
+      try {
+        await repo.students.update(student.id, {
+          classId: resolved.cls.id,
+          className: resolved.cls.name,
+          section: resolved.cls.section,
+        });
+        flashStatus(rowIndex, { tone: 'success' });
+      } catch (e) {
+        flashStatus(rowIndex, { tone: 'error', message: getErrorMessage(e) });
+      }
+      return;
+    }
+
+    if (key === 'name' && !value.trim()) {
+      flashStatus(rowIndex, { tone: 'error', message: 'Name is required' });
+      return;
+    }
+    if (key === 'rollNumber' && !value.trim()) {
+      flashStatus(rowIndex, { tone: 'error', message: 'Roll number is required' });
+      return;
+    }
+
+    flashStatus(rowIndex, { tone: 'busy' });
+    try {
+      await repo.students.update(student.id, { [key]: value });
+      flashStatus(rowIndex, { tone: 'success' });
+    } catch (e) {
+      flashStatus(rowIndex, { tone: 'error', message: getErrorMessage(e) });
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -257,6 +341,7 @@ export function StudentsPage() {
                 </option>
               ))}
             </select>
+            <ViewToggle value={view} onChange={setView} />
             <Button variant="outline" onClick={() => setImportOpen(true)} icon="📋">
               Bulk Import
             </Button>
@@ -273,6 +358,19 @@ export function StudentsPage() {
         </div>
       )}
 
+      {!loading && filtered.length > 0 && view === 'spreadsheet' ? (
+        <div style={{ marginBottom: 16 }}>
+          <div className={styles.subtitle} style={{ marginBottom: 8 }}>
+            Edit any cell to update it live. Email is fixed to the sign-in account and can't be changed here.
+          </div>
+          <SpreadsheetGrid
+            columns={spreadsheetColumns}
+            rows={spreadsheetRows}
+            rowStatuses={spreadsheetRowStatuses}
+            onCellCommit={onSpreadsheetCellCommit}
+          />
+        </div>
+      ) : (
       <Card padded={false}>
         {loading ? (
           <div style={{ padding: 20 }}>
@@ -329,6 +427,7 @@ export function StudentsPage() {
           />
         )}
       </Card>
+      )}
 
       <Modal open={modalOpen} title="Add Student" onClose={() => setModalOpen(false)} width={640} footer={
         <>
@@ -417,7 +516,6 @@ export function StudentsPage() {
         title="Bulk Import Students"
         columns={importColumns}
         mapRow={mapImportRow}
-        previewLabel={(v) => `${v.name} <${v.email}> · ${v.className} - ${v.section} · Roll ${v.rollNumber}`}
         importRow={importStudentRow}
       />
     </div>

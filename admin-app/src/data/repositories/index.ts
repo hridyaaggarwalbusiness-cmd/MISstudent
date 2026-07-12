@@ -133,6 +133,7 @@ export const repo = {
     },
     create: (payload: { email: string; password: string; displayName: string }) =>
       createSchoolUser('admin', { ...payload, profile: {} }),
+    update: (id: string, changes: Partial<Pick<AppUser, 'displayName'>>) => updateDoc(doc(db, 'users', id), changes),
     remove: (id: string) => revokeSchoolUser('admin', id),
   },
 

@@ -1,0 +1,148 @@
+.wrapper {
+  overflow: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-soft);
+  background: var(--color-surface);
+  max-height: 420px;
+}
+
+.grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.grid th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  background: var(--color-surface-alt);
+  border-bottom: 1px solid var(--color-border-soft);
+  border-right: 1px solid var(--color-border-soft);
+  white-space: nowrap;
+}
+
+.grid th:last-child {
+  border-right: none;
+}
+
+.required {
+  color: var(--color-danger-strong);
+  margin-left: 2px;
+}
+
+.rowNumCol {
+  width: 34px;
+  min-width: 34px;
+  text-align: center;
+  color: var(--color-text-tertiary);
+  font-size: 11.5px;
+  background: var(--color-surface-alt);
+  border-right: 1px solid var(--color-border-soft);
+  user-select: none;
+}
+
+.statusCol {
+  width: 150px;
+}
+
+.deleteCol {
+  width: 32px;
+  min-width: 32px;
+}
+
+.cell {
+  padding: 0;
+  border-bottom: 1px solid var(--color-border-soft);
+  border-right: 1px solid var(--color-border-soft);
+}
+
+.cellInput {
+  width: 100%;
+  min-width: 90px;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.cellInput:focus {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  border-radius: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+.cellInput[readonly] {
+  color: var(--color-text-tertiary);
+  cursor: default;
+}
+
+.statusCell {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-border-soft);
+  white-space: nowrap;
+}
+
+.statusBusy {
+  color: var(--color-warning-strong);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.statusSuccess {
+  color: var(--color-success-strong);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.statusError {
+  color: var(--color-danger-strong);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.statusPending {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.row_error {
+  background: var(--color-danger-bg);
+}
+
+.row_success td {
+  background: transparent;
+}
+
+.row_busy {
+  background: var(--color-warning-bg);
+}
+
+.deleteBtn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+.deleteBtn:hover {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-strong);
+}

@@ -8,11 +8,14 @@ import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { BulkImportModal, type BulkImportColumn } from '@/components/import/BulkImportModal';
+import { SpreadsheetGrid, type SpreadsheetRowStatus } from '@/components/ui/SpreadsheetGrid';
+import { ViewToggle } from '@/components/ui/ViewToggle';
 import { PageHeader } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
 import { repo } from '@/data/repositories';
 import { getErrorMessage } from '@/utils/errors';
 import { generateTempPassword } from '@/utils/password';
+import { classLabelById, resolveClassLabels } from '@/utils/classLabels';
 import type { Teacher, SchoolClass } from '@/types';
 import styles from './TeachersPage.module.css';
 
@@ -54,6 +57,8 @@ export function TeachersPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [listError, setListError] = useState('');
+  const [view, setView] = useState<'list' | 'spreadsheet'>('list');
+  const [cellStatus, setCellStatus] = useState<Record<number, SpreadsheetRowStatus>>({});
 
   function openCreate() {
     setForm(emptyForm);
@@ -116,8 +121,86 @@ export function TeachersPage() {
   }
 
   function classLabel(id: string) {
-    const c = classes.find((cl) => cl.id === id);
-    return c ? `${c.name} - ${c.section}` : id;
+    return classLabelById(id, classes);
+  }
+
+  const spreadsheetColumns = [
+    { key: 'name', label: 'Name', required: true, width: '180px' },
+    { key: 'email', label: 'Email', readOnly: true, width: '200px' },
+    { key: 'phone', label: 'Phone', width: '130px' },
+    { key: 'subjects', label: 'Subjects', width: '180px' },
+    { key: 'classes', label: 'Classes', width: '220px' },
+  ];
+
+  const spreadsheetRows = teachers.map((t) => ({
+    name: t.name,
+    email: t.email,
+    phone: t.phone,
+    subjects: t.subjects.join(', '),
+    classes: t.classIds.map(classLabel).join(', '),
+  }));
+
+  const spreadsheetRowStatuses = teachers.map((_, i) => cellStatus[i]);
+
+  function flashStatus(rowIndex: number, status: SpreadsheetRowStatus, holdMs = 1800) {
+    setCellStatus((prev) => ({ ...prev, [rowIndex]: status }));
+    if (status.tone === 'success') {
+      setTimeout(() => {
+        setCellStatus((prev) => {
+          if (prev[rowIndex] !== status) return prev;
+          const next = { ...prev };
+          delete next[rowIndex];
+          return next;
+        });
+      }, holdMs);
+    }
+  }
+
+  async function onSpreadsheetCellCommit(rowIndex: number, key: string, value: string) {
+    const teacher = teachers[rowIndex];
+    if (!teacher) return;
+
+    if (key === 'subjects') {
+      flashStatus(rowIndex, { tone: 'busy' });
+      try {
+        await repo.teachers.update(teacher.id, {
+          subjects: value.split(/[;,]/).map((s) => s.trim()).filter(Boolean),
+        });
+        flashStatus(rowIndex, { tone: 'success' });
+      } catch (e) {
+        flashStatus(rowIndex, { tone: 'error', message: getErrorMessage(e) });
+      }
+      return;
+    }
+
+    if (key === 'classes') {
+      const resolved = resolveClassLabels(value, classes);
+      if ('error' in resolved) {
+        flashStatus(rowIndex, { tone: 'error', message: resolved.error });
+        return;
+      }
+      flashStatus(rowIndex, { tone: 'busy' });
+      try {
+        await repo.teachers.update(teacher.id, { classIds: resolved.ids });
+        flashStatus(rowIndex, { tone: 'success' });
+      } catch (e) {
+        flashStatus(rowIndex, { tone: 'error', message: getErrorMessage(e) });
+      }
+      return;
+    }
+
+    if (key === 'name' && !value.trim()) {
+      flashStatus(rowIndex, { tone: 'error', message: 'Name is required' });
+      return;
+    }
+
+    flashStatus(rowIndex, { tone: 'busy' });
+    try {
+      await repo.teachers.update(teacher.id, { [key]: value });
+      flashStatus(rowIndex, { tone: 'success' });
+    } catch (e) {
+      flashStatus(rowIndex, { tone: 'error', message: getErrorMessage(e) });
+    }
   }
 
   const importColumns: BulkImportColumn[] = [
@@ -135,19 +218,9 @@ export function TeachersPage() {
     if (!name) return { error: 'Missing name' };
     if (!/^\S+@\S+\.\S+$/.test(email)) return { error: 'Invalid or missing email' };
 
-    const classNames = (cells.classes ?? '')
-      .split(/[;,]/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const resolvedClasses = classNames.map((label) => ({
-      label,
-      id: classes.find((c) => `${c.name} - ${c.section}`.toLowerCase() === label.toLowerCase())?.id,
-    }));
-    const unmatched = resolvedClasses.find((c) => !c.id);
-    if (unmatched) {
-      return { error: `Class not found: "${unmatched.label}" (expected format "Class 9 - B")` };
-    }
-    const classIds = resolvedClasses.map((c) => c.id as string);
+    const resolved = resolveClassLabels(cells.classes ?? '', classes);
+    if ('error' in resolved) return { error: resolved.error };
+    const classIds = resolved.ids;
 
     return {
       value: {
@@ -187,6 +260,7 @@ export function TeachersPage() {
         description="Manage teaching staff and their class assignments"
         toolbar={
           <>
+            <ViewToggle value={view} onChange={setView} />
             <Button variant="outline" onClick={() => setImportOpen(true)} icon="📋">
               Bulk Import
             </Button>
@@ -203,6 +277,19 @@ export function TeachersPage() {
         </div>
       )}
 
+      {!loading && teachers.length > 0 && view === 'spreadsheet' ? (
+        <div style={{ marginBottom: 16 }}>
+          <div className={styles.subtitle} style={{ marginBottom: 8 }}>
+            Edit any cell to update it live. Email is fixed to the sign-in account and can't be changed here.
+          </div>
+          <SpreadsheetGrid
+            columns={spreadsheetColumns}
+            rows={spreadsheetRows}
+            rowStatuses={spreadsheetRowStatuses}
+            onCellCommit={onSpreadsheetCellCommit}
+          />
+        </div>
+      ) : (
       <Card padded={false}>
         {loading ? (
           <div style={{ padding: 20 }}>
@@ -255,6 +342,7 @@ export function TeachersPage() {
           />
         )}
       </Card>
+      )}
 
       <Modal
         open={modalOpen}
@@ -321,7 +409,6 @@ export function TeachersPage() {
         title="Bulk Import Teachers"
         columns={importColumns}
         mapRow={mapImportRow}
-        previewLabel={(v) => `${v.name} <${v.email}>`}
         importRow={importTeacherRow}
       />
     </div>
