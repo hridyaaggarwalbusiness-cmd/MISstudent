@@ -90,14 +90,8 @@ export function HomeScreen() {
     return upcoming?.id ?? null;
   }, [todaysPeriods]);
 
-  // A single, correctly-prioritized list instead of two overlapping "today" /
-  // "upcoming" sections — anything still pending or overdue, soonest due first.
-  const priorityHomework = useMemo(
-    () =>
-      homeworkItems
-        .filter((h) => h.status === 'pending' || h.status === 'overdue')
-        .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-        .slice(0, 5),
+  const recentHomework = useMemo(
+    () => [...homeworkItems].sort((a, b) => a.dueDate.localeCompare(b.dueDate)).slice(0, 5),
     [homeworkItems],
   );
 
@@ -245,7 +239,7 @@ export function HomeScreen() {
               attendancePct={attendancePct}
               presentDays={presentDays.present}
               totalDays={presentDays.total}
-              pendingCount={priorityHomework.length}
+              homeworkCount={homeworkItems.length}
               unreadCount={unreadCount}
               nextPeriod={nextPeriod}
               onAttendancePress={() => navigation.navigate('Attendance')}
@@ -286,16 +280,15 @@ export function HomeScreen() {
 
         <View style={styles.section}>
           <SectionHeader
-            title="Priorities"
-            subtitle={priorityHomework.length > 0 ? `${priorityHomework.length} need your attention` : undefined}
+            title="Homework"
             onActionPress={() => navigation.navigate('MainTabs', { screen: 'HomeworkTab' })}
           />
           {loading ? (
             <SkeletonCard lines={2} />
-          ) : priorityHomework.length === 0 ? (
-            <EmptyState icon="checkmark-circle-outline" title="All caught up" message="No pending homework right now." compact />
+          ) : recentHomework.length === 0 ? (
+            <EmptyState icon="book-outline" title="No homework yet" message="Homework posted by teachers will appear here." compact />
           ) : (
-            priorityHomework.map((hw) => (
+            recentHomework.map((hw) => (
               <HomeworkCard
                 key={hw.id}
                 homework={hw}

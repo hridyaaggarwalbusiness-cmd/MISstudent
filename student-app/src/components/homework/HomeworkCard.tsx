@@ -4,7 +4,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card, AppText } from '@components/ui';
 import { colors, spacing, radius, accentForKey } from '@theme';
 import { Homework } from '@/types';
-import { dueInLabel, friendlyDateShort } from '@utils/date';
 
 interface HomeworkCardProps {
   homework: Homework;
@@ -13,8 +12,6 @@ interface HomeworkCardProps {
 
 export function HomeworkCard({ homework, onPress }: HomeworkCardProps) {
   const accent = accentForKey(homework.subject);
-  const due = dueInLabel(homework.dueDate);
-  const dueColor = due.overdue ? colors.danger : due.urgent ? colors.warningStrong : colors.textTertiary;
 
   return (
     <Card onPress={onPress} elevation="xs" style={styles.card}>
@@ -23,39 +20,20 @@ export function HomeworkCard({ homework, onPress }: HomeworkCardProps) {
           <Ionicons name="book-outline" size={22} color={accent.fg} />
         </View>
         <View style={{ flex: 1, marginLeft: spacing.sm }}>
-          <View style={styles.topRow}>
-            <AppText variant="caption" color={accent.fg} style={{ fontWeight: '700' }}>
-              {homework.subject.toUpperCase()}
-            </AppText>
-            <View style={[styles.duePill, { backgroundColor: `${dueColor}17` }]}>
-              <AppText variant="tiny" color={dueColor} style={{ fontWeight: '700' }}>
-                {due.label}
-              </AppText>
-            </View>
-          </View>
-          <AppText variant="bodySemibold" numberOfLines={2} style={styles.title}>
+          <AppText variant="caption" color={accent.fg} style={{ fontWeight: '700' }}>
+            {homework.subject.toUpperCase()}
+          </AppText>
+          <AppText variant="bodySemibold" numberOfLines={1} style={styles.title}>
             {homework.title}
           </AppText>
-          <View style={styles.metaRow}>
-            <Ionicons name="person-outline" size={13} color={colors.textTertiary} />
-            <AppText variant="tiny" color={colors.textTertiary} style={{ marginLeft: 4 }}>
-              {homework.teacher}
+          {!!homework.instructions && (
+            <AppText variant="caption" color={colors.textSecondary} numberOfLines={2} style={styles.preview}>
+              {homework.instructions}
             </AppText>
-            <AppText variant="tiny" color={colors.textTertiary} style={{ marginHorizontal: 6 }}>
-              ·
-            </AppText>
-            <AppText variant="tiny" color={colors.textTertiary}>
-              Due {friendlyDateShort(homework.dueDate)}
-            </AppText>
-            {homework.attachments.length > 0 && (
-              <View style={styles.metaRow}>
-                <Ionicons name="attach-outline" size={13} color={colors.textTertiary} style={{ marginLeft: 8 }} />
-                <AppText variant="tiny" color={colors.textTertiary} style={{ marginLeft: 2 }}>
-                  {homework.attachments.length}
-                </AppText>
-              </View>
-            )}
-          </View>
+          )}
+          <AppText variant="tiny" color={colors.textTertiary} style={styles.teacher}>
+            {homework.teacher}
+          </AppText>
         </View>
         <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
       </View>
@@ -78,24 +56,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  duePill: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-  },
   title: {
     marginTop: 4,
     fontSize: 15.5,
     lineHeight: 21,
   },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 7,
+  preview: {
+    marginTop: 3,
+    lineHeight: 18,
+  },
+  teacher: {
+    marginTop: 6,
   },
 });

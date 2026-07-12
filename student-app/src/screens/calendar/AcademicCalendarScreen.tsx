@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl, Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import {
   addMonths,
   subMonths,
@@ -21,9 +22,19 @@ import {
 } from '@components/ui';
 import { EventCalendar } from '@components/calendar/EventCalendar';
 import { CalendarEventCard } from '@components/calendar/CalendarEventCard';
-import { colors, spacing, layout } from '@theme';
+import { colors, spacing, layout, radius } from '@theme';
 import { repo } from '@data/repositories';
 import { CalendarEvent, CalendarEventType } from '@/types';
+
+function eventsOnDate(events: CalendarEvent[], date: Date): CalendarEvent[] {
+  return events.filter((e) => {
+    const start = new Date(e.date);
+    const end = e.endDate ? new Date(e.endDate) : start;
+    if (Number.isNaN(start.getTime())) return false;
+    const safeEnd = Number.isNaN(end.getTime()) || end < start ? start : end;
+    return date >= start && date <= safeEnd;
+  });
+}
 
 type FilterKey = 'all' | CalendarEventType;
 
@@ -44,6 +55,7 @@ export function AcademicCalendarScreen() {
   const [monthDate, setMonthDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [filter, setFilter] = useState<FilterKey>('all');
+  const [modalDate, setModalDate] = useState<Date | null>(null);
 
   // Live subscription (not a one-shot fetch) so events an admin adds, edits
   // or removes show up on the calendar immediately, same as Homework/Notices.
@@ -97,6 +109,18 @@ export function AcademicCalendarScreen() {
     return [...list].sort((a, b) => a.date.localeCompare(b.date));
   }, [filteredEvents, selectedDate]);
 
+  const modalEvents = useMemo(
+    () => (modalDate ? eventsOnDate(filteredEvents, modalDate) : []),
+    [filteredEvents, modalDate],
+  );
+
+  function onDayPress(date: Date) {
+    setSelectedDate((prev) => (prev && isSameDay(prev, date) ? null : date));
+    if (eventsOnDate(filteredEvents, date).length > 0) {
+      setModalDate(date);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <DetailHeader title="Academic Calendar" />
@@ -134,7 +158,7 @@ export function AcademicCalendarScreen() {
                 monthDate={monthDate}
                 events={monthEvents}
                 selectedDate={selectedDate}
-                onSelectDate={(d) => setSelectedDate((prev) => (prev && isSameDay(prev, d) ? null : d))}
+                onSelectDate={onDayPress}
               />
             </Card>
 
@@ -156,6 +180,22 @@ export function AcademicCalendarScreen() {
           </>
         )}
       </ScrollView>
+
+      <Modal visible={!!modalDate} transparent animationType="fade" onRequestClose={() => setModalDate(null)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setModalDate(null)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHeader}>
+              <AppText variant="h3">{modalDate ? format(modalDate, 'EEEE, d MMMM yyyy') : ''}</AppText>
+              <IconButton icon="close" size={30} onPress={() => setModalDate(null)} />
+            </View>
+            <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
+              {modalEvents.map((event) => (
+                <CalendarEventCard key={event.id} event={event} showDescription />
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -165,4 +205,21 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: layout.tabBarClearance },
   monthNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
   sectionTitle: { marginTop: spacing.lg, marginBottom: spacing.sm },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: colors.overlay,
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
 });

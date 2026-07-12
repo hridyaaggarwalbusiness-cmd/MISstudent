@@ -9,7 +9,7 @@ interface BentoStatsProps {
   attendancePct: number;
   presentDays: number;
   totalDays: number;
-  pendingCount: number;
+  homeworkCount: number;
   unreadCount: number;
   nextPeriod?: TimetablePeriod;
   onAttendancePress: () => void;
@@ -22,7 +22,7 @@ export function BentoStats({
   attendancePct,
   presentDays,
   totalDays,
-  pendingCount,
+  homeworkCount,
   unreadCount,
   nextPeriod,
   onAttendancePress,
@@ -56,10 +56,10 @@ export function BentoStats({
           <Ionicons name="book-outline" size={16} color={colors.warningStrong} />
         </View>
         <AppText variant="h2" style={{ marginTop: spacing.sm }}>
-          {pendingCount}
+          {homeworkCount}
         </AppText>
         <AppText variant="tiny" color={colors.textTertiary}>
-          Pending homework
+          Homework
         </AppText>
       </AnimatedPressable>
 

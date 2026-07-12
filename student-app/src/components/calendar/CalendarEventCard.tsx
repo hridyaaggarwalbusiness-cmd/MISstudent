@@ -27,7 +27,13 @@ const fgColorMap: Record<string, string> = {
   slate: colors.textSecondary,
 };
 
-export function CalendarEventCard({ event }: { event: CalendarEvent }) {
+export function CalendarEventCard({
+  event,
+  showDescription = false,
+}: {
+  event: CalendarEvent;
+  showDescription?: boolean;
+}) {
   const meta = eventTypeMeta[event.type];
   const { day, month } = dayMonth(event.date);
   const bg = bgColorMap[meta.color] ?? colors.surfaceAlt;
@@ -51,12 +57,17 @@ export function CalendarEventCard({ event }: { event: CalendarEvent }) {
               {meta.label} · {weekdayLabel(event.date)}
             </AppText>
           </View>
-          <AppText variant="bodySemibold" style={{ marginTop: 3 }} numberOfLines={2}>
+          <AppText variant="bodySemibold" style={{ marginTop: 3 }} numberOfLines={showDescription ? undefined : 2}>
             {event.title}
           </AppText>
           {event.location && (
             <AppText variant="caption" color={colors.textSecondary} numberOfLines={1} style={{ marginTop: 2 }}>
-              {event.location}
+              📍 {event.location}
+            </AppText>
+          )}
+          {showDescription && !!event.description && (
+            <AppText variant="caption" color={colors.textSecondary} style={{ marginTop: 6, lineHeight: 18 }}>
+              {event.description}
             </AppText>
           )}
         </View>
