@@ -1,9 +1,12 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Card, AppText } from '@components/ui';
-import { colors, spacing, radius, accentForKey } from '@theme';
+import { colors, spacing, radius } from '@theme';
 import { Homework } from '@/types';
+import { friendlyDateShort } from '@utils/date';
+import { subjectMeta, subjectTextColor } from '@data/subjectMeta';
 
 interface HomeworkCardProps {
   homework: Homework;
@@ -11,31 +14,31 @@ interface HomeworkCardProps {
 }
 
 export function HomeworkCard({ homework, onPress }: HomeworkCardProps) {
-  const accent = accentForKey(homework.subject);
+  const meta = subjectMeta(homework.subject);
+  const textColor = subjectTextColor(homework.subject);
 
   return (
     <Card onPress={onPress} elevation="xs" style={styles.card}>
       <View style={styles.row}>
-        <View style={[styles.iconWrap, { backgroundColor: accent.bg }]}>
-          <Ionicons name="book-outline" size={22} color={accent.fg} />
-        </View>
+        <LinearGradient colors={meta.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.iconWrap}>
+          <Ionicons name={meta.icon} size={22} color="#fff" />
+        </LinearGradient>
         <View style={{ flex: 1, marginLeft: spacing.sm }}>
-          <AppText variant="caption" color={accent.fg} style={{ fontWeight: '700' }}>
-            {homework.subject.toUpperCase()}
+          <AppText variant="caption" color={textColor} style={{ fontWeight: '700' }}>
+            {homework.subject}
           </AppText>
-          <AppText variant="bodySemibold" numberOfLines={1} style={styles.title}>
+          <AppText variant="bodySemibold" style={styles.title}>
             {homework.title}
           </AppText>
           {!!homework.instructions && (
-            <AppText variant="caption" color={colors.textSecondary} numberOfLines={2} style={styles.preview}>
+            <AppText variant="caption" color={colors.textSecondary} style={styles.preview}>
               {homework.instructions}
             </AppText>
           )}
-          <AppText variant="tiny" color={colors.textTertiary} style={styles.teacher}>
-            {homework.teacher}
+          <AppText variant="tiny" color={colors.textTertiary} style={styles.meta}>
+            By {homework.teacher} · {friendlyDateShort(homework.assignedDate)}
           </AppText>
         </View>
-        <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
       </View>
     </Card>
   );
@@ -50,8 +53,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   iconWrap: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -65,7 +68,7 @@ const styles = StyleSheet.create({
     marginTop: 3,
     lineHeight: 18,
   },
-  teacher: {
-    marginTop: 6,
+  meta: {
+    marginTop: spacing.sm,
   },
 });
