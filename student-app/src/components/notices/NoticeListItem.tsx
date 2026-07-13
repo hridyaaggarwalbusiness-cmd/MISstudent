@@ -7,7 +7,7 @@ import { noticeTimeLabel } from '@utils/date';
 import { noticeCategoryMeta } from '@data/noticeCategoryMeta';
 import { NoticeAttachmentChip } from './NoticeAttachmentChip';
 
-export function NoticeContent({ notice }: { notice: Notice }) {
+export function NoticeContent({ notice, showBadge = true }: { notice: Notice; showBadge?: boolean }) {
   const meta = noticeCategoryMeta[notice.category];
   const badgeLabel = notice.pinned ? 'Important' : meta.label;
   const badgeColor = notice.pinned ? colors.danger : meta.fg;
@@ -15,19 +15,28 @@ export function NoticeContent({ notice }: { notice: Notice }) {
 
   return (
     <View>
-      <View style={styles.topRow}>
-        <View style={[styles.badge, { backgroundColor: badgeBg }]}>
-          <AppText variant="caption" color={badgeColor} style={{ fontWeight: '700' }}>
-            {badgeLabel}
-          </AppText>
+      {(showBadge || !notice.isRead) && (
+        <View style={styles.topRow}>
+          {showBadge ? (
+            <View style={[styles.badge, { backgroundColor: badgeBg }]}>
+              <AppText variant="caption" color={badgeColor} style={{ fontWeight: '700' }}>
+                {badgeLabel}
+              </AppText>
+            </View>
+          ) : (
+            <View />
+          )}
+          {!notice.isRead && <View style={styles.unreadDot} />}
         </View>
-        {!notice.isRead && <View style={styles.unreadDot} />}
-      </View>
+      )}
 
-      <AppText variant={notice.isRead ? 'bodyMedium' : 'bodySemibold'} numberOfLines={2} style={styles.title}>
+      <AppText
+        variant={notice.isRead ? 'bodyMedium' : 'bodySemibold'}
+        style={[styles.title, !showBadge && { marginTop: 0 }]}
+      >
         {notice.title}
       </AppText>
-      <AppText variant="caption" color={colors.textSecondary} numberOfLines={2} style={styles.body}>
+      <AppText variant="caption" color={colors.textSecondary} style={styles.body}>
         {notice.body}
       </AppText>
 
@@ -50,10 +59,20 @@ export function NoticeListItem({ notice, onPress }: { notice: Notice; onPress: (
   );
 }
 
-export function NoticeGroupRow({ notice, onPress, isLast }: { notice: Notice; onPress: () => void; isLast: boolean }) {
+export function NoticeGroupRow({
+  notice,
+  onPress,
+  isLast,
+  showBadge,
+}: {
+  notice: Notice;
+  onPress: () => void;
+  isLast: boolean;
+  showBadge: boolean;
+}) {
   return (
     <AnimatedPressable onPress={onPress} haptic={false} style={[styles.groupRow, !isLast && styles.groupRowDivider]}>
-      <NoticeContent notice={notice} />
+      <NoticeContent notice={notice} showBadge={showBadge} />
     </AnimatedPressable>
   );
 }

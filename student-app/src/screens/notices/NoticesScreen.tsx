@@ -67,8 +67,16 @@ export function NoticesScreen() {
                 if (searchVisible) setQuery('');
               }}
               size={38}
+              backgroundColor="transparent"
+              style={styles.plainIcon}
             />
-            <IconButton icon="filter-outline" onPress={() => {}} size={38} style={{ marginLeft: spacing.xs }} />
+            <IconButton
+              icon="filter-outline"
+              onPress={() => {}}
+              size={38}
+              backgroundColor="transparent"
+              style={{ borderWidth: 0, marginLeft: spacing.xs }}
+            />
           </View>
         </View>
         {searchVisible && (
@@ -113,9 +121,6 @@ export function NoticesScreen() {
         >
           {pinned.length > 0 && (
             <View style={{ marginBottom: spacing.lg }}>
-              <AppText variant="overline" color={colors.textTertiary} style={{ marginBottom: spacing.sm }}>
-                PINNED
-              </AppText>
               <View style={{ position: 'relative' }}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {pinned.map((n) => (
@@ -136,6 +141,7 @@ export function NoticesScreen() {
                   key={n.id}
                   notice={n}
                   isLast={i === feed.length - 1}
+                  showBadge={i === 0}
                   onPress={() => navigation.navigate('NoticeDetail', { id: n.id })}
                 />
               ))}
@@ -158,6 +164,7 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   titleActions: { flexDirection: 'row', alignItems: 'center' },
+  plainIcon: { borderWidth: 0 },
   list: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Platform, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText, AnimatedPressable } from '@components/ui';
-import { colors, spacing, radius } from '@theme';
+import { colors, spacing } from '@theme';
 import { Attachment } from '@/types';
 
 const badgeMeta: Record<Attachment['type'], { label: string; color: string }> = {
@@ -62,6 +62,17 @@ function openAttachment(url: string, filename: string, type: Attachment['type'])
   }
 }
 
+function FileBadge({ color, label }: { color: string; label: string }) {
+  return (
+    <View style={[styles.badge, { backgroundColor: color }]}>
+      <View style={styles.badgeFold} />
+      <AppText variant="tiny" color="#fff" style={styles.badgeLabel}>
+        {label}
+      </AppText>
+    </View>
+  );
+}
+
 export function NoticeAttachmentChip({ attachment }: { attachment: Attachment }) {
   const meta = badgeMeta[attachment.type];
   return (
@@ -70,13 +81,9 @@ export function NoticeAttachmentChip({ attachment }: { attachment: Attachment })
       haptic={false}
       style={styles.row}
     >
-      <View style={[styles.badge, { backgroundColor: meta.color }]}>
-        <AppText variant="tiny" color="#fff" style={{ fontWeight: '800' }}>
-          {meta.label}
-        </AppText>
-      </View>
+      <FileBadge color={meta.color} label={meta.label} />
       <View style={{ flex: 1, marginLeft: spacing.sm }}>
-        <AppText variant="bodyMedium" numberOfLines={1}>
+        <AppText variant="bodyMedium" numberOfLines={1} style={{ fontWeight: '700' }}>
           {attachment.name}
         </AppText>
         {attachment.sizeLabel && (
@@ -87,7 +94,7 @@ export function NoticeAttachmentChip({ attachment }: { attachment: Attachment })
       </View>
       <Ionicons
         name={attachment.type === 'pdf' || attachment.type === 'image' ? 'open-outline' : 'download-outline'}
-        size={18}
+        size={20}
         color={colors.primary}
       />
     </AnimatedPressable>
@@ -98,17 +105,31 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    marginTop: spacing.xs,
+    marginTop: spacing.sm,
   },
   badge: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.sm,
+    width: 38,
+    height: 46,
+    borderRadius: 6,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 6,
+    overflow: 'hidden',
+  },
+  badgeFold: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 0,
+    height: 0,
+    borderTopWidth: 11,
+    borderLeftWidth: 11,
+    borderTopColor: 'rgba(255,255,255,0.45)',
+    borderLeftColor: 'transparent',
+  },
+  badgeLabel: {
+    fontWeight: '800',
+    fontSize: 9,
+    letterSpacing: 0.3,
   },
 });
