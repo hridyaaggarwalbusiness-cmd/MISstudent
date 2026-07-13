@@ -1,53 +1,63 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { format } from 'date-fns';
-import { AppText, SkeletonCard, EmptyState, ErrorState } from '@components/ui';
-import { TimetableGrid } from '@components/timetable/TimetableGrid';
-import { colors, spacing, layout } from '@theme';
+import { startOfWeek, addDays, format, isSameDay } from 'date-fns';
+import { AppText, Card, AnimatedPressable, SkeletonCard, EmptyState, ErrorState } from '@components/ui';
+import { TimetableAgendaRow } from '@components/timetable/TimetableAgendaRow';
+import { colors, spacing, layout, radius } from '@theme';
 import { repo } from '@data/repositories';
 import { useAsyncResource } from '@hooks/useAsyncResource';
 import { useAuthStore } from '@store/useAuthStore';
-import { todayDayCode } from '@utils/date';
+import { DayOfWeek } from '@/types';
 
-function toMinutes(t: string) {
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
-}
+const DAY_CODES: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export function TimetableScreen() {
-  const todayCode = todayDayCode();
   const classId = useAuthStore((s) => s.student?.classId);
+
+  const weekDates = useMemo(() => {
+    const monday = startOfWeek(new Date(), { weekStartsOn: 1 });
+    return DAY_CODES.map((code, i) => ({ code, date: addDays(monday, i) }));
+  }, []);
+
+  const [selectedIndex, setSelectedIndex] = useState(() => {
+    const idx = weekDates.findIndex((d) => isSameDay(d.date, new Date()));
+    return idx >= 0 ? idx : 0;
+  });
+  const selectedDay = weekDates[selectedIndex];
 
   const { data, loading, refreshing, error, refresh } = useAsyncResource(
     () => (classId ? repo.timetable.getAll(classId) : Promise.resolve([])),
     [classId],
   );
 
-  const currentPeriodId = useMemo(() => {
-    if (!data) return null;
-    const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
-    return (
-      data.find(
-        (p) =>
-          p.day === todayCode &&
-          !p.isBreak &&
-          nowMinutes >= toMinutes(p.startTime) &&
-          nowMinutes < toMinutes(p.endTime),
-      )?.id ?? null
-    );
-  }, [data, todayCode]);
+  const dayPeriods = useMemo(() => {
+    if (!data) return [];
+    return [...data.filter((p) => p.day === selectedDay.code)].sort((a, b) => a.periodNumber - b.periodNumber);
+  }, [data, selectedDay]);
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
-      <View style={styles.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-          <AppText variant="displayMd">Timetable</AppText>
-          <AppText variant="captionRegular" color={colors.textTertiary}>
-            {format(new Date(), 'MMMM yyyy')}
-          </AppText>
-        </View>
-      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayRow} contentContainerStyle={styles.dayRowContent}>
+        {weekDates.map((d, i) => {
+          const active = i === selectedIndex;
+          return (
+            <AnimatedPressable
+              key={d.code}
+              onPress={() => setSelectedIndex(i)}
+              haptic={false}
+              style={[styles.dayChip, active && styles.dayChipActive]}
+            >
+              <AppText variant="caption" color={active ? colors.textInverse : colors.textSecondary} style={{ fontWeight: '700' }}>
+                {d.code}
+              </AppText>
+              <AppText variant="tiny" color={active ? colors.textInverse : colors.textTertiary} style={{ marginTop: 2 }}>
+                {format(d.date, 'd MMM')}
+              </AppText>
+            </AnimatedPressable>
+          );
+        })}
+      </ScrollView>
 
       {error && !data ? (
         <ErrorState onRetry={refresh} />
@@ -63,10 +73,14 @@ export function TimetableScreen() {
           <View style={styles.section}>
             {loading ? (
               <SkeletonCard lines={4} />
-            ) : !data || data.length === 0 ? (
-              <EmptyState icon="calendar-outline" title="No timetable yet" message="Your class timetable hasn't been set up yet." />
+            ) : dayPeriods.length === 0 ? (
+              <EmptyState icon="calendar-outline" title="No periods" message="Nothing scheduled for this day." />
             ) : (
-              <TimetableGrid periods={data} todayCode={todayCode} currentPeriodId={currentPeriodId} />
+              <Card padded={false} elevation="xs">
+                {dayPeriods.map((p, i) => (
+                  <TimetableAgendaRow key={p.id} period={p} isLast={i === dayPeriods.length - 1} />
+                ))}
+              </Card>
             )}
           </View>
         </ScrollView>
@@ -77,7 +91,22 @@ export function TimetableScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, marginBottom: spacing.md },
-  section: { paddingHorizontal: spacing.lg, marginBottom: spacing.md },
+  dayRow: { flexGrow: 0, paddingTop: spacing.sm },
+  dayRowContent: { paddingHorizontal: spacing.lg, gap: spacing.xs },
+  dayChip: {
+    width: 64,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  dayChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  section: { paddingHorizontal: spacing.lg, marginTop: spacing.md, marginBottom: spacing.md },
   scrollContent: { paddingBottom: layout.tabBarClearance },
 });

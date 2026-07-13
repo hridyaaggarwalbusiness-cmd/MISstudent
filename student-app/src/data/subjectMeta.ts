@@ -17,6 +17,9 @@ const KNOWN_SUBJECTS: Record<string, SubjectMeta> = {
   'social studies': { icon: 'document-text', gradient: [palette.orange400, palette.orange600] },
   computer: { icon: 'desktop-outline', gradient: [palette.sky400, palette.sky600] },
   'computer science': { icon: 'desktop-outline', gradient: [palette.sky400, palette.sky600] },
+  'physical education': { icon: 'body-outline', gradient: [palette.violet400, palette.violet600] },
+  pe: { icon: 'body-outline', gradient: [palette.violet400, palette.violet600] },
+  'p.e.': { icon: 'body-outline', gradient: [palette.violet400, palette.violet600] },
 };
 
 const FALLBACK_GRADIENTS: readonly (readonly [string, string])[] = [
