@@ -1,9 +1,11 @@
+import { Ionicons } from '@expo/vector-icons';
 import { TimetablePeriod } from '@/types';
 
 export interface SchoolStatus {
   headline: string;
   minutesLabel?: string;
   sublabel: string;
+  icon: keyof typeof Ionicons.glyphMap;
 }
 
 function toMinutes(t: string): number {
@@ -28,7 +30,7 @@ export function computeSchoolStatus(todaysPeriods: TimetablePeriod[]): SchoolSta
   );
 
   if (classPeriods.length === 0) {
-    return { headline: 'No classes today', sublabel: 'Enjoy your day off! 🎉' };
+    return { headline: 'No classes today', sublabel: 'Enjoy your day off!', icon: 'happy-outline' };
   }
 
   const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
@@ -42,7 +44,8 @@ export function computeSchoolStatus(todaysPeriods: TimetablePeriod[]): SchoolSta
     return {
       headline: 'School starts in',
       minutesLabel: formatMinutes(toMinutes(first.startTime) - nowMinutes),
-      sublabel: 'Have a great day! ☀️',
+      sublabel: 'Have a great day!',
+      icon: 'sunny-outline',
     };
   }
 
@@ -50,6 +53,7 @@ export function computeSchoolStatus(todaysPeriods: TimetablePeriod[]): SchoolSta
     return {
       headline: `${current.subject} is on now`,
       sublabel: `Ends in ${formatMinutes(toMinutes(current.endTime) - nowMinutes)}`,
+      icon: 'book-outline',
     };
   }
 
@@ -60,9 +64,14 @@ export function computeSchoolStatus(todaysPeriods: TimetablePeriod[]): SchoolSta
         headline: 'Next class in',
         minutesLabel: formatMinutes(toMinutes(next.startTime) - nowMinutes),
         sublabel: next.subject,
+        icon: 'time-outline',
       };
     }
   }
 
-  return { headline: "School's done for today!", sublabel: 'Enjoy your evening 🌙' };
+  return {
+    headline: "School's done for today!",
+    sublabel: 'Enjoy your evening',
+    icon: 'moon-outline',
+  };
 }

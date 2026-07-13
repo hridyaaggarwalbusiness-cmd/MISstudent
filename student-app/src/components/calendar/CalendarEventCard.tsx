@@ -61,9 +61,12 @@ export function CalendarEventCard({
             {event.title}
           </AppText>
           {event.location && (
-            <AppText variant="caption" color={colors.textSecondary} numberOfLines={1} style={{ marginTop: 2 }}>
-              📍 {event.location}
-            </AppText>
+            <View style={styles.locationRow}>
+              <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
+              <AppText variant="caption" color={colors.textSecondary} numberOfLines={1} style={{ marginLeft: 3 }}>
+                {event.location}
+              </AppText>
+            </View>
           )}
           {showDescription && !!event.description && (
             <AppText variant="caption" color={colors.textSecondary} style={{ marginTop: 6, lineHeight: 18 }}>
@@ -87,4 +90,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   typeRow: { flexDirection: 'row', alignItems: 'center' },
+  locationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
 });

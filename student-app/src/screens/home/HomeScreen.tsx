@@ -264,7 +264,7 @@ export function HomeScreen() {
               {greetingForNow()}
             </AppText>
             <AppText variant="h1" numberOfLines={1}>
-              {firstName} 👋
+              {firstName}
             </AppText>
           </View>
           <BellButton count={unreadCount} onPress={() => navigation.navigate('Notifications')} />

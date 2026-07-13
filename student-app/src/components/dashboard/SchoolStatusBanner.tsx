@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { AppText } from '@components/ui';
 import { colors, spacing, radius, shadows } from '@theme';
 import { SchoolStatus } from '@utils/schoolStatus';
@@ -22,16 +23,16 @@ export function SchoolStatusBanner({ status }: { status: SchoolStatus }) {
             {status.minutesLabel}
           </AppText>
         )}
-        <AppText
-          variant="bodyMedium"
-          color="rgba(255,255,255,0.92)"
-          style={{ marginTop: status.minutesLabel ? spacing.xs : 4 }}
-        >
-          {status.sublabel}
-        </AppText>
+        <View style={[styles.sublabelRow, { marginTop: status.minutesLabel ? spacing.xs : 4 }]}>
+          <Ionicons name={status.icon} size={15} color="rgba(255,255,255,0.92)" />
+          <AppText variant="bodyMedium" color="rgba(255,255,255,0.92)" style={{ marginLeft: 5 }}>
+            {status.sublabel}
+          </AppText>
+        </View>
       </View>
-      <AppText style={styles.illustration}>🏫</AppText>
-      <AppText style={styles.cloud}>☁️</AppText>
+      <View style={styles.illustrationWrap}>
+        <Ionicons name="school" size={40} color="#fff" />
+      </View>
     </LinearGradient>
   );
 }
@@ -56,15 +57,17 @@ const styles = StyleSheet.create({
     lineHeight: 38,
     marginTop: 2,
   },
-  illustration: {
-    fontSize: 64,
-    marginLeft: spacing.sm,
+  sublabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  cloud: {
-    position: 'absolute',
-    top: 14,
-    right: 90,
-    fontSize: 18,
-    opacity: 0.8,
+  illustrationWrap: {
+    width: 68,
+    height: 68,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: spacing.sm,
   },
 });
