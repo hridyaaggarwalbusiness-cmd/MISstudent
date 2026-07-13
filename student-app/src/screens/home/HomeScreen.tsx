@@ -1,24 +1,16 @@
-import React, { useMemo } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, ScrollView, StyleSheet, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '@navigation/types';
-import {
-  SectionHeader,
-  SkeletonCard,
-  Skeleton,
-  EmptyState,
-  ErrorState,
-} from '@components/ui';
-import { DashboardHeader } from '@components/dashboard/DashboardHeader';
-import { BentoStats } from '@components/dashboard/BentoStats';
-import { ActionTileGrid, ActionTile } from '@components/dashboard/ActionTileGrid';
-import { PeriodCard } from '@components/dashboard/PeriodCard';
-import { LatestMarksCard } from '@components/dashboard/LatestMarksCard';
-import { ExamCountdownCard } from '@components/dashboard/ExamCountdownCard';
-import { HomeworkCard } from '@components/homework/HomeworkCard';
-import { NoticeListItem } from '@components/notices/NoticeListItem';
+import { AppText, IconButton, SectionHeader, Skeleton, EmptyState, ErrorState, AnimatedPressable } from '@components/ui';
+import { SchoolStatusBanner } from '@components/dashboard/SchoolStatusBanner';
+import { UpdateFeedItem, UpdateFeedItemData } from '@components/dashboard/UpdateFeedItem';
+import { UpcomingStats } from '@components/dashboard/UpcomingStats';
+import { QuickAccessGrid, QuickAccessItem } from '@components/dashboard/QuickAccessGrid';
+import { MoreMenuModal } from '@components/dashboard/MoreMenuModal';
 import { colors, spacing, layout } from '@theme';
 import { repo } from '@data/repositories';
 import { useAsyncResource } from '@hooks/useAsyncResource';
@@ -27,36 +19,61 @@ import { useHomeworkStore } from '@store/useHomeworkStore';
 import { useNoticesStore } from '@store/useNoticesStore';
 import { useNotificationsStore } from '@store/useNotificationsStore';
 import { useAuthStore } from '@store/useAuthStore';
-import { todayDayCode } from '@utils/date';
-import { overallAttendancePercentage } from '@utils/attendance';
+import { todayDayCode, greetingForNow, relativeTime } from '@utils/date';
+import { computeSchoolStatus } from '@utils/schoolStatus';
+import { eventTypeMeta } from '@data/calendarEventTypeMeta';
 
 async function loadDashboard(classId: string, studentId: string) {
-  const [timetable, exams, attendanceMonth, results] = await Promise.all([
+  const [timetable, exams, attendanceMonth, results, calendarEvents] = await Promise.all([
     repo.timetable.getAll(classId),
     repo.exams.list(classId),
     repo.attendance.getCurrentMonth(studentId),
     repo.results.list(studentId),
+    repo.calendar.list(),
   ]);
-  return { timetable, exams, attendanceMonth, results };
+  return { timetable, exams, attendanceMonth, results, calendarEvents };
 }
 
-function toMinutes(t: string) {
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
+function isRecent(dateIso: string, days: number): boolean {
+  const then = new Date(dateIso).getTime();
+  if (Number.isNaN(then)) return false;
+  return Date.now() - then <= days * 24 * 60 * 60 * 1000;
+}
+
+function isoToday(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function BellButton({ count, onPress }: { count: number; onPress: () => void }) {
+  return (
+    <AnimatedPressable onPress={onPress} style={styles.bell} haptic={false}>
+      <Ionicons name="notifications-outline" size={19} color={colors.textPrimary} />
+      {count > 0 && (
+        <View style={styles.bellBadge}>
+          <AppText variant="tiny" color="#fff" style={{ fontSize: 9, fontWeight: '700' }}>
+            {count > 9 ? '9+' : count}
+          </AppText>
+        </View>
+      )}
+    </AnimatedPressable>
+  );
 }
 
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const authStudent = useAuthStore((s) => s.student);
+  const signOut = useAuthStore((s) => s.signOut);
   const { student, fetch: fetchStudent } = useStudentStore();
   const { items: homeworkItems, fetch: fetchHomework } = useHomeworkStore();
   const { items: noticeItems, fetch: fetchNotices } = useNoticesStore();
   const { unreadCount, fetch: fetchNotifications } = useNotificationsStore();
+  const [moreVisible, setMoreVisible] = useState(false);
+
   const { data, loading, refreshing, error, refresh } = useAsyncResource(
     () =>
       authStudent
         ? loadDashboard(authStudent.classId, authStudent.id)
-        : Promise.resolve({ timetable: [], exams: [], attendanceMonth: [], results: [] }),
+        : Promise.resolve({ timetable: [], exams: [], attendanceMonth: [], results: [], calendarEvents: [] }),
     [authStudent?.id],
   );
 
@@ -68,125 +85,162 @@ export function HomeScreen() {
   }, [fetchStudent, fetchHomework, fetchNotices, fetchNotifications]);
 
   const today = todayDayCode();
+  const todayIso = isoToday();
 
   const todaysPeriods = useMemo(() => {
     if (!data) return [];
     return data.timetable.filter((p) => p.day === today);
   }, [data, today]);
 
-  const currentPeriodId = useMemo(() => {
-    if (todaysPeriods.length === 0) return null;
-    const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
-    const current = todaysPeriods.find(
-      (p) => nowMinutes >= toMinutes(p.startTime) && nowMinutes < toMinutes(p.endTime),
-    );
-    return current?.id ?? null;
-  }, [todaysPeriods]);
+  const schoolStatus = useMemo(() => computeSchoolStatus(todaysPeriods), [todaysPeriods]);
 
-  const nextPeriodId = useMemo(() => {
-    if (todaysPeriods.length === 0) return null;
-    const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
-    const upcoming = todaysPeriods.find((p) => toMinutes(p.startTime) > nowMinutes && !p.isBreak);
-    return upcoming?.id ?? null;
-  }, [todaysPeriods]);
-
-  const recentHomework = useMemo(
-    () => [...homeworkItems].sort((a, b) => a.dueDate.localeCompare(b.dueDate)).slice(0, 5),
-    [homeworkItems],
-  );
-
-  const upcomingExams = useMemo(() => {
+  const todaysEvents = useMemo(() => {
     if (!data) return [];
-    return data.exams.filter((e) => e.status === 'upcoming').slice(0, 4);
-  }, [data]);
-
-  const recentNotices = useMemo(() => noticeItems.slice(0, 2), [noticeItems]);
-
-  const attendancePct = useMemo(() => {
-    if (!data) return 0;
-    return overallAttendancePercentage(data.attendanceMonth);
-  }, [data]);
-
-  const presentDays = useMemo(() => {
-    if (!data) return { present: 0, total: 0 };
-    const countable = data.attendanceMonth.filter(
-      (d) => d.status !== 'weekend' && d.status !== 'future' && d.status !== 'holiday' && d.status !== 'unmarked',
-    );
-    const present = countable.filter((d) => d.status === 'present' || d.status === 'late').length;
-    return { present, total: countable.length };
-  }, [data]);
+    return data.calendarEvents.filter((e) => e.date <= todayIso && (e.endDate ?? e.date) >= todayIso);
+  }, [data, todayIso]);
 
   const latestResult = data?.results[data.results.length - 1];
 
-  const nextPeriod = useMemo(
-    () => todaysPeriods.find((p) => p.id === nextPeriodId || p.id === currentPeriodId),
-    [todaysPeriods, nextPeriodId, currentPeriodId],
-  );
+  // A single chronological feed instead of separate homework/notice/event/
+  // result sections, so the home screen leads with "what's new" first.
+  const feedItems: UpdateFeedItemData[] = useMemo(() => {
+    const entries: { ts: number; item: UpdateFeedItemData }[] = [];
 
-  const actionTiles: ActionTile[] = [
-    {
-      key: 'homework',
-      label: 'Homework',
-      icon: 'book-outline',
-      color: colors.tileBlue,
-      textColor: colors.textInverse,
-      onPress: () => navigation.navigate('MainTabs', { screen: 'HomeworkTab' }),
-    },
+    homeworkItems.forEach((hw) => {
+      entries.push({
+        ts: new Date(hw.assignedDate).getTime() || 0,
+        item: {
+          key: `hw-${hw.id}`,
+          icon: 'book',
+          color: colors.tileBlue,
+          category: 'HOMEWORK',
+          title: `${hw.subject} homework added`,
+          subtitle: hw.title,
+          meta: relativeTime(hw.assignedDate),
+          badge: isRecent(hw.assignedDate, 2) ? 'New' : undefined,
+          onPress: () => navigation.navigate('HomeworkDetail', { id: hw.id }),
+        },
+      });
+    });
+
+    noticeItems.forEach((n) => {
+      entries.push({
+        ts: new Date(n.postedAt).getTime() || 0,
+        item: {
+          key: `notice-${n.id}`,
+          icon: 'megaphone',
+          color: colors.tileOrange,
+          category: 'NOTICE',
+          title: n.title,
+          meta: relativeTime(n.postedAt),
+          badge: isRecent(n.postedAt, 2) ? 'New' : undefined,
+          onPress: () => navigation.navigate('NoticeDetail', { id: n.id }),
+        },
+      });
+    });
+
+    todaysEvents.forEach((e) => {
+      entries.push({
+        ts: Date.now(),
+        item: {
+          key: `event-${e.id}`,
+          icon: (eventTypeMeta[e.type]?.icon as UpdateFeedItemData['icon']) ?? 'calendar',
+          color: colors.tileGreen,
+          category: 'EVENT',
+          title: e.title,
+          subtitle: e.location || e.description,
+          meta: 'Today',
+          badge: 'Today',
+          onPress: () => navigation.navigate('AcademicCalendar'),
+        },
+      });
+    });
+
+    if (latestResult) {
+      entries.push({
+        ts: new Date(latestResult.date).getTime() || 0,
+        item: {
+          key: `result-${latestResult.id}`,
+          icon: 'stats-chart',
+          color: colors.tileViolet,
+          category: 'RESULTS',
+          title: `${latestResult.examName} results published`,
+          subtitle: 'Check your marks now',
+          meta: relativeTime(latestResult.date),
+          onPress: () => navigation.navigate('Results'),
+        },
+      });
+    }
+
+    return entries
+      .sort((a, b) => b.ts - a.ts)
+      .slice(0, 4)
+      .map((e) => e.item);
+  }, [homeworkItems, noticeItems, todaysEvents, latestResult, navigation]);
+
+  const upcomingStats = useMemo(() => {
+    const homeworkDueToday = homeworkItems.filter((h) => h.dueDate === todayIso).length;
+    const examsThisWeek = (data?.exams ?? []).filter((e) => {
+      const diff = (new Date(e.date).getTime() - Date.now()) / 86_400_000;
+      return diff >= 0 && diff <= 7;
+    }).length;
+    const classesToday = todaysPeriods.filter((p) => !p.isBreak).length;
+
+    return [
+      { key: 'hw', value: homeworkDueToday, valueColor: colors.tileRed, label: 'Homework', sublabel: 'Due today' },
+      { key: 'exam', value: examsThisWeek, valueColor: colors.tileOrange, label: 'Exam', sublabel: 'This week' },
+      {
+        key: 'classes',
+        value: classesToday,
+        valueColor: classesToday === 0 ? colors.tileGreen : colors.primary,
+        label: 'Classes',
+        sublabel: classesToday === 0 ? 'Free today' : 'Today',
+      },
+    ];
+  }, [homeworkItems, data, todaysPeriods, todayIso]);
+
+  const quickAccess: QuickAccessItem[] = [
     {
       key: 'timetable',
       label: 'Timetable',
       icon: 'calendar-outline',
       color: colors.tileGreen,
-      textColor: colors.textInverse,
       onPress: () => navigation.navigate('MainTabs', { screen: 'TimetableTab' }),
-    },
-    {
-      key: 'calendar',
-      label: 'Calendar',
-      icon: 'today-outline',
-      color: colors.tileYellow,
-      textColor: colors.textInverse,
-      onPress: () => navigation.navigate('AcademicCalendar'),
-    },
-    {
-      key: 'results',
-      label: 'Exams & Results',
-      icon: 'stats-chart-outline',
-      color: colors.tileRed,
-      textColor: colors.textInverse,
-      onPress: () => navigation.navigate('Results'),
     },
     {
       key: 'attendance',
       label: 'Attendance',
       icon: 'checkmark-done-outline',
       color: colors.tileViolet,
-      textColor: colors.textInverse,
       onPress: () => navigation.navigate('Attendance'),
+    },
+    {
+      key: 'results',
+      label: 'Results',
+      icon: 'stats-chart-outline',
+      color: colors.tileRed,
+      onPress: () => navigation.navigate('Results'),
     },
     {
       key: 'materials',
       label: 'Materials',
       icon: 'library-outline',
-      color: colors.tileTeal,
-      textColor: colors.textInverse,
+      color: colors.tileSky,
       onPress: () => navigation.navigate('StudyMaterials'),
     },
     {
-      key: 'notices',
-      label: 'Notices',
-      icon: 'megaphone-outline',
+      key: 'calendar',
+      label: 'Calendar',
+      icon: 'today-outline',
       color: colors.tileOrange,
-      textColor: colors.textInverse,
-      onPress: () => navigation.navigate('MainTabs', { screen: 'NoticesTab' }),
+      onPress: () => navigation.navigate('AcademicCalendar'),
     },
     {
-      key: 'notifications',
-      label: 'Notifications',
-      icon: 'notifications-outline',
-      color: colors.tileSky,
-      textColor: colors.textInverse,
-      onPress: () => navigation.navigate('Notifications'),
+      key: 'more',
+      label: 'More',
+      icon: 'ellipsis-horizontal',
+      color: colors.textTertiary,
+      onPress: () => setMoreVisible(true),
     },
   ];
 
@@ -198,158 +252,134 @@ export function HomeScreen() {
     );
   }
 
+  const firstName = student?.name.split(' ')[0] ?? 'Student';
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <DashboardHeader
-        name={student?.name ?? 'Student'}
-        photoUrl={student?.photoUrl}
-        className={student?.className ?? ''}
-        section={student?.section ?? ''}
-        unreadNotifications={unreadCount}
-        onAvatarPress={() => navigation.navigate('MainTabs', { screen: 'ProfileTab' })}
-        onBellPress={() => navigation.navigate('Notifications')}
-        onSearchPress={() => navigation.navigate('Search')}
-      />
+      <View style={styles.header}>
+        <View style={styles.headerRow}>
+          <IconButton icon="menu-outline" onPress={() => setMoreVisible(true)} />
+          <View style={{ flex: 1, marginLeft: spacing.sm }}>
+            <AppText variant="caption" color={colors.textTertiary}>
+              {greetingForNow()}
+            </AppText>
+            <AppText variant="h1" numberOfLines={1}>
+              {firstName} 👋
+            </AppText>
+          </View>
+          <BellButton count={unreadCount} onPress={() => navigation.navigate('Notifications')} />
+        </View>
+        {student && (
+          <View style={styles.classPill}>
+            <AppText variant="caption" color={colors.textSecondary}>
+              {student.className} · Section {student.section}
+            </AppText>
+          </View>
+        )}
+      </View>
+
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={refresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} colors={[colors.primary]} />
         }
       >
         <View style={{ paddingHorizontal: spacing.lg }}>
-          {loading ? (
-            <Skeleton height={280} borderRadius={18} />
-          ) : (
-            <ActionTileGrid tiles={actionTiles} />
-          )}
+          {loading ? <Skeleton height={130} borderRadius={20} /> : <SchoolStatusBanner status={schoolStatus} />}
         </View>
 
         <View style={styles.section}>
-          {loading ? (
-            <Skeleton height={150} borderRadius={18} />
-          ) : (
-            <BentoStats
-              attendancePct={attendancePct}
-              presentDays={presentDays.present}
-              totalDays={presentDays.total}
-              homeworkCount={homeworkItems.length}
-              unreadCount={unreadCount}
-              nextPeriod={nextPeriod}
-              onAttendancePress={() => navigation.navigate('Attendance')}
-              onHomeworkPress={() => navigation.navigate('MainTabs', { screen: 'HomeworkTab' })}
-              onNotificationsPress={() => navigation.navigate('Notifications')}
-              onTimetablePress={() => navigation.navigate('MainTabs', { screen: 'TimetableTab' })}
-            />
-          )}
-        </View>
-
-        <View style={styles.section}>
-          <SectionHeader title="Today's Schedule" onActionPress={() => navigation.navigate('MainTabs', { screen: 'TimetableTab' })} />
+          <SectionHeader title="Today's Updates" onActionPress={() => navigation.navigate('Notifications')} />
           {loading ? (
             <Skeleton height={90} borderRadius={16} />
-          ) : todaysPeriods.filter((p) => !p.isBreak).length === 0 ? (
-            <EmptyState
-              icon="calendar-clear-outline"
-              title="No classes today"
-              message="Enjoy your day off! Check the timetable for upcoming school days."
-              compact
-            />
+          ) : feedItems.length === 0 ? (
+            <EmptyState icon="sparkles-outline" title="All quiet for now" message="New homework, notices and events will show up here." compact />
           ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {todaysPeriods
-                .filter((p) => !p.isBreak)
-                .map((p) => (
-                  <PeriodCard
-                    key={p.id}
-                    period={p}
-                    compact
-                    isCurrent={p.id === currentPeriodId}
-                    isNext={p.id === nextPeriodId}
-                  />
-                ))}
-            </ScrollView>
+            feedItems.map((item) => <UpdateFeedItem key={item.key} item={item} />)
           )}
         </View>
 
         <View style={styles.section}>
-          <SectionHeader
-            title="Homework"
-            onActionPress={() => navigation.navigate('MainTabs', { screen: 'HomeworkTab' })}
-          />
-          {loading ? (
-            <SkeletonCard lines={2} />
-          ) : recentHomework.length === 0 ? (
-            <EmptyState icon="book-outline" title="No homework yet" message="Homework posted by teachers will appear here." compact />
-          ) : (
-            recentHomework.map((hw) => (
-              <HomeworkCard
-                key={hw.id}
-                homework={hw}
-                onPress={() => navigation.navigate('HomeworkDetail', { id: hw.id })}
-              />
-            ))
-          )}
-        </View>
-
-        <View style={styles.section}>
-          <SectionHeader title="Upcoming Exams" onActionPress={() => navigation.navigate('AcademicCalendar')} />
-          {loading ? (
-            <Skeleton height={80} borderRadius={16} />
-          ) : upcomingExams.length === 0 ? (
-            <EmptyState icon="document-text-outline" title="No exams scheduled" compact />
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {upcomingExams.map((exam) => (
-                <ExamCountdownCard key={exam.id} exam={exam} />
-              ))}
-            </ScrollView>
-          )}
-        </View>
-
-        <View style={styles.section}>
-          <SectionHeader title="Latest Result" onActionPress={() => navigation.navigate('Results')} />
-          {loading ? (
-            <SkeletonCard lines={1} />
-          ) : latestResult ? (
-            <LatestMarksCard result={latestResult} onPress={() => navigation.navigate('Results')} />
-          ) : (
-            <EmptyState icon="stats-chart-outline" title="No results yet" compact />
-          )}
+          <SectionHeader title="Upcoming" />
+          {loading ? <Skeleton height={90} borderRadius={16} /> : <UpcomingStats stats={upcomingStats} />}
         </View>
 
         <View style={[styles.section, { marginBottom: spacing.xxxl }]}>
           <SectionHeader
-            title="Recent Notices"
-            onActionPress={() => navigation.navigate('MainTabs', { screen: 'NoticesTab' })}
+            title="Quick Access"
+            actionLabel="Edit"
+            onActionPress={() => Alert.alert('Customize Quick Access', 'Rearranging shortcuts is coming in a future update.')}
           />
-          {loading ? (
-            <SkeletonCard lines={2} />
-          ) : recentNotices.length === 0 ? (
-            <EmptyState icon="megaphone-outline" title="No notices yet" compact />
-          ) : (
-            recentNotices.map((notice) => (
-              <NoticeListItem
-                key={notice.id}
-                notice={notice}
-                onPress={() => navigation.navigate('NoticeDetail', { id: notice.id })}
-              />
-            ))
-          )}
+          <QuickAccessGrid items={quickAccess} />
         </View>
       </ScrollView>
+
+      <MoreMenuModal
+        visible={moreVisible}
+        onClose={() => setMoreVisible(false)}
+        actions={[
+          { key: 'search', label: 'Search', icon: 'search-outline', onPress: () => navigation.navigate('Search') },
+          {
+            key: 'notifications',
+            label: 'Notifications',
+            icon: 'notifications-outline',
+            onPress: () => navigation.navigate('Notifications'),
+          },
+          {
+            key: 'signout',
+            label: 'Log Out',
+            icon: 'log-out-outline',
+            destructive: true,
+            onPress: () =>
+              Alert.alert('Log Out', 'Are you sure you want to log out?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Log Out', style: 'destructive', onPress: () => signOut() },
+              ]),
+          },
+        ]}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, paddingBottom: spacing.md },
+  headerRow: { flexDirection: 'row', alignItems: 'center' },
+  classPill: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.md,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  bell: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.surface,
+  },
   scrollContent: { paddingBottom: layout.tabBarClearance },
   section: {
     paddingHorizontal: spacing.lg,
