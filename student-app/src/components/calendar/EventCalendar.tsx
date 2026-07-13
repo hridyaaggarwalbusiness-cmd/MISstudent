@@ -67,19 +67,17 @@ export function EventCalendar({ monthDate, events, selectedDate, onSelectDate }:
         {monthDays.map((date) => {
           const iso = formatISO(date, { representation: 'date' });
           const dayEvents = eventsByDate.get(iso) ?? [];
-          const isSelected = selectedDate ? isSameDay(date, selectedDate) : false;
           const isToday = isSameDay(date, new Date());
+          // Today is highlighted by default; tapping another date moves the
+          // highlight there instead, until it's tapped again to clear it.
+          const isHighlighted = selectedDate ? isSameDay(date, selectedDate) : isToday;
           return (
             <View key={iso} style={styles.cell}>
               <AnimatedPressable
                 onPress={() => onSelectDate(date)}
-                style={[
-                  styles.dayCircle,
-                  isSelected && { backgroundColor: colors.primary },
-                  !isSelected && isToday && styles.todayRing,
-                ]}
+                style={[styles.dayCircle, isHighlighted && { backgroundColor: colors.primary }]}
               >
-                <AppText variant="bodyMedium" color={isSelected ? colors.textInverse : colors.textPrimary}>
+                <AppText variant="bodyMedium" color={isHighlighted ? colors.textInverse : colors.textPrimary}>
                   {format(date, 'd')}
                 </AppText>
                 {dayEvents.length > 0 && (
@@ -90,7 +88,7 @@ export function EventCalendar({ monthDate, events, selectedDate, onSelectDate }:
                         style={[
                           styles.dot,
                           {
-                            backgroundColor: isSelected
+                            backgroundColor: isHighlighted
                               ? colors.textInverse
                               : dotColorMap[eventTypeMeta[e.type].color] ?? colors.primary,
                           },
@@ -122,7 +120,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  todayRing: { borderWidth: 1.5, borderColor: colors.primary },
   dotsRow: { flexDirection: 'row', position: 'absolute', bottom: 3 },
   dot: { width: 4, height: 4, borderRadius: 2 },
 });

@@ -1,11 +1,10 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { Card, AppText } from '@components/ui';
 import { colors, spacing, radius } from '@theme';
 import { CalendarEvent } from '@/types';
 import { eventTypeMeta } from '@data/calendarEventTypeMeta';
-import { dayMonth, weekdayLabel } from '@utils/date';
+import { dayMonth } from '@utils/date';
 
 const bgColorMap: Record<string, string> = {
   rose: colors.dangerBg,
@@ -51,23 +50,12 @@ export function CalendarEventCard({
           </AppText>
         </View>
         <View style={{ marginLeft: spacing.sm, flex: 1 }}>
-          <View style={styles.typeRow}>
-            <Ionicons name={meta.icon as keyof typeof Ionicons.glyphMap} size={13} color={fg} />
-            <AppText variant="tiny" color={fg} style={{ marginLeft: 4 }}>
-              {meta.label} · {weekdayLabel(event.date)}
-            </AppText>
-          </View>
-          <AppText variant="bodySemibold" style={{ marginTop: 3 }} numberOfLines={showDescription ? undefined : 2}>
+          <AppText variant="bodySemibold" numberOfLines={showDescription ? undefined : 2}>
             {event.title}
           </AppText>
-          {event.location && (
-            <View style={styles.locationRow}>
-              <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
-              <AppText variant="caption" color={colors.textSecondary} numberOfLines={1} style={{ marginLeft: 3 }}>
-                {event.location}
-              </AppText>
-            </View>
-          )}
+          <AppText variant="caption" color={colors.textSecondary} numberOfLines={1} style={{ marginTop: 2 }}>
+            {event.location || 'All Day'}
+          </AppText>
           {showDescription && !!event.description && (
             <AppText variant="caption" color={colors.textSecondary} style={{ marginTop: 6, lineHeight: 18 }}>
               {event.description}
@@ -89,6 +77,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  typeRow: { flexDirection: 'row', alignItems: 'center' },
-  locationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
 });
