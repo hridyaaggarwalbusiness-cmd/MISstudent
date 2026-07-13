@@ -105,7 +105,7 @@ export interface Exam {
   status: ExamStatus;
 }
 
-export type NoticeCategory = 'general' | 'holiday' | 'event' | 'exam' | 'circular' | 'competition';
+export type NoticeCategory = 'general' | 'academic' | 'event' | 'holiday';
 
 export interface Notice {
   id: string;

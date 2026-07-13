@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { View, ScrollView, StyleSheet, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { AppText, Card, Chip, Button, DetailHeader } from '@components/ui';
+import * as DocumentPicker from 'expo-document-picker';
+import { AppText, Card, Chip, Button, DetailHeader, AttachmentRow } from '@components/ui';
 import { colors, spacing, radius } from '@theme';
 import { useAuthStore } from '@store/useAuthStore';
-import { repo } from '@data/repositories';
-import { NoticeCategory } from '@/types';
+import { repo, MAX_ATTACHMENT_BYTES } from '@data/repositories';
+import { Attachment, NoticeCategory } from '@/types';
 
-const CATEGORIES: NoticeCategory[] = ['general', 'holiday', 'event', 'exam', 'circular', 'competition'];
+const CATEGORIES: NoticeCategory[] = ['general', 'academic', 'event', 'holiday'];
 
 export function NoticeCreateScreen() {
   const navigation = useNavigation();
@@ -16,7 +17,23 @@ export function NoticeCreateScreen() {
   const [category, setCategory] = useState<NoticeCategory>('general');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [pickedFile, setPickedFile] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const pickFile = async () => {
+    const result = await DocumentPicker.getDocumentAsync({ multiple: false, type: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'] });
+    if (!result.canceled && result.assets?.[0]) {
+      const asset = result.assets[0];
+      if (asset.size && asset.size > MAX_ATTACHMENT_BYTES) {
+        Alert.alert(
+          'File too large',
+          `Cloud Storage isn't enabled on this project, so attachments are limited to ${Math.round(MAX_ATTACHMENT_BYTES / 1024)} KB.`,
+        );
+        return;
+      }
+      setPickedFile(asset);
+    }
+  };
 
   const onSubmit = async () => {
     if (!teacher) return;
@@ -26,6 +43,21 @@ export function NoticeCreateScreen() {
     }
     setSaving(true);
     try {
+      let attachments: Attachment[] = [];
+      if (pickedFile) {
+        const response = await fetch(pickedFile.uri);
+        const blob = await response.blob();
+        const url = await repo.storage.upload(blob);
+        attachments = [
+          {
+            id: `${Date.now()}`,
+            name: pickedFile.name,
+            type: pickedFile.mimeType?.includes('pdf') ? 'pdf' : 'doc',
+            url,
+            sizeLabel: pickedFile.size ? `${Math.round(pickedFile.size / 1024)} KB` : undefined,
+          },
+        ];
+      }
       await repo.notices.create({
         title: title.trim(),
         body: body.trim(),
@@ -34,7 +66,7 @@ export function NoticeCreateScreen() {
         postedByName: teacher.name,
         postedAt: new Date().toISOString(),
         targetClassIds: teacher.classIds,
-        attachments: [],
+        attachments,
       });
       navigation.goBack();
     } catch (e) {
@@ -73,6 +105,18 @@ export function NoticeCreateScreen() {
             placeholderTextColor={colors.textTertiary}
             style={[styles.input, styles.textArea]}
           />
+
+          <AppText variant="caption" color={colors.textSecondary} style={{ marginTop: spacing.md, marginBottom: 6 }}>
+            Attachment (optional)
+          </AppText>
+          {pickedFile ? (
+            <AttachmentRow
+              attachment={{ id: 'pending', name: pickedFile.name, type: 'doc', url: pickedFile.uri }}
+              onRemove={() => setPickedFile(null)}
+            />
+          ) : (
+            <Button label="Attach PDF or Document" variant="outline" icon="attach-outline" onPress={pickFile} />
+          )}
         </Card>
 
         <Button label="Post Notice" onPress={onSubmit} loading={saving} fullWidth icon="megaphone-outline" style={{ marginTop: spacing.lg }} />

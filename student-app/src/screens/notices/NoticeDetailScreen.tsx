@@ -2,22 +2,13 @@ import React, { useEffect } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { AppText, Card, DetailHeader, AttachmentRow, ErrorState } from '@components/ui';
+import { AppText, Card, DetailHeader, ErrorState } from '@components/ui';
 import { colors, spacing, radius } from '@theme';
 import { RootStackParamList } from '@navigation/types';
 import { useNoticesStore } from '@store/useNoticesStore';
 import { friendlyDate } from '@utils/date';
-import { NoticeCategory } from '@/types';
-
-const categoryMeta: Record<NoticeCategory, { label: string; icon: keyof typeof Ionicons.glyphMap; bg: string; fg: string }> = {
-  general: { label: 'General', icon: 'information-circle-outline', bg: colors.surfaceAlt, fg: colors.textSecondary },
-  holiday: { label: 'Holiday', icon: 'sunny-outline', bg: colors.dangerBg, fg: colors.dangerStrong },
-  event: { label: 'Event', icon: 'sparkles-outline', bg: colors.primarySoft, fg: colors.primary },
-  exam: { label: 'Exam', icon: 'document-text-outline', bg: colors.warningBg, fg: colors.warningStrong },
-  circular: { label: 'Circular', icon: 'reader-outline', bg: colors.infoBg, fg: colors.infoStrong },
-  competition: { label: 'Competition', icon: 'ribbon-outline', bg: colors.successBg, fg: colors.successStrong },
-};
+import { noticeCategoryMeta } from '@data/noticeCategoryMeta';
+import { NoticeAttachmentChip } from '@components/notices/NoticeAttachmentChip';
 
 export function NoticeDetailScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'NoticeDetail'>>();
@@ -40,27 +31,25 @@ export function NoticeDetailScreen() {
     );
   }
 
-  const meta = categoryMeta[notice.category];
+  const meta = noticeCategoryMeta[notice.category];
+  const badgeLabel = notice.pinned ? 'Important' : meta.label;
+  const badgeColor = notice.pinned ? colors.danger : meta.fg;
+  const badgeBg = notice.pinned ? colors.dangerBg : meta.bg;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <DetailHeader title="Notice" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerRow}>
-          <View style={[styles.iconWrap, { backgroundColor: meta.bg }]}>
-            <Ionicons name={meta.icon} size={22} color={meta.fg} />
-          </View>
-          <View style={{ marginLeft: spacing.sm }}>
-            <AppText variant="caption" color={meta.fg} style={{ fontWeight: '700' }}>
-              {meta.label.toUpperCase()}
-            </AppText>
-            <AppText variant="tiny" color={colors.textTertiary}>
-              {notice.postedBy} · {friendlyDate(notice.postedAt)}
-            </AppText>
-          </View>
+        <View style={[styles.badge, { backgroundColor: badgeBg }]}>
+          <AppText variant="caption" color={badgeColor} style={{ fontWeight: '700' }}>
+            {badgeLabel}
+          </AppText>
         </View>
         <AppText variant="displayMd" style={{ marginTop: spacing.md }}>
           {notice.title}
+        </AppText>
+        <AppText variant="tiny" color={colors.textTertiary} style={{ marginTop: 4 }}>
+          {friendlyDate(notice.postedAt)} · By {notice.postedBy}
         </AppText>
 
         <Card style={{ marginTop: spacing.lg }}>
@@ -75,7 +64,7 @@ export function NoticeDetailScreen() {
               Attachments
             </AppText>
             {notice.attachments.map((a) => (
-              <AttachmentRow key={a.id} attachment={a} onPress={() => {}} />
+              <NoticeAttachmentChip key={a.id} attachment={a} />
             ))}
           </View>
         )}
@@ -87,12 +76,10 @@ export function NoticeDetailScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
-  headerRow: { flexDirection: 'row', alignItems: 'center' },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+  badge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    alignSelf: 'flex-start',
   },
 });

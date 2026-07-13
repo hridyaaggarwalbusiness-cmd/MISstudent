@@ -41,6 +41,13 @@ export function relativeTime(iso: string): string {
   return formatDistanceToNow(parseDate(iso), { addSuffix: true });
 }
 
+export function noticeTimeLabel(iso: string): string {
+  const d = parseDate(iso);
+  if (isToday(d)) return format(d, 'h:mm a');
+  if (isYesterday(d)) return 'Yesterday';
+  return relativeTime(iso);
+}
+
 export function weekdayLabel(iso: string): string {
   return format(parseDate(iso), 'EEEE');
 }

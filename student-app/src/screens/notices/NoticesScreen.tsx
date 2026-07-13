@@ -3,29 +3,22 @@ import { View, FlatList, ScrollView, StyleSheet, RefreshControl } from 'react-na
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '@navigation/types';
-import { AppText, SearchBar, Chip, SkeletonCard, EmptyState, ErrorState, EdgeFade } from '@components/ui';
+import { AppText, SearchBar, Chip, IconButton, SkeletonCard, EmptyState, ErrorState, EdgeFade } from '@components/ui';
 import { NoticeListItem } from '@components/notices/NoticeListItem';
 import { colors, spacing, layout } from '@theme';
 import { useNoticesStore } from '@store/useNoticesStore';
 import { Notice, NoticeCategory } from '@/types';
+import { NOTICE_FILTERS } from '@data/noticeCategoryMeta';
 
 type FilterKey = 'all' | NoticeCategory;
-
-const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'general', label: 'General' },
-  { key: 'holiday', label: 'Holidays' },
-  { key: 'event', label: 'Events' },
-  { key: 'exam', label: 'Exams' },
-  { key: 'circular', label: 'Circulars' },
-  { key: 'competition', label: 'Competitions' },
-];
 
 export function NoticesScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { items, loading, fetch } = useNoticesStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [searchVisible, setSearchVisible] = useState(false);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
   const [error, setError] = useState<Error | null>(null);
@@ -69,13 +62,28 @@ export function NoticesScreen() {
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
       <View style={styles.header}>
-        <AppText variant="displayMd">Notices</AppText>
-        <View style={{ marginTop: spacing.md }}>
-          <SearchBar value={query} onChangeText={setQuery} placeholder="Search notices" />
+        <View style={styles.titleRow}>
+          <AppText variant="displayMd">Notices</AppText>
+          <View style={styles.titleActions}>
+            <IconButton
+              icon={searchVisible ? 'close-outline' : 'search-outline'}
+              onPress={() => {
+                setSearchVisible((v) => !v);
+                if (searchVisible) setQuery('');
+              }}
+              size={38}
+            />
+            <IconButton icon="filter-outline" onPress={() => {}} size={38} style={{ marginLeft: spacing.xs }} />
+          </View>
         </View>
+        {searchVisible && (
+          <View style={{ marginTop: spacing.md }}>
+            <SearchBar value={query} onChangeText={setQuery} placeholder="Search notices" />
+          </View>
+        )}
         <View style={{ position: 'relative' }}>
           <FlatList
-            data={FILTERS}
+            data={NOTICE_FILTERS}
             horizontal
             keyExtractor={(f) => f.key}
             showsHorizontalScrollIndicator={false}
@@ -147,6 +155,8 @@ export function NoticesScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   header: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  titleActions: { flexDirection: 'row', alignItems: 'center' },
   list: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -10,29 +10,25 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { PageHeader } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
-import { repo } from '@/data/repositories';
+import { repo, MAX_ATTACHMENT_BYTES } from '@/data/repositories';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getErrorMessage } from '@/utils/errors';
-import type { Notice, NoticeCategory, SchoolClass } from '@/types';
+import type { Notice, NoticeCategory, SchoolClass, Attachment } from '@/types';
 import { tableStyles } from '@/components/ui/Table';
 import styles from './NoticesPage.module.css';
 
 const categoryTone: Record<NoticeCategory, 'neutral' | 'success' | 'violet' | 'danger' | 'info' | 'warning'> = {
-  general: 'neutral',
-  holiday: 'success',
-  event: 'violet',
-  exam: 'danger',
-  circular: 'info',
-  competition: 'warning',
+  general: 'info',
+  academic: 'violet',
+  event: 'success',
+  holiday: 'warning',
 };
 
 const categoryIcon: Record<NoticeCategory, string> = {
   general: '📋',
-  holiday: '🌴',
+  academic: '🎓',
   event: '🎉',
-  exam: '🧪',
-  circular: '📄',
-  competition: '🏆',
+  holiday: '🌴',
 };
 
 function relativeTime(iso: string): string {
@@ -41,6 +37,11 @@ function relativeTime(iso: string): string {
   } catch {
     return '';
   }
+}
+
+function sizeLabel(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 const emptyForm = { title: '', body: '', category: 'general' as NoticeCategory, targetClassIds: [] as string[], pinned: false };
@@ -58,11 +59,26 @@ export function NoticesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [listError, setListError] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function openCreate() {
     setForm(emptyForm);
+    setFile(null);
+    setFileError('');
     setError('');
     setModalOpen(true);
+  }
+
+  function onPickFile(picked: File | null) {
+    if (picked && picked.size > MAX_ATTACHMENT_BYTES) {
+      setFile(null);
+      setFileError(`File is too large. Storage isn't enabled on this project, so attachments are limited to ${Math.round(MAX_ATTACHMENT_BYTES / 1024)} KB.`);
+      return;
+    }
+    setFileError('');
+    setFile(picked);
   }
 
   function toggleClass(id: string) {
@@ -82,6 +98,19 @@ export function NoticesPage() {
     setError('');
     setSaving(true);
     try {
+      let attachments: Attachment[] | undefined;
+      if (file) {
+        const url = await repo.storage.upload(file);
+        attachments = [
+          {
+            id: `${Date.now()}`,
+            name: file.name,
+            type: file.type.includes('pdf') ? 'pdf' : file.type.includes('image') ? 'image' : file.type.includes('video') ? 'video' : 'doc',
+            url,
+            sizeLabel: sizeLabel(file.size),
+          },
+        ];
+      }
       await repo.notices.upsert({
         id: '',
         title: form.title,
@@ -92,6 +121,7 @@ export function NoticesPage() {
         postedAt: new Date().toISOString(),
         targetClassIds: form.targetClassIds,
         pinned: form.pinned,
+        ...(attachments ? { attachments } : {}),
       });
       setModalOpen(false);
     } catch (e) {
@@ -200,12 +230,31 @@ export function NoticesPage() {
             onChange={(e) => setForm({ ...form, category: e.target.value as NoticeCategory })}
           >
             <option value="general">General</option>
-            <option value="holiday">Holiday</option>
+            <option value="academic">Academic</option>
             <option value="event">Event</option>
-            <option value="exam">Exam</option>
-            <option value="circular">Circular</option>
-            <option value="competition">Competition</option>
+            <option value="holiday">Holiday</option>
           </SelectField>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+              Attachment (optional)
+            </label>
+            <div style={{ marginTop: 8 }}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+            <span style={{ display: 'block', marginTop: 6, fontSize: 12, color: 'var(--color-text-tertiary)' }}>
+              Max {Math.round(MAX_ATTACHMENT_BYTES / 1024)} KB — attachments are stored inline in Firestore since Cloud Storage isn't enabled on this project.
+            </span>
+            {fileError && (
+              <span style={{ display: 'block', marginTop: 6, fontSize: 12, color: 'var(--color-danger-strong)' }}>
+                {fileError}
+              </span>
+            )}
+          </div>
           <div>
             <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
               Target Classes (leave empty for all)
