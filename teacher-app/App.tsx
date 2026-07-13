@@ -17,6 +17,7 @@ import {
   Manrope_700Bold,
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
+import { Ionicons } from '@expo/vector-icons';
 import { RootNavigator } from '@navigation/RootNavigator';
 import { LoginScreen } from '@screens/auth/LoginScreen';
 import { useAuthStore } from '@store/useAuthStore';
@@ -33,6 +34,7 @@ export default function App() {
     Manrope_600SemiBold,
     Manrope_700Bold,
     Manrope_800ExtraBold,
+    ...Ionicons.font,
   });
   const { user, teacher, initializing, init } = useAuthStore();
 
