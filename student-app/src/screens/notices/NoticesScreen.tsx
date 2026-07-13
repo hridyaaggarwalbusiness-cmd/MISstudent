@@ -121,16 +121,9 @@ export function NoticesScreen() {
         >
           {pinned.length > 0 && (
             <View style={{ marginBottom: spacing.lg }}>
-              <View style={{ position: 'relative' }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {pinned.map((n) => (
-                    <View key={n.id} style={{ width: 270, marginRight: spacing.sm }}>
-                      <NoticeListItem notice={n} onPress={() => navigation.navigate('NoticeDetail', { id: n.id })} />
-                    </View>
-                  ))}
-                </ScrollView>
-                <EdgeFade />
-              </View>
+              {pinned.map((n) => (
+                <NoticeListItem key={n.id} notice={n} onPress={() => navigation.navigate('NoticeDetail', { id: n.id })} />
+              ))}
             </View>
           )}
 
