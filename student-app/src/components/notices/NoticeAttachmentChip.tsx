@@ -13,6 +13,16 @@ const badgeMeta: Record<Attachment['type'], { label: string; color: string }> = 
   link: { label: 'LINK', color: colors.accentAmber },
 };
 
+// Chrome/Edge/Firefox all refuse to navigate a top-level tab straight to a
+// data: URL (attachments are stored as base64 data URLs since Cloud Storage
+// isn't provisioned on this project) -- it silently opens a blank tab.
+// Converting to a blob: URL first is the standard workaround.
+async function toOpenableUrl(url: string): Promise<string> {
+  if (!url.startsWith('data:')) return url;
+  const blob = await (await fetch(url)).blob();
+  return URL.createObjectURL(blob);
+}
+
 // Browsers can render PDFs (and images) inline, so open those directly in a
 // new tab -- the closest web equivalent to a PDF "just opening". Other file
 // types (doc/docx, ...) have no in-browser viewer, so those still trigger a
@@ -21,17 +31,32 @@ const badgeMeta: Record<Attachment['type'], { label: string; color: string }> = 
 function openAttachment(url: string, filename: string, type: Attachment['type']) {
   if (Platform.OS === 'web') {
     if (type === 'pdf' || type === 'image') {
-      window.open(url, '_blank', 'noopener,noreferrer');
+      // window.open must run synchronously in the click handler or popup
+      // blockers kill it once we're past an await -- open a blank tab now,
+      // then point it at the real (blob) URL once conversion finishes. Can't
+      // pass noopener/noreferrer here: both make window.open() return null,
+      // which is exactly the handle we need to navigate afterwards.
+      const tab = window.open('', '_blank');
+      toOpenableUrl(url)
+        .then((target) => {
+          if (tab) tab.location.href = target;
+        })
+        .catch(() => {
+          if (tab) tab.location.href = url;
+        });
       return;
     }
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    toOpenableUrl(url)
+      .then((target) => {
+        const a = document.createElement('a');
+        a.href = target;
+        a.download = filename;
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      })
+      .catch(() => {});
   } else {
     Linking.openURL(url).catch(() => {});
   }
