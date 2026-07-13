@@ -13,8 +13,17 @@ const badgeMeta: Record<Attachment['type'], { label: string; color: string }> = 
   link: { label: 'LINK', color: colors.accentAmber },
 };
 
-function openAttachment(url: string, filename: string) {
+// Browsers can render PDFs (and images) inline, so open those directly in a
+// new tab -- the closest web equivalent to a PDF "just opening". Other file
+// types (doc/docx, ...) have no in-browser viewer, so those still trigger a
+// real download; the device's own download-complete notification is what
+// then offers an "Open with" app picker, same as WhatsApp.
+function openAttachment(url: string, filename: string, type: Attachment['type']) {
   if (Platform.OS === 'web') {
+    if (type === 'pdf' || type === 'image') {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return;
+    }
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
@@ -32,7 +41,7 @@ export function NoticeAttachmentChip({ attachment }: { attachment: Attachment })
   const meta = badgeMeta[attachment.type];
   return (
     <AnimatedPressable
-      onPress={() => openAttachment(attachment.url, attachment.name)}
+      onPress={() => openAttachment(attachment.url, attachment.name, attachment.type)}
       haptic={false}
       style={styles.row}
     >
@@ -51,7 +60,11 @@ export function NoticeAttachmentChip({ attachment }: { attachment: Attachment })
           </AppText>
         )}
       </View>
-      <Ionicons name="download-outline" size={18} color={colors.primary} />
+      <Ionicons
+        name={attachment.type === 'pdf' || attachment.type === 'image' ? 'open-outline' : 'download-outline'}
+        size={18}
+        color={colors.primary}
+      />
     </AnimatedPressable>
   );
 }

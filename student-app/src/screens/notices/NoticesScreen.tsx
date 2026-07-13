@@ -3,13 +3,12 @@ import { View, FlatList, ScrollView, StyleSheet, RefreshControl } from 'react-na
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '@navigation/types';
-import { AppText, SearchBar, Chip, IconButton, SkeletonCard, EmptyState, ErrorState, EdgeFade } from '@components/ui';
-import { NoticeListItem } from '@components/notices/NoticeListItem';
+import { AppText, Card, SearchBar, Chip, IconButton, SkeletonCard, EmptyState, ErrorState, EdgeFade } from '@components/ui';
+import { NoticeListItem, NoticeGroupRow } from '@components/notices/NoticeListItem';
 import { colors, spacing, layout } from '@theme';
 import { useNoticesStore } from '@store/useNoticesStore';
-import { Notice, NoticeCategory } from '@/types';
+import { NoticeCategory } from '@/types';
 import { NOTICE_FILTERS } from '@data/noticeCategoryMeta';
 
 type FilterKey = 'all' | NoticeCategory;
@@ -53,10 +52,6 @@ export function NoticesScreen() {
   const feed = useMemo(
     () => [...matched.filter((n) => !n.pinned)].sort((a, b) => b.postedAt.localeCompare(a.postedAt)),
     [matched],
-  );
-
-  const renderItem = ({ item }: { item: Notice }) => (
-    <NoticeListItem notice={item} onPress={() => navigation.navigate('NoticeDetail', { id: item.id })} />
   );
 
   return (
@@ -109,44 +104,50 @@ export function NoticesScreen() {
           <SkeletonCard lines={2} />
         </View>
       ) : (
-        <FlatList
-          data={feed}
-          keyExtractor={(n) => n.id}
-          renderItem={renderItem}
+        <ScrollView
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
           }
-          ListHeaderComponent={
-            pinned.length > 0 ? (
-              <View style={{ marginBottom: spacing.lg }}>
-                <AppText variant="overline" color={colors.textTertiary} style={{ marginBottom: spacing.sm }}>
-                  PINNED
-                </AppText>
-                <View style={{ position: 'relative' }}>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {pinned.map((n) => (
-                      <View key={n.id} style={{ width: 270, marginRight: spacing.sm }}>
-                        <NoticeListItem notice={n} onPress={() => navigation.navigate('NoticeDetail', { id: n.id })} />
-                      </View>
-                    ))}
-                  </ScrollView>
-                  <EdgeFade />
-                </View>
+        >
+          {pinned.length > 0 && (
+            <View style={{ marginBottom: spacing.lg }}>
+              <AppText variant="overline" color={colors.textTertiary} style={{ marginBottom: spacing.sm }}>
+                PINNED
+              </AppText>
+              <View style={{ position: 'relative' }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {pinned.map((n) => (
+                    <View key={n.id} style={{ width: 270, marginRight: spacing.sm }}>
+                      <NoticeListItem notice={n} onPress={() => navigation.navigate('NoticeDetail', { id: n.id })} />
+                    </View>
+                  ))}
+                </ScrollView>
+                <EdgeFade />
               </View>
-            ) : null
-          }
-          ListEmptyComponent={
-            pinned.length === 0 ? (
-              <EmptyState
-                icon="megaphone-outline"
-                title="No notices found"
-                message={query ? 'Try a different search term.' : 'Nothing here yet — check back soon.'}
-              />
-            ) : null
-          }
-        />
+            </View>
+          )}
+
+          {feed.length > 0 ? (
+            <Card padded={false} elevation="xs">
+              {feed.map((n, i) => (
+                <NoticeGroupRow
+                  key={n.id}
+                  notice={n}
+                  isLast={i === feed.length - 1}
+                  onPress={() => navigation.navigate('NoticeDetail', { id: n.id })}
+                />
+              ))}
+            </Card>
+          ) : pinned.length === 0 ? (
+            <EmptyState
+              icon="megaphone-outline"
+              title="No notices found"
+              message={query ? 'Try a different search term.' : 'Nothing here yet — check back soon.'}
+            />
+          ) : null}
+        </ScrollView>
       )}
     </SafeAreaView>
   );
