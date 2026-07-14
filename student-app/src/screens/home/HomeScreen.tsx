@@ -5,10 +5,9 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '@navigation/types';
-import { AppText, IconButton, SectionHeader, Skeleton, EmptyState, ErrorState, AnimatedPressable } from '@components/ui';
-import { SchoolStatusBanner } from '@components/dashboard/SchoolStatusBanner';
+import { AppText, IconButton, Avatar, SectionHeader, Skeleton, EmptyState, ErrorState, AnimatedPressable } from '@components/ui';
+import { TodaysOverviewCard } from '@components/dashboard/TodaysOverviewCard';
 import { UpdateFeedItem, UpdateFeedItemData } from '@components/dashboard/UpdateFeedItem';
-import { UpcomingStats } from '@components/dashboard/UpcomingStats';
 import { QuickAccessGrid, QuickAccessItem } from '@components/dashboard/QuickAccessGrid';
 import { MoreMenuModal } from '@components/dashboard/MoreMenuModal';
 import { colors, spacing, layout } from '@theme';
@@ -19,8 +18,8 @@ import { useHomeworkStore } from '@store/useHomeworkStore';
 import { useNoticesStore } from '@store/useNoticesStore';
 import { useNotificationsStore } from '@store/useNotificationsStore';
 import { useAuthStore } from '@store/useAuthStore';
-import { todayDayCode, greetingForNow, relativeTime } from '@utils/date';
-import { computeSchoolStatus } from '@utils/schoolStatus';
+import { todayDayCode, greetingForNow, noticeTimeLabel } from '@utils/date';
+import { overallAttendancePercentage } from '@utils/attendance';
 import { eventTypeMeta } from '@data/calendarEventTypeMeta';
 
 async function loadDashboard(classId: string, studentId: string) {
@@ -92,12 +91,24 @@ export function HomeScreen() {
     return data.timetable.filter((p) => p.day === today);
   }, [data, today]);
 
-  const schoolStatus = useMemo(() => computeSchoolStatus(todaysPeriods), [todaysPeriods]);
-
   const todaysEvents = useMemo(() => {
     if (!data) return [];
     return data.calendarEvents.filter((e) => e.date <= todayIso && (e.endDate ?? e.date) >= todayIso);
   }, [data, todayIso]);
+
+  const attendancePct = useMemo(
+    () => (data ? overallAttendancePercentage(data.attendanceMonth) : 0),
+    [data],
+  );
+
+  const overviewStats = useMemo(
+    () => [
+      { key: 'hw', icon: 'book-outline' as const, value: homeworkItems.length, label: 'Homework' },
+      { key: 'notices', icon: 'megaphone-outline' as const, value: noticeItems.filter((n) => !n.isRead).length, label: 'Notices' },
+      { key: 'events', icon: 'calendar-outline' as const, value: todaysEvents.length, label: 'Events' },
+    ],
+    [homeworkItems, noticeItems, todaysEvents],
+  );
 
   const latestResult = data?.results[data.results.length - 1];
 
@@ -113,11 +124,8 @@ export function HomeScreen() {
           key: `hw-${hw.id}`,
           icon: 'book',
           color: colors.tileBlue,
-          category: 'HOMEWORK',
           title: `${hw.subject} homework added`,
-          subtitle: hw.title,
-          meta: relativeTime(hw.assignedDate),
-          badge: isRecent(hw.assignedDate, 2) ? 'New' : undefined,
+          meta: `By ${hw.teacher} · ${noticeTimeLabel(hw.assignedDate)}`,
           onPress: () => navigation.navigate('HomeworkDetail', { id: hw.id }),
         },
       });
@@ -130,10 +138,8 @@ export function HomeScreen() {
           key: `notice-${n.id}`,
           icon: 'megaphone',
           color: colors.tileOrange,
-          category: 'NOTICE',
           title: n.title,
-          meta: relativeTime(n.postedAt),
-          badge: isRecent(n.postedAt, 2) ? 'New' : undefined,
+          meta: `By ${n.postedBy} · ${noticeTimeLabel(n.postedAt)}`,
           onPress: () => navigation.navigate('NoticeDetail', { id: n.id }),
         },
       });
@@ -146,11 +152,8 @@ export function HomeScreen() {
           key: `event-${e.id}`,
           icon: (eventTypeMeta[e.type]?.icon as UpdateFeedItemData['icon']) ?? 'calendar',
           color: colors.tileGreen,
-          category: 'EVENT',
           title: e.title,
-          subtitle: e.location || e.description,
-          meta: 'Today',
-          badge: 'Today',
+          meta: e.location || 'Today',
           onPress: () => navigation.navigate('AcademicCalendar'),
         },
       });
@@ -163,10 +166,8 @@ export function HomeScreen() {
           key: `result-${latestResult.id}`,
           icon: 'stats-chart',
           color: colors.tileViolet,
-          category: 'RESULTS',
           title: `${latestResult.examName} results published`,
-          subtitle: 'Check your marks now',
-          meta: relativeTime(latestResult.date),
+          meta: `Check your marks · ${noticeTimeLabel(latestResult.date)}`,
           onPress: () => navigation.navigate('Results'),
         },
       });
@@ -178,28 +179,14 @@ export function HomeScreen() {
       .map((e) => e.item);
   }, [homeworkItems, noticeItems, todaysEvents, latestResult, navigation]);
 
-  const upcomingStats = useMemo(() => {
-    const homeworkDueToday = homeworkItems.filter((h) => h.dueDate === todayIso).length;
-    const examsThisWeek = (data?.exams ?? []).filter((e) => {
-      const diff = (new Date(e.date).getTime() - Date.now()) / 86_400_000;
-      return diff >= 0 && diff <= 7;
-    }).length;
-    const classesToday = todaysPeriods.filter((p) => !p.isBreak).length;
-
-    return [
-      { key: 'hw', value: homeworkDueToday, valueColor: colors.tileRed, label: 'Homework', sublabel: 'Due today' },
-      { key: 'exam', value: examsThisWeek, valueColor: colors.tileOrange, label: 'Exam', sublabel: 'This week' },
-      {
-        key: 'classes',
-        value: classesToday,
-        valueColor: classesToday === 0 ? colors.tileGreen : colors.primary,
-        label: 'Classes',
-        sublabel: classesToday === 0 ? 'Free today' : 'Today',
-      },
-    ];
-  }, [homeworkItems, data, todaysPeriods, todayIso]);
-
   const quickAccess: QuickAccessItem[] = [
+    {
+      key: 'homework',
+      label: 'Homework',
+      icon: 'book-outline',
+      color: colors.tileViolet,
+      onPress: () => navigation.navigate('MainTabs', { screen: 'HomeworkTab' }),
+    },
     {
       key: 'timetable',
       label: 'Timetable',
@@ -208,18 +195,18 @@ export function HomeScreen() {
       onPress: () => navigation.navigate('MainTabs', { screen: 'TimetableTab' }),
     },
     {
+      key: 'results',
+      label: 'Results',
+      icon: 'stats-chart-outline',
+      color: colors.tileGreen,
+      onPress: () => navigation.navigate('Results'),
+    },
+    {
       key: 'attendance',
       label: 'Attendance',
       icon: 'checkmark-done-outline',
       color: colors.tileViolet,
       onPress: () => navigation.navigate('Attendance'),
-    },
-    {
-      key: 'results',
-      label: 'Results',
-      icon: 'stats-chart-outline',
-      color: colors.tileRed,
-      onPress: () => navigation.navigate('Results'),
     },
     {
       key: 'materials',
@@ -258,24 +245,20 @@ export function HomeScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <View style={styles.headerRow}>
-          <IconButton icon="menu-outline" onPress={() => setMoreVisible(true)} />
+          <IconButton icon="menu-outline" onPress={() => setMoreVisible(true)} size={36} />
           <View style={{ flex: 1, marginLeft: spacing.sm }}>
-            <AppText variant="caption" color={colors.textTertiary}>
-              {greetingForNow()}
+            <AppText variant="h2" numberOfLines={1} style={{ fontSize: 16 }}>
+              {greetingForNow()}, {firstName} 👋
             </AppText>
-            <AppText variant="h1" numberOfLines={1}>
-              {firstName}
-            </AppText>
+            {student && (
+              <AppText variant="caption" color={colors.textTertiary}>
+                {student.className} · Section {student.section}
+              </AppText>
+            )}
           </View>
           <BellButton count={unreadCount} onPress={() => navigation.navigate('Notifications')} />
+          <Avatar name={student?.name ?? firstName} size={36} style={{ marginLeft: spacing.sm }} />
         </View>
-        {student && (
-          <View style={styles.classPill}>
-            <AppText variant="caption" color={colors.textSecondary}>
-              {student.className} · Section {student.section}
-            </AppText>
-          </View>
-        )}
       </View>
 
       <ScrollView
@@ -287,11 +270,15 @@ export function HomeScreen() {
         }
       >
         <View style={{ paddingHorizontal: spacing.lg }}>
-          {loading ? <Skeleton height={130} borderRadius={20} /> : <SchoolStatusBanner status={schoolStatus} />}
+          {loading ? (
+            <Skeleton height={150} borderRadius={20} />
+          ) : (
+            <TodaysOverviewCard stats={overviewStats} attendancePct={attendancePct} />
+          )}
         </View>
 
         <View style={styles.section}>
-          <SectionHeader title="Today's Updates" onActionPress={() => navigation.navigate('Notifications')} />
+          <SectionHeader title="What's New" actionLabel="View all" onActionPress={() => navigation.navigate('Notifications')} />
           {loading ? (
             <Skeleton height={90} borderRadius={16} />
           ) : feedItems.length === 0 ? (
@@ -299,11 +286,6 @@ export function HomeScreen() {
           ) : (
             feedItems.map((item) => <UpdateFeedItem key={item.key} item={item} />)
           )}
-        </View>
-
-        <View style={styles.section}>
-          <SectionHeader title="Upcoming" />
-          {loading ? <Skeleton height={90} borderRadius={16} /> : <UpcomingStats stats={upcomingStats} />}
         </View>
 
         <View style={[styles.section, { marginBottom: spacing.xxxl }]}>
@@ -357,9 +339,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   bell: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
     borderColor: colors.borderSoft,
