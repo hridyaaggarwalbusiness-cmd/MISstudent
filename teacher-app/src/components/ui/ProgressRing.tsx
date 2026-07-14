@@ -22,6 +22,7 @@ interface ProgressRingProps {
   warningThreshold?: number;
   colorOverride?: string;
   showValueLabel?: boolean;
+  centerContent?: React.ReactNode;
 }
 
 function statusColorFor(value: number, good: number, warn: number) {
@@ -40,6 +41,7 @@ export function ProgressRing({
   warningThreshold = 75,
   colorOverride,
   showValueLabel = true,
+  centerContent,
 }: ProgressRingProps) {
   const clamped = Math.max(0, Math.min(100, value));
   const radius = (size - strokeWidth) / 2;
@@ -82,7 +84,8 @@ export function ProgressRing({
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
       </Svg>
-      {showValueLabel && (
+      {centerContent}
+      {!centerContent && showValueLabel && (
         <View style={{ alignItems: 'center' }}>
           <AppText variant="displayMd" style={{ fontSize: size * 0.22 }}>
             {Math.round(clamped)}%

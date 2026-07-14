@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, ScrollView, StyleSheet, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { AppText, Card, Chip, Button, DetailHeader } from '@components/ui';
+import { AppText, Card, Chip, Button, DetailHeader, DatePickerField } from '@components/ui';
 import { colors, spacing, radius } from '@theme';
 import { useAuthStore } from '@store/useAuthStore';
 import { repo } from '@data/repositories';
@@ -85,14 +85,9 @@ export function HomeworkCreateScreen() {
           />
 
           <AppText variant="caption" color={colors.textSecondary} style={{ marginTop: spacing.md, marginBottom: 6 }}>
-            Due date (YYYY-MM-DD)
+            Due date
           </AppText>
-          <TextInput
-            value={dueDate}
-            onChangeText={setDueDate}
-            placeholderTextColor={colors.textTertiary}
-            style={styles.input}
-          />
+          <DatePickerField value={dueDate} onChange={setDueDate} minDate={new Date()} />
         </Card>
 
         <Button

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { startOfMonth, endOfMonth, eachDayOfInterval, getDay, format, formatISO, isSameDay } from 'date-fns';
+import { startOfMonth, endOfMonth, eachDayOfInterval, getDay, format, formatISO, isSameDay, parseISO } from 'date-fns';
 import { AppText, AnimatedPressable } from '@components/ui';
 import { colors, radius } from '@theme';
 import { CalendarEvent } from '@/types';
@@ -26,11 +26,19 @@ interface EventCalendarProps {
 }
 
 export function EventCalendar({ monthDate, events, selectedDate, onSelectDate }: EventCalendarProps) {
+  // Marks every day an event spans (not just its start date), so a
+  // multi-day event like a two-day sports meet shows a dot on each day.
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
     events.forEach((e) => {
-      const key = e.date;
-      map.set(key, [...(map.get(key) ?? []), e]);
+      const start = parseISO(e.date);
+      const end = e.endDate ? parseISO(e.endDate) : start;
+      if (Number.isNaN(start.getTime())) return;
+      const span = Number.isNaN(end.getTime()) || end < start ? [start] : eachDayOfInterval({ start, end });
+      span.forEach((day) => {
+        const key = formatISO(day, { representation: 'date' });
+        map.set(key, [...(map.get(key) ?? []), e]);
+      });
     });
     return map;
   }, [events]);
@@ -59,19 +67,17 @@ export function EventCalendar({ monthDate, events, selectedDate, onSelectDate }:
         {monthDays.map((date) => {
           const iso = formatISO(date, { representation: 'date' });
           const dayEvents = eventsByDate.get(iso) ?? [];
-          const isSelected = selectedDate ? isSameDay(date, selectedDate) : false;
           const isToday = isSameDay(date, new Date());
+          // Today is highlighted by default; tapping another date moves the
+          // highlight there instead, until it's tapped again to clear it.
+          const isHighlighted = selectedDate ? isSameDay(date, selectedDate) : isToday;
           return (
             <View key={iso} style={styles.cell}>
               <AnimatedPressable
                 onPress={() => onSelectDate(date)}
-                style={[
-                  styles.dayCircle,
-                  isSelected && { backgroundColor: colors.primary },
-                  !isSelected && isToday && styles.todayRing,
-                ]}
+                style={[styles.dayCircle, isHighlighted && { backgroundColor: colors.primary }]}
               >
-                <AppText variant="bodyMedium" color={isSelected ? colors.textInverse : colors.textPrimary}>
+                <AppText variant="bodyMedium" color={isHighlighted ? colors.textInverse : colors.textPrimary}>
                   {format(date, 'd')}
                 </AppText>
                 {dayEvents.length > 0 && (
@@ -82,7 +88,7 @@ export function EventCalendar({ monthDate, events, selectedDate, onSelectDate }:
                         style={[
                           styles.dot,
                           {
-                            backgroundColor: isSelected
+                            backgroundColor: isHighlighted
                               ? colors.textInverse
                               : dotColorMap[eventTypeMeta[e.type].color] ?? colors.primary,
                           },
@@ -114,7 +120,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  todayRing: { borderWidth: 1.5, borderColor: colors.primary },
   dotsRow: { flexDirection: 'row', position: 'absolute', bottom: 3 },
   dot: { width: 4, height: 4, borderRadius: 2 },
 });

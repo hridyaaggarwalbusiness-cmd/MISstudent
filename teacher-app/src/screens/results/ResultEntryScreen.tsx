@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, TextInput, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp } from '@react-navigation/native';
-import { AppText, Card, Chip, Button, DetailHeader, EmptyState, IconButton } from '@components/ui';
+import { AppText, Card, Chip, Button, DetailHeader, EmptyState, IconButton, DatePickerField } from '@components/ui';
 import { colors, spacing, radius } from '@theme';
 import { RootStackParamList } from '@navigation/types';
 import { useAuthStore } from '@store/useAuthStore';
@@ -139,7 +139,12 @@ export function ResultEntryScreen() {
           <AppText variant="h2">New Exam</AppText>
           <FormField label="Name (e.g. Unit Test 2)" value={examForm.name} onChangeText={(v) => setExamForm((f) => ({ ...f, name: v }))} />
           <FormField label="Subject" value={examForm.subject} onChangeText={(v) => setExamForm((f) => ({ ...f, subject: v }))} />
-          <FormField label="Date (YYYY-MM-DD)" value={examForm.date} onChangeText={(v) => setExamForm((f) => ({ ...f, date: v }))} />
+          <View style={{ marginTop: spacing.md }}>
+            <AppText variant="caption" color={colors.textSecondary} style={{ marginBottom: 4 }}>
+              Date
+            </AppText>
+            <DatePickerField value={examForm.date} onChange={(v) => setExamForm((f) => ({ ...f, date: v }))} />
+          </View>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             <View style={{ flex: 1 }}>
               <FormField label="Start (HH:mm)" value={examForm.startTime} onChangeText={(v) => setExamForm((f) => ({ ...f, startTime: v }))} />

@@ -11,6 +11,7 @@ import { repo } from '@data/repositories';
 export function ProfileScreen() {
   const { teacher, signOut } = useAuthStore();
   const [classNames, setClassNames] = useState<string[]>([]);
+  const [studentCount, setStudentCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (!teacher) return;
@@ -22,6 +23,10 @@ export function ProfileScreen() {
           .filter((c): c is NonNullable<typeof c> => !!c)
           .map((c) => `${c.name} · Section ${c.section}`),
       );
+    });
+    Promise.all(teacher.classIds.map((id) => repo.classes.listStudents(id))).then((lists) => {
+      if (cancelled) return;
+      setStudentCount(lists.reduce((sum, l) => sum + l.length, 0));
     });
     return () => {
       cancelled = true;
@@ -50,6 +55,28 @@ export function ProfileScreen() {
               </View>
             </View>
           )}
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <AppText variant="h2">{teacher.classIds.length}</AppText>
+              <AppText variant="tiny" color={colors.textTertiary}>
+                {teacher.classIds.length === 1 ? 'Class' : 'Classes'}
+              </AppText>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statBox}>
+              <AppText variant="h2">{studentCount ?? '—'}</AppText>
+              <AppText variant="tiny" color={colors.textTertiary}>
+                Students
+              </AppText>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statBox}>
+              <AppText variant="h2">{teacher.subjects.length}</AppText>
+              <AppText variant="tiny" color={colors.textTertiary}>
+                {teacher.subjects.length === 1 ? 'Subject' : 'Subjects'}
+              </AppText>
+            </View>
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -120,6 +147,14 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     marginHorizontal: 4,
   },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.lg,
+  },
+  statBox: { flex: 1, alignItems: 'center' },
+  statDivider: { width: StyleSheet.hairlineWidth, height: 28, backgroundColor: colors.border },
   section: { paddingHorizontal: spacing.lg, marginTop: spacing.lg },
   sectionLabelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
 });

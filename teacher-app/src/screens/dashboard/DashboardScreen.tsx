@@ -1,40 +1,51 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AppText, Card, Avatar, IconButton, SectionHeader, Skeleton, SkeletonCard, EmptyState } from '@components/ui';
+import { AppText, Card, Avatar, IconButton, SectionHeader, Skeleton, SkeletonCard, EmptyState, AnimatedPressable } from '@components/ui';
 import { ActionTileGrid, ActionTile } from '@components/dashboard/ActionTileGrid';
 import { TeacherBentoStats } from '@components/dashboard/TeacherBentoStats';
 import { PeriodCard } from '@components/dashboard/PeriodCard';
-import { colors, spacing, layout } from '@theme';
+import { colors, spacing, layout, radius } from '@theme';
 import { RootStackParamList } from '@navigation/types';
 import { useAuthStore } from '@store/useAuthStore';
 import { repo } from '@data/repositories';
 import { greetingForNow, todayDayCode } from '@utils/date';
-import { Homework, Notice, TimetablePeriod } from '@/types';
+import { Homework, Notice, TimetablePeriod, AttendanceRecord } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
+import { formatISO } from 'date-fns';
+import { useNotificationsStore } from '@store/useNotificationsStore';
 
 export function DashboardScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { teacher, signOut } = useAuthStore();
   const classId = teacher?.classIds?.[0];
+  const { unreadCount, init: initNotifications } = useNotificationsStore();
+
+  useEffect(() => {
+    initNotifications();
+  }, [initNotifications]);
 
   const [periods, setPeriods] = useState<TimetablePeriod[] | null>(null);
   const [homework, setHomework] = useState<Homework[] | null>(null);
   const [notices, setNotices] = useState<Notice[] | null>(null);
+  const [todaysAttendance, setTodaysAttendance] = useState<AttendanceRecord[] | null>(null);
+  const todayIso = useMemo(() => formatISO(new Date(), { representation: 'date' }), []);
 
   useEffect(() => {
     if (!classId) return;
     const unsubTt = repo.timetable.subscribeForClass(classId, setPeriods);
     const unsubHw = repo.homework.subscribeForClass(classId, setHomework);
     const unsubNotices = repo.notices.subscribeAll(setNotices);
+    const unsubAttendance = repo.attendance.subscribeForClassDate(classId, todayIso, setTodaysAttendance);
     return () => {
       unsubTt();
       unsubHw();
       unsubNotices();
+      unsubAttendance();
     };
-  }, [classId]);
+  }, [classId, todayIso]);
 
   const today = todayDayCode();
   const todaysPeriods = useMemo(
@@ -126,7 +137,24 @@ export function DashboardScreen() {
             </AppText>
           </View>
         </View>
-        <IconButton icon="log-out-outline" onPress={() => signOut()} />
+        <View style={{ flexDirection: 'row' }}>
+          <IconButton icon="search-outline" onPress={() => navigation.navigate('Search')} style={{ marginRight: spacing.xs }} />
+          <IconButton
+            icon="notifications-outline"
+            badge={unreadCount > 0}
+            onPress={() => navigation.navigate('Notifications')}
+            style={{ marginRight: spacing.xs }}
+          />
+          <IconButton
+            icon="log-out-outline"
+            onPress={() =>
+              Alert.alert('Log Out', 'Are you sure you want to log out?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Log Out', style: 'destructive', onPress: () => signOut() },
+              ])
+            }
+          />
+        </View>
       </View>
       <View style={styles.metaRow}>
         <View style={styles.subjectPill}>
@@ -137,6 +165,35 @@ export function DashboardScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {!loading && todaysAttendance !== null && (
+          <View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.md }}>
+            <AnimatedPressable
+              onPress={() => navigation.navigate('MainTabs', { screen: 'AttendanceTab' })}
+              haptic={false}
+              style={[
+                styles.attendanceBanner,
+                { backgroundColor: todaysAttendance.length > 0 ? colors.successBg : colors.warningBg },
+              ]}
+            >
+              <Ionicons
+                name={todaysAttendance.length > 0 ? 'checkmark-circle' : 'alert-circle'}
+                size={18}
+                color={todaysAttendance.length > 0 ? colors.successStrong : colors.warningStrong}
+              />
+              <AppText
+                variant="bodyMedium"
+                color={todaysAttendance.length > 0 ? colors.successStrong : colors.warningStrong}
+                style={{ marginLeft: spacing.xs, flex: 1 }}
+              >
+                {todaysAttendance.length > 0
+                  ? `Attendance marked for today (${todaysAttendance.length} students)`
+                  : "Attendance not marked yet today"}
+              </AppText>
+              <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+            </AnimatedPressable>
+          </View>
+        )}
+
         <View style={{ paddingHorizontal: spacing.lg }}>
           {loading ? <Skeleton height={220} borderRadius={18} /> : <ActionTileGrid tiles={actionTiles} />}
         </View>
@@ -224,4 +281,11 @@ const styles = StyleSheet.create({
   },
   scrollContent: { paddingBottom: layout.tabBarClearance },
   section: { paddingHorizontal: spacing.lg, marginTop: spacing.xl },
+  attendanceBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
+  },
 });
