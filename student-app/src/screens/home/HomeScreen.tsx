@@ -21,6 +21,7 @@ import { useAuthStore } from '@store/useAuthStore';
 import { todayDayCode, greetingForNow, noticeTimeLabel } from '@utils/date';
 import { overallAttendancePercentage } from '@utils/attendance';
 import { eventTypeMeta } from '@data/calendarEventTypeMeta';
+import { subjectMeta } from '@data/subjectMeta';
 
 async function loadDashboard(classId: string, studentId: string) {
   const [timetable, exams, attendanceMonth, results, calendarEvents] = await Promise.all([
@@ -118,13 +119,14 @@ export function HomeScreen() {
     const entries: { ts: number; item: UpdateFeedItemData }[] = [];
 
     homeworkItems.forEach((hw) => {
+      const meta = subjectMeta(hw.subject);
       entries.push({
         ts: new Date(hw.assignedDate).getTime() || 0,
         item: {
           key: `hw-${hw.id}`,
-          icon: 'book',
-          color: colors.tileBlue,
-          title: `${hw.subject} homework added`,
+          icon: meta.icon,
+          color: meta.gradient[1],
+          title: hw.title,
           meta: `By ${hw.teacher} · ${noticeTimeLabel(hw.assignedDate)}`,
           onPress: () => navigation.navigate('HomeworkDetail', { id: hw.id }),
         },
@@ -246,19 +248,21 @@ export function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <IconButton icon="menu-outline" onPress={() => setMoreVisible(true)} size={36} />
-          <View style={{ flex: 1, marginLeft: spacing.sm }}>
-            <AppText variant="h2" numberOfLines={1} style={{ fontSize: 16 }}>
-              {greetingForNow()}, {firstName} 👋
-            </AppText>
-            {student && (
-              <AppText variant="caption" color={colors.textTertiary}>
-                {student.className} · Section {student.section}
-              </AppText>
-            )}
-          </View>
+          <View style={{ flex: 1 }} />
           <BellButton count={unreadCount} onPress={() => navigation.navigate('Notifications')} />
           <Avatar name={student?.name ?? firstName} size={36} style={{ marginLeft: spacing.sm }} />
         </View>
+        <AppText variant="caption" color={colors.textTertiary} style={{ marginTop: spacing.md }}>
+          {greetingForNow()},
+        </AppText>
+        <AppText variant="displayMd" numberOfLines={1}>
+          {student?.name ?? firstName} 👋
+        </AppText>
+        {student && (
+          <AppText variant="caption" color={colors.textTertiary} style={{ marginTop: 2 }}>
+            {student.className} · Section {student.section}
+          </AppText>
+        )}
       </View>
 
       <ScrollView

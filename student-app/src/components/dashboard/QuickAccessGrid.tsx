@@ -17,15 +17,15 @@ export function QuickAccessGrid({ items }: { items: QuickAccessItem[] }) {
     <View style={styles.grid}>
       {items.map((item) => (
         <AnimatedPressable key={item.key} onPress={item.onPress} style={styles.item} scaleTo={0.96}>
-          <View style={[styles.iconWrap, { backgroundColor: `${item.color}1A` }]}>
-            <Ionicons name={item.icon} size={14} color={item.color} />
+          <View style={[styles.iconWrap, { backgroundColor: item.color }]}>
+            <Ionicons name={item.icon} size={22} color="#fff" />
           </View>
           <AppText
-            variant="tiny"
+            variant="caption"
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.8}
-            style={{ flexShrink: 1, fontWeight: '700' }}
+            style={{ fontWeight: '700', marginTop: spacing.sm }}
           >
             {item.label}
           </AppText>
@@ -39,27 +39,24 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   item: {
-    flexBasis: '31%',
+    flexBasis: '30%',
     flexGrow: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderSoft,
-    borderRadius: radius.md,
-    paddingVertical: 9,
-    paddingHorizontal: 6,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xs,
   },
   iconWrap: {
-    width: 24,
-    height: 24,
-    borderRadius: radius.sm,
+    width: 48,
+    height: 48,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 4,
-    flexShrink: 0,
   },
 });

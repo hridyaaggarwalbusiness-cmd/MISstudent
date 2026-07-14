@@ -12,7 +12,7 @@ const ICONS: Record<string, { active: keyof typeof Ionicons.glyphMap; inactive: 
   TimetableTab: { active: 'calendar', inactive: 'calendar-outline' },
   HomeworkTab: { active: 'book', inactive: 'book-outline' },
   NoticesTab: { active: 'megaphone', inactive: 'megaphone-outline' },
-  ProfileTab: { active: 'person', inactive: 'person-outline' },
+  ProfileTab: { active: 'ellipsis-horizontal', inactive: 'ellipsis-horizontal' },
 };
 
 const LABELS: Record<string, string> = {
@@ -20,7 +20,7 @@ const LABELS: Record<string, string> = {
   TimetableTab: 'Timetable',
   HomeworkTab: 'Homework',
   NoticesTab: 'Notices',
-  ProfileTab: 'Profile',
+  ProfileTab: 'More',
 };
 
 export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
