@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
+import { BarChart3, TrendingUp, FlaskConical, AlertTriangle } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { StatStrip } from '@/components/ui/StatStrip';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader, pageHeaderStyles } from '@/pages/PageHeader';
@@ -55,10 +57,10 @@ export function ResultsPage() {
   const atRisk = filtered.filter((r) => r.marksObtained / (r.maxMarks || 1) < 0.4).length;
 
   const stats = [
-    { icon: '📊', label: 'Total Results', value: filtered.length, tone: 'primary' as const },
-    { icon: '📈', label: 'Average Score', value: `${avgPct}%`, tone: 'info' as const },
-    { icon: '🧪', label: 'Exams Recorded', value: grouped.length, tone: 'violet' as const },
-    { icon: '⚠️', label: 'Below 40%', value: atRisk, tone: atRisk > 0 ? ('danger' as const) : ('success' as const) },
+    { icon: <BarChart3 size={18} />, label: 'Total Results', value: filtered.length, tone: 'primary' as const },
+    { icon: <TrendingUp size={18} />, label: 'Average Score', value: `${avgPct}%`, tone: 'info' as const },
+    { icon: <FlaskConical size={18} />, label: 'Exams Recorded', value: grouped.length, tone: 'violet' as const },
+    { icon: <AlertTriangle size={18} />, label: 'Below 40%', value: atRisk, tone: atRisk > 0 ? ('danger' as const) : ('success' as const) },
   ];
 
   return (
@@ -85,7 +87,7 @@ export function ResultsPage() {
         </Card>
       ) : filtered.length === 0 ? (
         <Card>
-          <EmptyState icon="📊" title="No results yet" description="Results entered by teachers will appear here in real time." />
+          <EmptyState icon={<BarChart3 size={32} />} title="No results yet" description="Results entered by teachers will appear here in real time." />
         </Card>
       ) : (
         grouped.map((group) => (
@@ -104,12 +106,7 @@ export function ResultsPage() {
                   <div key={r.id} className={styles.resultRow}>
                     <span className={styles.studentName}>{studentName(r.studentId)}</span>
                     <span className={styles.subject}>{r.subject}</span>
-                    <div className={styles.barTrack}>
-                      <div
-                        className={styles.barFill}
-                        style={{ width: `${Math.min(100, Math.max(0, pct))}%`, background: gradeBarColor[tone] }}
-                      />
-                    </div>
+                    <ProgressBar value={pct} color={gradeBarColor[tone]} />
                     <span className={styles.marks}>
                       {r.marksObtained}/{r.maxMarks} ({pct}%)
                     </span>

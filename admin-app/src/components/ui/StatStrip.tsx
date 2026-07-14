@@ -1,7 +1,8 @@
+import type { ReactNode } from 'react';
 import styles from './StatStrip.module.css';
 
 export interface StatItem {
-  icon: string;
+  icon: ReactNode;
   label: string;
   value: string | number;
   tone?: 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'violet' | 'neutral';

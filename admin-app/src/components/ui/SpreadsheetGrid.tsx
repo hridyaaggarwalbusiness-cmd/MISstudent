@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Check, X } from 'lucide-react';
 import styles from './SpreadsheetGrid.module.css';
 
 export interface SpreadsheetColumn {
@@ -145,7 +146,10 @@ export function SpreadsheetGrid({
                   <td className={styles.statusCell}>
                     {status?.tone === 'busy' && <span className={styles.statusBusy}>Saving…</span>}
                     {status?.tone === 'success' && (
-                      <span className={styles.statusSuccess}>{status.message ?? '✔ Saved'}</span>
+                      <span className={styles.statusSuccess}>
+                        <Check size={13} style={{ verticalAlign: -2, marginRight: 3 }} />
+                        {status.message ?? 'Saved'}
+                      </span>
                     )}
                     {status?.tone === 'error' && <span className={styles.statusError}>{status.message ?? 'Failed'}</span>}
                     {status?.tone === 'pending' && <span className={styles.statusPending}>{status.message ?? 'Ready'}</span>}
@@ -160,7 +164,7 @@ export function SpreadsheetGrid({
                       onClick={() => onDeleteRow(r)}
                       aria-label="Delete row"
                     >
-                      ✕
+                      <X size={14} />
                     </button>
                   </td>
                 )}

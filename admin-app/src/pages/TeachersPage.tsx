@@ -1,5 +1,8 @@
 import { useState } from 'react';
+import { Upload, Plus, GraduationCap, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import { Avatar } from '@/components/ui/Avatar';
+import { IconButton } from '@/components/ui/IconButton';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Table, tableStyles } from '@/components/ui/Table';
@@ -29,15 +32,6 @@ interface FormState {
 }
 
 const emptyForm: FormState = { name: '', email: '', password: '', phone: '', subjects: '', classIds: [] };
-
-function initials(name: string) {
-  return name
-    .split(' ')
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-}
 
 interface ImportRow {
   name: string;
@@ -261,10 +255,10 @@ export function TeachersPage() {
         toolbar={
           <>
             <ViewToggle value={view} onChange={setView} />
-            <Button variant="outline" onClick={() => setImportOpen(true)} icon="📋">
+            <Button variant="outline" onClick={() => setImportOpen(true)} icon={<Upload size={16} />}>
               Bulk Import
             </Button>
-            <Button onClick={openCreate} icon="+">
+            <Button onClick={openCreate} icon={<Plus size={16} />}>
               Add Teacher
             </Button>
           </>
@@ -297,7 +291,7 @@ export function TeachersPage() {
           </div>
         ) : teachers.length === 0 ? (
           <EmptyState
-            icon="🧑‍🏫"
+            icon={<GraduationCap size={32} />}
             title="No teachers yet"
             description="Add teaching staff so they can manage homework, timetables and results."
             action={<Button onClick={openCreate}>Add Teacher</Button>}
@@ -310,7 +304,7 @@ export function TeachersPage() {
                 header: 'Teacher',
                 render: (t) => (
                   <div className={styles.avatarCell}>
-                    <div className={styles.avatar}>{initials(t.name)}</div>
+                    <Avatar name={t.name} />
                     <div>
                       <div className={styles.name}>{t.name}</div>
                       <div className={styles.subtitle}>{t.email}</div>
@@ -327,12 +321,7 @@ export function TeachersPage() {
                 align: 'right',
                 render: (t) => (
                   <div className={tableStyles.actions}>
-                    <button
-                      className={[tableStyles.iconButton, tableStyles.danger].join(' ')}
-                      onClick={() => onDelete(t.id)}
-                    >
-                      🗑️
-                    </button>
+                    <IconButton icon={Trash2} tone="danger" onClick={() => onDelete(t.id)} aria-label="Delete teacher" />
                   </div>
                 ),
               },

@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from 'react';
+import { CalendarClock, Coffee, User, MapPin } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -136,7 +137,7 @@ export function TimetablePage() {
 
       <Card>
         {classes.length === 0 ? (
-          <EmptyState icon="🗓️" title="No classes yet" description="Create a class first to build its timetable." />
+          <EmptyState icon={<CalendarClock size={32} />} title="No classes yet" description="Create a class first to build its timetable." />
         ) : (
           <div className={styles.grid}>
             <div />
@@ -166,12 +167,31 @@ export function TimetablePage() {
                     >
                       {period ? (
                         <>
-                          <span className={styles.cellSubject}>{period.isBreak ? '☕ Break' : period.subject}</span>
+                          <span className={styles.cellSubject}>
+                            {period.isBreak ? (
+                              <>
+                                <Coffee size={13} style={{ verticalAlign: -2, marginRight: 3 }} />
+                                Break
+                              </>
+                            ) : (
+                              period.subject
+                            )}
+                          </span>
                           <span className={styles.cellMeta}>
                             {period.startTime}-{period.endTime}
                           </span>
-                          {!period.isBreak && <span className={styles.cellMeta}>👤 {period.teacher}</span>}
-                          {!period.isBreak && period.room && <span className={styles.cellMeta}>📍 {period.room}</span>}
+                          {!period.isBreak && (
+                            <span className={styles.cellMeta}>
+                              <User size={12} style={{ verticalAlign: -2, marginRight: 3 }} />
+                              {period.teacher}
+                            </span>
+                          )}
+                          {!period.isBreak && period.room && (
+                            <span className={styles.cellMeta}>
+                              <MapPin size={12} style={{ verticalAlign: -2, marginRight: 3 }} />
+                              {period.room}
+                            </span>
+                          )}
                         </>
                       ) : (
                         <span className={styles.cellEmpty}>+</span>

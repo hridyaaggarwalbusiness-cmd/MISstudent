@@ -1,0 +1,28 @@
+.button {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.button:hover {
+  background: var(--color-surface-alt);
+}
+
+.button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: transparent;
+}
+
+.danger:hover {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-strong);
+}

@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react';
+import { Upload, Plus, GraduationCap, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import { Avatar } from '@/components/ui/Avatar';
+import { IconButton } from '@/components/ui/IconButton';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -59,10 +62,6 @@ const emptyForm: FormState = {
   emergencyContactPhone: '',
   emergencyContactRelation: '',
 };
-
-function initials(name: string) {
-  return name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
-}
 
 interface ImportRow {
   name: string;
@@ -342,10 +341,10 @@ export function StudentsPage() {
               ))}
             </select>
             <ViewToggle value={view} onChange={setView} />
-            <Button variant="outline" onClick={() => setImportOpen(true)} icon="📋">
+            <Button variant="outline" onClick={() => setImportOpen(true)} icon={<Upload size={16} />}>
               Bulk Import
             </Button>
-            <Button onClick={openCreate} icon="+">
+            <Button onClick={openCreate} icon={<Plus size={16} />}>
               Add Student
             </Button>
           </>
@@ -378,7 +377,7 @@ export function StudentsPage() {
           </div>
         ) : filtered.length === 0 ? (
           <EmptyState
-            icon="🎓"
+            icon={<GraduationCap size={32} />}
             title="No students found"
             description="Add students or adjust your filters."
             action={<Button onClick={openCreate}>Add Student</Button>}
@@ -391,7 +390,7 @@ export function StudentsPage() {
                 header: 'Student',
                 render: (s) => (
                   <div className={styles.avatarCell}>
-                    <div className={styles.avatar}>{initials(s.name)}</div>
+                    <Avatar name={s.name} />
                     <div>
                       <div className={styles.name}>{s.name}</div>
                       <div className={styles.subtitle}>{s.email}</div>
@@ -412,12 +411,7 @@ export function StudentsPage() {
                 align: 'right',
                 render: (s) => (
                   <div className={tableStyles.actions}>
-                    <button
-                      className={[tableStyles.iconButton, tableStyles.danger].join(' ')}
-                      onClick={() => onDelete(s.id)}
-                    >
-                      🗑️
-                    </button>
+                    <IconButton icon={Trash2} tone="danger" onClick={() => onDelete(s.id)} aria-label="Delete student" />
                   </div>
                 ),
               },

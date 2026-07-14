@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { format, parseISO } from 'date-fns';
+import { NotebookPen, Clock3, AlertTriangle, CalendarDays, BookOpen, School, User, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import { IconButton } from '@/components/ui/IconButton';
 import { Badge } from '@/components/ui/Badge';
 import { StatStrip } from '@/components/ui/StatStrip';
-import { tableStyles } from '@/components/ui/Table';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
@@ -56,36 +58,46 @@ export function HomeworkPage() {
   const upcoming = sorted.filter((h) => daysUntil(h.dueDate) > 7);
 
   const stats = [
-    { icon: '📝', label: 'Total Assignments', value: filtered.length, tone: 'primary' as const },
-    { icon: '🕐', label: 'Due This Week', value: dueSoon.length, tone: 'warning' as const },
-    { icon: '⚠️', label: 'Overdue', value: overdue.length, tone: 'danger' as const },
+    { icon: <NotebookPen size={18} />, label: 'Total Assignments', value: filtered.length, tone: 'primary' as const },
+    { icon: <Clock3 size={18} />, label: 'Due This Week', value: dueSoon.length, tone: 'warning' as const },
+    { icon: <AlertTriangle size={18} />, label: 'Overdue', value: overdue.length, tone: 'danger' as const },
   ];
 
   function renderCard(h: Homework) {
     const due = relativeDayLabel(h.dueDate);
+    const SubjectIcon = subjectIcon(h.subject);
     return (
       <div key={h.id} className={styles.hwCard} style={subjectAccentStyle(h.subject)}>
-        <div className={styles.iconChip}>{subjectIcon(h.subject)}</div>
+        <div className={styles.iconChip}>
+          <SubjectIcon size={18} />
+        </div>
         <div className={styles.body}>
           <div className={styles.title}>{h.title}</div>
           <div className={styles.meta}>
-            <span className={styles.metaItem}>📘 {h.subject}</span>
-            <span className={styles.metaItem}>🏫 {classLabel(h.classId)}</span>
-            <span className={styles.metaItem}>👤 {h.teacherName}</span>
+            <span className={styles.metaItem}>
+              <BookOpen size={13} style={{ verticalAlign: -2, marginRight: 3 }} />
+              {h.subject}
+            </span>
+            <span className={styles.metaItem}>
+              <School size={13} style={{ verticalAlign: -2, marginRight: 3 }} />
+              {classLabel(h.classId)}
+            </span>
+            <span className={styles.metaItem}>
+              <User size={13} style={{ verticalAlign: -2, marginRight: 3 }} />
+              {h.teacherName}
+            </span>
           </div>
         </div>
         <div className={styles.dueChip}>
           <Badge label={due.label} tone={due.tone} />
           <div className={styles.dueDate}>{formatDate(h.dueDate)}</div>
         </div>
-        <button className={[tableStyles.iconButton, tableStyles.danger].join(' ')} onClick={() => onDelete(h.id)}>
-          🗑️
-        </button>
+        <IconButton icon={Trash2} tone="danger" onClick={() => onDelete(h.id)} aria-label="Delete homework" />
       </div>
     );
   }
 
-  function renderSection(title: string, icon: string, items: Homework[]) {
+  function renderSection(title: string, icon: ReactNode, items: Homework[]) {
     if (items.length === 0) return null;
     return (
       <div className={styles.section}>
@@ -127,13 +139,13 @@ export function HomeworkPage() {
         </Card>
       ) : filtered.length === 0 ? (
         <Card>
-          <EmptyState icon="📝" title="No homework found" description="Homework posted by teachers will appear here in real time." />
+          <EmptyState icon={<NotebookPen size={32} />} title="No homework found" description="Homework posted by teachers will appear here in real time." />
         </Card>
       ) : (
         <>
-          {renderSection('Overdue', '⚠️', overdue)}
-          {renderSection('Due This Week', '🕐', dueSoon)}
-          {renderSection('Upcoming', '📅', upcoming)}
+          {renderSection('Overdue', <AlertTriangle size={16} />, overdue)}
+          {renderSection('Due This Week', <Clock3 size={16} />, dueSoon)}
+          {renderSection('Upcoming', <CalendarDays size={16} />, upcoming)}
         </>
       )}
     </div>

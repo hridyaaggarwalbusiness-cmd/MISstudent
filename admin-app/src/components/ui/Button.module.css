@@ -18,9 +18,9 @@
   cursor: not-allowed;
 }
 
-.sm { height: 34px; padding: 0 14px; font-size: 13px; }
-.md { height: 42px; padding: 0 18px; font-size: 14px; }
-.lg { height: 50px; padding: 0 22px; font-size: 15px; }
+.sm { height: 34px; padding: 0 14px; font-size: var(--text-base); }
+.md { height: 42px; padding: 0 18px; font-size: var(--text-md); }
+.lg { height: 50px; padding: 0 22px; font-size: var(--text-lg); }
 
 .primary {
   background: var(--gradient-primary);

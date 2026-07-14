@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
+import { Plus, FlaskConical, Clock, CalendarDays, CheckCircle2, BookOpen, School, MapPin, Pencil, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import { IconButton } from '@/components/ui/IconButton';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
-import { tableStyles } from '@/components/ui/Table';
 import { StatStrip } from '@/components/ui/StatStrip';
 import { TextField, SelectField } from '@/components/ui/FormField';
 import { SkeletonRows } from '@/components/ui/Skeleton';
@@ -96,10 +98,10 @@ export function ExamsPage() {
   const completed = [...sorted.filter((e) => e.status === 'completed')].reverse();
 
   const stats = [
-    { icon: '🧪', label: 'Total Exams', value: exams.length, tone: 'primary' as const },
-    { icon: '🟡', label: 'Ongoing', value: ongoing.length, tone: 'warning' as const },
-    { icon: '📅', label: 'Upcoming', value: upcoming.length, tone: 'info' as const },
-    { icon: '✔️', label: 'Completed', value: completed.length, tone: 'success' as const },
+    { icon: <FlaskConical size={18} />, label: 'Total Exams', value: exams.length, tone: 'primary' as const },
+    { icon: <Clock size={18} />, label: 'Ongoing', value: ongoing.length, tone: 'warning' as const },
+    { icon: <CalendarDays size={18} />, label: 'Upcoming', value: upcoming.length, tone: 'info' as const },
+    { icon: <CheckCircle2 size={18} />, label: 'Completed', value: completed.length, tone: 'success' as const },
   ];
 
   function renderCard(e: Exam) {
@@ -115,28 +117,36 @@ export function ExamsPage() {
         <div className={styles.body}>
           <div className={styles.title}>{e.name}</div>
           <div className={styles.meta}>
-            <span className={styles.metaItem}>📘 {e.subject}</span>
-            <span className={styles.metaItem}>🏫 {classLabel(e.classId)}</span>
             <span className={styles.metaItem}>
-              🕐 {e.startTime}–{e.endTime}
+              <BookOpen size={13} style={{ verticalAlign: -2, marginRight: 3 }} />
+              {e.subject}
             </span>
-            {e.room && <span className={styles.metaItem}>📍 {e.room}</span>}
+            <span className={styles.metaItem}>
+              <School size={13} style={{ verticalAlign: -2, marginRight: 3 }} />
+              {classLabel(e.classId)}
+            </span>
+            <span className={styles.metaItem}>
+              <Clock size={13} style={{ verticalAlign: -2, marginRight: 3 }} />
+              {e.startTime}–{e.endTime}
+            </span>
+            {e.room && (
+              <span className={styles.metaItem}>
+                <MapPin size={13} style={{ verticalAlign: -2, marginRight: 3 }} />
+                {e.room}
+              </span>
+            )}
           </div>
         </div>
         <div className={styles.right}>
           <Badge label={e.status} tone={statusTone[e.status]} />
-          <button className={tableStyles.iconButton} onClick={() => openEdit(e)}>
-            ✏️
-          </button>
-          <button className={[tableStyles.iconButton, tableStyles.danger].join(' ')} onClick={() => onDelete(e.id)}>
-            🗑️
-          </button>
+          <IconButton icon={Pencil} onClick={() => openEdit(e)} aria-label="Edit exam" />
+          <IconButton icon={Trash2} tone="danger" onClick={() => onDelete(e.id)} aria-label="Delete exam" />
         </div>
       </div>
     );
   }
 
-  function renderSection(title: string, icon: string, items: Exam[]) {
+  function renderSection(title: string, icon: ReactNode, items: Exam[]) {
     if (items.length === 0) return null;
     return (
       <div className={styles.section}>
@@ -153,7 +163,7 @@ export function ExamsPage() {
       <PageHeader
         description="Schedule exams and track their status"
         toolbar={
-          <Button onClick={openCreate} icon="+">
+          <Button onClick={openCreate} icon={<Plus size={16} />}>
             Add Exam
           </Button>
         }
@@ -173,13 +183,13 @@ export function ExamsPage() {
         </Card>
       ) : exams.length === 0 ? (
         <Card>
-          <EmptyState icon="🧪" title="No exams scheduled" description="Schedule exams so teachers can enter results." action={<Button onClick={openCreate}>Add Exam</Button>} />
+          <EmptyState icon={<FlaskConical size={32} />} title="No exams scheduled" description="Schedule exams so teachers can enter results." action={<Button onClick={openCreate}>Add Exam</Button>} />
         </Card>
       ) : (
         <>
-          {renderSection('Ongoing', '🟡', ongoing)}
-          {renderSection('Upcoming', '📅', upcoming)}
-          {renderSection('Completed', '✔️', completed)}
+          {renderSection('Ongoing', <Clock size={16} />, ongoing)}
+          {renderSection('Upcoming', <CalendarDays size={16} />, upcoming)}
+          {renderSection('Completed', <CheckCircle2 size={16} />, completed)}
         </>
       )}
 

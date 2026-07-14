@@ -1,14 +1,15 @@
 import type { ReactNode } from 'react';
+import { Inbox } from 'lucide-react';
 import styles from './EmptyState.module.css';
 
 interface EmptyStateProps {
-  icon?: string;
+  icon?: ReactNode;
   title: string;
   description?: string;
   action?: ReactNode;
 }
 
-export function EmptyState({ icon = '📭', title, description, action }: EmptyStateProps) {
+export function EmptyState({ icon = <Inbox size={32} />, title, description, action }: EmptyStateProps) {
   return (
     <div className={styles.wrapper}>
       <div className={styles.icon}>{icon}</div>

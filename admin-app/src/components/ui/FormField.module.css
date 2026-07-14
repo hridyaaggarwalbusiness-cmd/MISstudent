@@ -5,7 +5,7 @@
 }
 
 .label {
-  font-size: 13px;
+  font-size: var(--text-base);
   font-weight: 600;
   color: var(--color-text-secondary);
 }
@@ -18,7 +18,7 @@
   background: var(--color-surface);
   color: var(--color-text-primary);
   font-family: inherit;
-  font-size: 14px;
+  font-size: var(--text-md);
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -40,6 +40,6 @@
 }
 
 .hint {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--color-text-tertiary);
 }

@@ -14,6 +14,7 @@ import {
   startOfWeek,
   subMonths,
 } from 'date-fns';
+import { Plus, CalendarDays } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -142,7 +143,7 @@ export function CalendarPage() {
       <PageHeader
         description="Manage holidays, exams and school events"
         toolbar={
-          <Button onClick={() => openCreate()} icon="+">
+          <Button onClick={() => openCreate()} icon={<Plus size={16} />}>
             Add Event
           </Button>
         }
@@ -234,7 +235,7 @@ export function CalendarPage() {
             <div className={styles.agendaTitle}>Upcoming Events</div>
             {upcoming.length === 0 ? (
               <Card>
-                <EmptyState icon="📅" title="No upcoming events" description="Add holidays and events to the academic calendar." action={<Button onClick={() => openCreate()}>Add Event</Button>} />
+                <EmptyState icon={<CalendarDays size={32} />} title="No upcoming events" description="Add holidays and events to the academic calendar." action={<Button onClick={() => openCreate()}>Add Event</Button>} />
               </Card>
             ) : (
               <div className={styles.agendaList}>

@@ -1,5 +1,8 @@
 import { useRef, useState } from 'react';
+import type { ComponentType } from 'react';
+import { Upload, Library, BookOpen, School, User, Download, Trash2, FileText, Monitor, NotebookPen, HelpCircle, Video, Folder } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import { IconButton } from '@/components/ui/IconButton';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -27,13 +30,13 @@ const typeTone: Record<MaterialType, BadgeTone> = {
   other: 'neutral',
 };
 
-const typeIcon: Record<MaterialType, string> = {
-  note: '📄',
-  presentation: '🖥️',
-  worksheet: '📝',
-  question_bank: '❓',
-  video: '🎥',
-  other: '📁',
+const typeIcon: Record<MaterialType, ComponentType<{ size?: number }>> = {
+  note: FileText,
+  presentation: Monitor,
+  worksheet: NotebookPen,
+  question_bank: HelpCircle,
+  video: Video,
+  other: Folder,
 };
 
 function sizeLabel(bytes: number) {
@@ -138,7 +141,7 @@ export function MaterialsPage() {
                 </option>
               ))}
             </select>
-            <Button onClick={openCreate} icon="⬆️">
+            <Button onClick={openCreate} icon={<Upload size={16} />}>
               Upload
             </Button>
           </>
@@ -157,37 +160,47 @@ export function MaterialsPage() {
         </Card>
       ) : filtered.length === 0 ? (
         <Card>
-          <EmptyState icon="📚" title="No materials yet" description="Upload the first study material for a class." action={<Button onClick={openCreate}>Upload</Button>} />
+          <EmptyState icon={<Library size={32} />} title="No materials yet" description="Upload the first study material for a class." action={<Button onClick={openCreate}>Upload</Button>} />
         </Card>
       ) : (
         <div className={styles.grid}>
-          {filtered.map((m) => (
+          {filtered.map((m) => {
+            const TypeIcon = typeIcon[m.type];
+            return (
             <div key={m.id} className={styles.card}>
               <div className={styles.topRow}>
                 <div className={styles.iconChip} style={{ background: TONE_COLORS[typeTone[m.type]].bg }}>
-                  {typeIcon[m.type]}
+                  <TypeIcon size={18} />
                 </div>
                 <Badge label={m.type.replace('_', ' ')} tone={typeTone[m.type]} />
               </div>
               <div className={styles.title}>{m.title}</div>
               <div className={styles.meta}>
-                <span>📘 {m.subject || '—'}</span>
-                <span>🏫 {classLabel(m.classId)}</span>
-                <span>👤 {m.uploadedByName}</span>
+                <span>
+                  <BookOpen size={13} style={{ verticalAlign: -2, marginRight: 3 }} />
+                  {m.subject || '—'}
+                </span>
+                <span>
+                  <School size={13} style={{ verticalAlign: -2, marginRight: 3 }} />
+                  {classLabel(m.classId)}
+                </span>
+                <span>
+                  <User size={13} style={{ verticalAlign: -2, marginRight: 3 }} />
+                  {m.uploadedByName}
+                </span>
               </div>
               <div className={styles.footer}>
                 <span className={styles.size}>{m.sizeLabel ?? '—'}</span>
                 <div className={styles.actions}>
                   <a className={tableStyles.iconButton} href={m.attachment.url} target="_blank" rel="noreferrer">
-                    ⬇️
+                    <Download size={14} />
                   </a>
-                  <button className={[tableStyles.iconButton, tableStyles.danger].join(' ')} onClick={() => onDelete(m.id)}>
-                    🗑️
-                  </button>
+                  <IconButton icon={Trash2} tone="danger" onClick={() => onDelete(m.id)} aria-label="Delete material" />
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

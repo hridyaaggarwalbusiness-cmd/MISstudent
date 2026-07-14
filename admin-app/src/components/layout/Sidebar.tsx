@@ -1,35 +1,52 @@
 import { NavLink } from 'react-router-dom';
+import type { ComponentType } from 'react';
+import {
+  LayoutDashboard,
+  School,
+  GraduationCap,
+  Users,
+  ShieldCheck,
+  CalendarClock,
+  CheckCircle2,
+  NotebookPen,
+  FlaskConical,
+  BarChart3,
+  Megaphone,
+  BookOpen,
+  CalendarDays,
+} from 'lucide-react';
 import styles from './AppLayout.module.css';
 
-const sections: { label: string; links: { to: string; icon: string; label: string }[] }[] = [
+const sections: { label: string; links: { to: string; icon: ComponentType<{ size?: number }>; label: string }[] }[] = [
   {
     label: 'Overview',
-    links: [{ to: '/', icon: '🏠', label: 'Dashboard' }],
+    links: [{ to: '/', icon: LayoutDashboard, label: 'Dashboard' }],
   },
   {
     label: 'People',
     links: [
-      { to: '/classes', icon: '🏫', label: 'Classes' },
-      { to: '/teachers', icon: '🧑‍🏫', label: 'Teachers' },
-      { to: '/students', icon: '🎓', label: 'Students' },
-      { to: '/admins', icon: '🛡️', label: 'Admins' },
+      { to: '/classes', icon: School, label: 'Classes' },
+      { to: '/teachers', icon: GraduationCap, label: 'Teachers' },
+      { to: '/students', icon: Users, label: 'Students' },
+      { to: '/admins', icon: ShieldCheck, label: 'Admins' },
     ],
   },
   {
     label: 'Academics',
     links: [
-      { to: '/timetable', icon: '🗓️', label: 'Timetable' },
-      { to: '/homework', icon: '📝', label: 'Homework' },
-      { to: '/exams', icon: '🧪', label: 'Exams' },
-      { to: '/results', icon: '📊', label: 'Results' },
+      { to: '/timetable', icon: CalendarClock, label: 'Timetable' },
+      { to: '/attendance', icon: CheckCircle2, label: 'Attendance' },
+      { to: '/homework', icon: NotebookPen, label: 'Homework' },
+      { to: '/exams', icon: FlaskConical, label: 'Exams' },
+      { to: '/results', icon: BarChart3, label: 'Results' },
     ],
   },
   {
     label: 'Communication',
     links: [
-      { to: '/notices', icon: '📢', label: 'Notices' },
-      { to: '/materials', icon: '📚', label: 'Study Materials' },
-      { to: '/calendar', icon: '📅', label: 'Academic Calendar' },
+      { to: '/notices', icon: Megaphone, label: 'Notices' },
+      { to: '/materials', icon: BookOpen, label: 'Study Materials' },
+      { to: '/calendar', icon: CalendarDays, label: 'Academic Calendar' },
     ],
   },
 ];
@@ -57,7 +74,9 @@ export function Sidebar() {
                   [styles.navLink, isActive && styles.navLinkActive].filter(Boolean).join(' ')
                 }
               >
-                <span className={styles.navIcon}>{link.icon}</span>
+                <span className={styles.navIcon}>
+                  <link.icon size={18} />
+                </span>
                 {link.label}
               </NavLink>
             ))}

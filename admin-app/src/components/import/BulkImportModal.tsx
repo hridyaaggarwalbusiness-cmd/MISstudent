@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { Check, X } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
@@ -173,7 +174,7 @@ export function BulkImportModal<T>({ open, onClose, title, columns, mapRow, impo
       if (!result || !('value' in result) || outcomes[i]?.tone === 'success') continue;
       try {
         const note = await importRow(result.value);
-        setOutcomes((prev) => ({ ...prev, [i]: { tone: 'success', message: note ? `✔ ${note}` : '✔ Done' } }));
+        setOutcomes((prev) => ({ ...prev, [i]: { tone: 'success', message: note ?? 'Done' } }));
       } catch (e) {
         setOutcomes((prev) => ({ ...prev, [i]: { tone: 'error', message: getErrorMessage(e) } }));
       }
@@ -203,8 +204,16 @@ export function BulkImportModal<T>({ open, onClose, title, columns, mapRow, impo
         {banner && <ErrorBanner message={banner} />}
         {anyAttempted && (
           <div className={styles.summary}>
-            <span>✔ {successCount} imported</span>
-            {errorCount > 0 && <span>✕ {errorCount} failed</span>}
+            <span>
+              <Check size={14} style={{ verticalAlign: -2, marginRight: 3 }} />
+              {successCount} imported
+            </span>
+            {errorCount > 0 && (
+              <span>
+                <X size={14} style={{ verticalAlign: -2, marginRight: 3 }} />
+                {errorCount} failed
+              </span>
+            )}
           </div>
         )}
         <SpreadsheetGrid

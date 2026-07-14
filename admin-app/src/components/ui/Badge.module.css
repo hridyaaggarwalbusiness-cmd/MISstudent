@@ -3,7 +3,7 @@
   align-items: center;
   padding: 3px 10px;
   border-radius: var(--radius-pill);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
   white-space: nowrap;
 }

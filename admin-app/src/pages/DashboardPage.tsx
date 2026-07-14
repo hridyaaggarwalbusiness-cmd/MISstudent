@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
 import { format, isFuture, parseISO } from 'date-fns';
+import { School, GraduationCap, Users, NotebookPen, Megaphone, CalendarDays } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { StatStrip } from '@/components/ui/StatStrip';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useCollection } from '@/hooks/useCollection';
@@ -55,27 +57,15 @@ export function DashboardPage() {
   };
 
   const stats = [
-    { icon: '🏫', label: 'Classes', value: classes.length, bg: 'var(--color-primary-soft)' },
-    { icon: '🧑‍🏫', label: 'Teachers', value: teachers.length, bg: 'var(--color-info-bg)' },
-    { icon: '🎓', label: 'Students', value: students.length, bg: 'var(--color-success-bg)' },
-    { icon: '📝', label: 'Homework Posted', value: homework.length, bg: 'var(--color-warning-bg)' },
+    { icon: <School size={20} />, label: 'Classes', value: classes.length, tone: 'primary' as const },
+    { icon: <GraduationCap size={20} />, label: 'Teachers', value: teachers.length, tone: 'info' as const },
+    { icon: <Users size={20} />, label: 'Students', value: students.length, tone: 'success' as const },
+    { icon: <NotebookPen size={20} />, label: 'Homework Posted', value: homework.length, tone: 'warning' as const },
   ];
 
   return (
     <div>
-      <div className={styles.grid}>
-        {stats.map((s) => (
-          <Card key={s.label} className={styles.statCard}>
-            <div className={styles.statIcon} style={{ background: s.bg }}>
-              {s.icon}
-            </div>
-            <div className={styles.statMeta}>
-              <span className={styles.statValue}>{s.value}</span>
-              <span className={styles.statLabel}>{s.label}</span>
-            </div>
-          </Card>
-        ))}
-      </div>
+      <StatStrip items={stats} />
 
       <div className={styles.sectionsGrid}>
         <div className={styles.stack}>
@@ -87,7 +77,7 @@ export function DashboardPage() {
             {homeworkLoading ? (
               <SkeletonRows count={4} />
             ) : recentHomework.length === 0 ? (
-              <EmptyState icon="📝" title="No homework yet" description="Homework posted by teachers will appear here." />
+              <EmptyState icon={<NotebookPen size={32} />} title="No homework yet" description="Homework posted by teachers will appear here." />
             ) : (
               recentHomework.map((hw) => (
                 <div className={styles.listItem} key={hw.id}>
@@ -111,7 +101,7 @@ export function DashboardPage() {
             {noticesLoading ? (
               <SkeletonRows count={4} />
             ) : recentNotices.length === 0 ? (
-              <EmptyState icon="📢" title="No notices yet" description="Announcements posted by admins will appear here." />
+              <EmptyState icon={<Megaphone size={32} />} title="No notices yet" description="Announcements posted by admins will appear here." />
             ) : (
               recentNotices.map((n) => (
                 <div className={styles.listItem} key={n.id}>
@@ -133,7 +123,7 @@ export function DashboardPage() {
           {eventsLoading ? (
             <SkeletonRows count={5} />
           ) : upcomingEvents.length === 0 ? (
-            <EmptyState icon="📅" title="No upcoming events" description="Academic calendar events will appear here." />
+            <EmptyState icon={<CalendarDays size={32} />} title="No upcoming events" description="Academic calendar events will appear here." />
           ) : (
             upcomingEvents.map((ev) => (
               <div className={styles.listItem} key={ev.id}>

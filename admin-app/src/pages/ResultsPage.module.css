@@ -54,19 +54,6 @@
   text-overflow: ellipsis;
 }
 
-.barTrack {
-  flex: 1;
-  height: 8px;
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-alt);
-  overflow: hidden;
-  min-width: 60px;
-}
-
-.barFill {
-  height: 100%;
-  border-radius: var(--radius-pill);
-}
 
 .marks {
   width: 76px;

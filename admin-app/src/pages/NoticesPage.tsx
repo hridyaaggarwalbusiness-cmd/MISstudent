@@ -1,6 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
+import type { ComponentType } from 'react';
 import { formatDistanceToNow } from 'date-fns';
+import { Plus, Megaphone, ClipboardList, GraduationCap, PartyPopper, Palmtree, Pin, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import { IconButton } from '@/components/ui/IconButton';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -14,7 +17,6 @@ import { repo, MAX_ATTACHMENT_BYTES } from '@/data/repositories';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getErrorMessage } from '@/utils/errors';
 import type { Notice, NoticeCategory, SchoolClass, Attachment } from '@/types';
-import { tableStyles } from '@/components/ui/Table';
 import styles from './NoticesPage.module.css';
 
 const categoryTone: Record<NoticeCategory, 'neutral' | 'success' | 'violet' | 'danger' | 'info' | 'warning'> = {
@@ -24,11 +26,11 @@ const categoryTone: Record<NoticeCategory, 'neutral' | 'success' | 'violet' | 'd
   holiday: 'warning',
 };
 
-const categoryIcon: Record<NoticeCategory, string> = {
-  general: '📋',
-  academic: '🎓',
-  event: '🎉',
-  holiday: '🌴',
+const categoryIcon: Record<NoticeCategory, ComponentType<{ size?: number }>> = {
+  general: ClipboardList,
+  academic: GraduationCap,
+  event: PartyPopper,
+  holiday: Palmtree,
 };
 
 function relativeTime(iso: string): string {
@@ -151,7 +153,7 @@ export function NoticesPage() {
       <PageHeader
         description="Post announcements visible to teachers and students in real time"
         toolbar={
-          <Button onClick={openCreate} icon="+">
+          <Button onClick={openCreate} icon={<Plus size={16} />}>
             New Notice
           </Button>
         }
@@ -169,18 +171,27 @@ export function NoticesPage() {
         </Card>
       ) : notices.length === 0 ? (
         <Card>
-          <EmptyState icon="📢" title="No notices yet" description="Post your first announcement." action={<Button onClick={openCreate}>New Notice</Button>} />
+          <EmptyState icon={<Megaphone size={32} />} title="No notices yet" description="Post your first announcement." action={<Button onClick={openCreate}>New Notice</Button>} />
         </Card>
       ) : (
         <div className={styles.list}>
-          {sortedNotices.map((n) => (
+          {sortedNotices.map((n) => {
+            const CategoryIcon = categoryIcon[n.category];
+            return (
             <Card key={n.id} className={[styles.noticeCard, n.pinned && styles.noticeCardPinned].filter(Boolean).join(' ')}>
               <div className={styles.noticeHeader}>
                 <div className={styles.noticeHeaderLeft}>
-                  <div className={styles.categoryIconChip}>{categoryIcon[n.category]}</div>
+                  <div className={styles.categoryIconChip}>
+                    <CategoryIcon size={18} />
+                  </div>
                   <div>
                     <div className={styles.noticeTitle}>
-                      {n.pinned && <span className={styles.pinBadge}>📌 Pinned</span>}
+                      {n.pinned && (
+                        <span className={styles.pinBadge}>
+                          <Pin size={11} style={{ verticalAlign: -1, marginRight: 2 }} />
+                          Pinned
+                        </span>
+                      )}
                       {n.title}
                     </div>
                     <div className={styles.noticeMeta}>
@@ -194,14 +205,13 @@ export function NoticesPage() {
                 </div>
                 <div className={styles.actions}>
                   <Badge label={n.category} tone={categoryTone[n.category]} />
-                  <button className={[tableStyles.iconButton, tableStyles.danger].join(' ')} onClick={() => onDelete(n.id)}>
-                    🗑️
-                  </button>
+                  <IconButton icon={Trash2} tone="danger" onClick={() => onDelete(n.id)} aria-label="Delete notice" />
                 </div>
               </div>
               <div className={styles.noticeBody}>{n.body}</div>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 

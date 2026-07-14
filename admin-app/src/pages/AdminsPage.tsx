@@ -1,5 +1,8 @@
 import { useState } from 'react';
+import { Upload, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import { Avatar } from '@/components/ui/Avatar';
+import { IconButton } from '@/components/ui/IconButton';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Table, tableStyles } from '@/components/ui/Table';
@@ -26,10 +29,6 @@ interface FormState {
 }
 
 const emptyForm: FormState = { name: '', email: '', password: '' };
-
-function initials(name: string) {
-  return name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
-}
 
 interface ImportRow {
   name: string;
@@ -166,10 +165,10 @@ export function AdminsPage() {
         toolbar={
           <>
             <ViewToggle value={view} onChange={setView} />
-            <Button variant="outline" onClick={() => setImportOpen(true)} icon="📋">
+            <Button variant="outline" onClick={() => setImportOpen(true)} icon={<Upload size={16} />}>
               Bulk Import
             </Button>
-            <Button onClick={openCreate} icon="+">
+            <Button onClick={openCreate} icon={<Plus size={16} />}>
               Add Admin
             </Button>
           </>
@@ -202,7 +201,7 @@ export function AdminsPage() {
           </div>
         ) : admins.length === 0 ? (
           <EmptyState
-            icon="🛡️"
+            icon={<ShieldCheck size={32} />}
             title="No admins found"
             description="Add another administrator to share management of the school console."
             action={<Button onClick={openCreate}>Add Admin</Button>}
@@ -215,7 +214,7 @@ export function AdminsPage() {
                 header: 'Admin',
                 render: (a) => (
                   <div className={styles.avatarCell}>
-                    <div className={styles.avatar}>{initials(a.displayName)}</div>
+                    <Avatar name={a.displayName} />
                     <div>
                       <div className={styles.name}>
                         {a.displayName}
@@ -232,12 +231,7 @@ export function AdminsPage() {
                 align: 'right',
                 render: (a) => (
                   <div className={tableStyles.actions}>
-                    <button
-                      className={[tableStyles.iconButton, tableStyles.danger].join(' ')}
-                      onClick={() => onDelete(a.id)}
-                    >
-                      🗑️
-                    </button>
+                    <IconButton icon={Trash2} tone="danger" onClick={() => onDelete(a.id)} aria-label="Delete admin" />
                   </div>
                 ),
               },

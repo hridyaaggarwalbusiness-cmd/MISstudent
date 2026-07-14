@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { Plus, School, Pencil, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import { IconButton } from '@/components/ui/IconButton';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -73,7 +75,7 @@ export function ClassesPage() {
       <PageHeader
         description="Manage grade sections and assign class teachers"
         toolbar={
-          <Button onClick={openCreate} icon="+">
+          <Button onClick={openCreate} icon={<Plus size={16} />}>
             Add Class
           </Button>
         }
@@ -92,7 +94,7 @@ export function ClassesPage() {
           </div>
         ) : classes.length === 0 ? (
           <EmptyState
-            icon="🏫"
+            icon={<School size={32} />}
             title="No classes yet"
             description="Create your first class to start organizing students and teachers."
             action={<Button onClick={openCreate}>Add Class</Button>}
@@ -113,15 +115,8 @@ export function ClassesPage() {
                 align: 'right',
                 render: (c) => (
                   <div className={tableStyles.actions}>
-                    <button className={tableStyles.iconButton} onClick={() => openEdit(c)}>
-                      ✏️
-                    </button>
-                    <button
-                      className={[tableStyles.iconButton, tableStyles.danger].join(' ')}
-                      onClick={() => onDelete(c.id)}
-                    >
-                      🗑️
-                    </button>
+                    <IconButton icon={Pencil} onClick={() => openEdit(c)} aria-label="Edit class" />
+                    <IconButton icon={Trash2} tone="danger" onClick={() => onDelete(c.id)} aria-label="Delete class" />
                   </div>
                 ),
               },

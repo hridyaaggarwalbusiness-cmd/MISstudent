@@ -1,3 +1,4 @@
+import { List, Grid3x3 } from 'lucide-react';
 import styles from './ViewToggle.module.css';
 
 interface ViewToggleProps {
@@ -15,7 +16,8 @@ export function ViewToggle({ value, onChange }: ViewToggleProps) {
         className={[styles.option, value === 'list' && styles.optionActive].filter(Boolean).join(' ')}
         onClick={() => onChange('list')}
       >
-        📇 List
+        <List size={14} style={{ verticalAlign: -2, marginRight: 5 }} />
+        List
       </button>
       <button
         type="button"
@@ -24,7 +26,8 @@ export function ViewToggle({ value, onChange }: ViewToggleProps) {
         className={[styles.option, value === 'spreadsheet' && styles.optionActive].filter(Boolean).join(' ')}
         onClick={() => onChange('spreadsheet')}
       >
-        ▦ Spreadsheet
+        <Grid3x3 size={14} style={{ verticalAlign: -2, marginRight: 5 }} />
+        Spreadsheet
       </button>
     </div>
   );
