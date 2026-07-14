@@ -5,7 +5,6 @@ import { RootStackParamList } from './types';
 import { MainTabs } from './MainTabs';
 import { HomeworkDetailScreen } from '@screens/homework/HomeworkDetailScreen';
 import { AttendanceScreen } from '@screens/attendance/AttendanceScreen';
-import { ResultsScreen } from '@screens/results/ResultsScreen';
 import { ResultDetailScreen } from '@screens/results/ResultDetailScreen';
 import { StudyMaterialsScreen } from '@screens/materials/StudyMaterialsScreen';
 import { NoticeDetailScreen } from '@screens/notices/NoticeDetailScreen';
@@ -35,7 +34,6 @@ export function RootNavigator() {
         <Stack.Screen name="MainTabs" component={MainTabs} />
         <Stack.Screen name="HomeworkDetail" component={HomeworkDetailScreen} />
         <Stack.Screen name="Attendance" component={AttendanceScreen} />
-        <Stack.Screen name="Results" component={ResultsScreen} />
         <Stack.Screen name="ResultDetail" component={ResultDetailScreen} />
         <Stack.Screen name="StudyMaterials" component={StudyMaterialsScreen} />
         <Stack.Screen name="NoticeDetail" component={NoticeDetailScreen} />

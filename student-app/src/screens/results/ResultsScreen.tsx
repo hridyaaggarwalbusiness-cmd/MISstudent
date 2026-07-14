@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl, Modal, Pressable } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl, Modal, Pressable, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -52,14 +52,29 @@ export function ResultsScreen() {
 
   const grade = selected ? gradeColor(selected.grade) : { bg: colors.successBg, fg: colors.successStrong };
 
+  const onShare = () => {
+    if (!selected) return;
+    const lines = [
+      `${selected.examName} · ${selected.term}`,
+      `Score: ${selected.totalObtained}/${selected.totalMax} (${Math.round(selected.percentage)}%) · Grade ${selected.grade}`,
+    ];
+    if (selected.rank) {
+      lines.push(`Rank ${selected.rank}${selected.outOf ? ` out of ${selected.outOf}` : ''}`);
+    }
+    Share.share({ message: lines.join('\n') }).catch(() => {});
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <AppText variant="displayMd">Results</AppText>
-        <View style={{ flexDirection: 'row' }}>
-          <IconButton icon="download-outline" onPress={() => {}} size={38} backgroundColor="transparent" style={{ borderWidth: 0 }} />
-          <IconButton icon="share-outline" onPress={() => {}} size={38} backgroundColor="transparent" style={{ borderWidth: 0, marginLeft: 2 }} />
-        </View>
+        <IconButton
+          icon="share-outline"
+          onPress={onShare}
+          size={38}
+          backgroundColor="transparent"
+          style={{ borderWidth: 0 }}
+        />
       </View>
 
       {error && !data ? (

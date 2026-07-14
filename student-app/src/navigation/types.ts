@@ -6,13 +6,13 @@ export type MainTabParamList = {
   HomeworkTab: undefined;
   NoticesTab: undefined;
   ProfileTab: undefined;
+  ResultsTab: undefined;
 };
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList>;
   HomeworkDetail: { id: string };
   Attendance: undefined;
-  Results: undefined;
   ResultDetail: { id: string };
   StudyMaterials: undefined;
   NoticeDetail: { id: string };

@@ -21,7 +21,7 @@ const QUICK_LINKS: { key: string; label: string; icon: keyof typeof Ionicons.gly
   { key: 'homework', label: 'Homework', icon: 'book-outline', onPress: (nav) => nav.navigate('MainTabs', { screen: 'HomeworkTab' }) },
   { key: 'timetable', label: 'Timetable', icon: 'calendar-outline', onPress: (nav) => nav.navigate('MainTabs', { screen: 'TimetableTab' }) },
   { key: 'attendance', label: 'Attendance', icon: 'checkmark-done-outline', onPress: (nav) => nav.navigate('Attendance') },
-  { key: 'results', label: 'Results', icon: 'stats-chart-outline', onPress: (nav) => nav.navigate('Results') },
+  { key: 'results', label: 'Results', icon: 'stats-chart-outline', onPress: (nav) => nav.navigate('MainTabs', { screen: 'ResultsTab' }) },
   { key: 'materials', label: 'Materials', icon: 'library-outline', onPress: (nav) => nav.navigate('StudyMaterials') },
   { key: 'calendar', label: 'Calendar', icon: 'today-outline', onPress: (nav) => nav.navigate('AcademicCalendar') },
 ];

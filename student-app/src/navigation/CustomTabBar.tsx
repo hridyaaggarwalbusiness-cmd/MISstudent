@@ -29,6 +29,7 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   return (
     <View style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       {state.routes.map((route, index) => {
+        if (!LABELS[route.name]) return null;
         const isFocused = state.index === index;
         const icons = ICONS[route.name] ?? ICONS.HomeTab;
 

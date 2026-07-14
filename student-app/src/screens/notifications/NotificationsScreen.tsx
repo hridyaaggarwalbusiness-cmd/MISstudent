@@ -40,7 +40,7 @@ export function NotificationsScreen() {
         if (n.refId) navigation.navigate('NoticeDetail', { id: n.refId });
         break;
       case 'result':
-        navigation.navigate('Results');
+        navigation.navigate('MainTabs', { screen: 'ResultsTab' });
         break;
       case 'attendance':
         navigation.navigate('Attendance');

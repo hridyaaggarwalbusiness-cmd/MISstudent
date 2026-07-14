@@ -168,7 +168,7 @@ export function HomeScreen() {
           color: colors.tileViolet,
           title: `${latestResult.examName} results published`,
           meta: `Check your marks · ${noticeTimeLabel(latestResult.date)}`,
-          onPress: () => navigation.navigate('Results'),
+          onPress: () => navigation.navigate('MainTabs', { screen: 'ResultsTab' }),
         },
       });
     }
@@ -198,8 +198,8 @@ export function HomeScreen() {
       key: 'results',
       label: 'Results',
       icon: 'stats-chart-outline',
-      color: colors.tileGreen,
-      onPress: () => navigation.navigate('Results'),
+      color: colors.tileTeal,
+      onPress: () => navigation.navigate('MainTabs', { screen: 'ResultsTab' }),
     },
     {
       key: 'attendance',
