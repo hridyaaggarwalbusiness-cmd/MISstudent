@@ -13,7 +13,7 @@ import { RootStackParamList } from '@navigation/types';
 import { useAuthStore } from '@store/useAuthStore';
 import { useNotificationsStore } from '@store/useNotificationsStore';
 import { repo } from '@data/repositories';
-import { greetingForNow, todayDayCode } from '@utils/date';
+import { greetingForNow, todayDayCode, parseDate } from '@utils/date';
 import { Homework, Notice, TimetablePeriod, AttendanceRecord, Exam, ExamResult, StudyMaterial, CalendarEvent } from '@/types';
 
 interface Task {
@@ -124,7 +124,7 @@ export function DashboardScreen() {
     }
 
     const twoWeeksAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
-    const recentMaterials = materials.filter((m) => new Date(m.uploadedAt).getTime() >= twoWeeksAgo);
+    const recentMaterials = materials.filter((m) => parseDate(m.uploadedAt).getTime() >= twoWeeksAgo);
     if (recentMaterials.length === 0) {
       list.push({
         key: 'upload-material',
@@ -144,7 +144,7 @@ export function DashboardScreen() {
     const notifs: { ts: number; item: UpdateCard }[] = [];
     (notices ?? []).forEach((n) => {
       notifs.push({
-        ts: new Date(n.postedAt).getTime() || 0,
+        ts: parseDate(n.postedAt).getTime() || 0,
         item: {
           key: `notice-${n.id}`,
           icon: 'megaphone',

@@ -5,6 +5,7 @@ import { repo } from '@data/repositories';
 import { useAuthStore } from '@store/useAuthStore';
 import { Notice, Exam, CalendarEvent } from '@/types';
 import { FeedNotification } from '@components/notifications/NotificationItem';
+import { parseDate } from '@utils/date';
 
 const READ_IDS_KEY = 'teacherapp:readNotificationIds';
 
@@ -53,7 +54,7 @@ function recompute(set: (partial: Partial<NotificationsState>) => void, get: () 
   notices.forEach((n) => {
     const id = `notice-${n.id}`;
     entries.push({
-      ts: new Date(n.postedAt).getTime() || 0,
+      ts: parseDate(n.postedAt).getTime() || 0,
       item: {
         id,
         icon: 'megaphone-outline',

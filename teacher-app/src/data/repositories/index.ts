@@ -12,6 +12,7 @@ import {
   getDoc,
   getDocs,
   serverTimestamp,
+  Timestamp,
   Unsubscribe,
 } from 'firebase/firestore';
 import {
@@ -39,6 +40,17 @@ import {
 
 function withId<T>(d: { id: string; data: () => any }): T {
   return { id: d.id, ...d.data() } as T;
+}
+
+// Fields written with serverTimestamp() (Notice.postedAt, StudyMaterial.uploadedAt)
+// come back from Firestore as Timestamp objects even though they're typed as
+// `string` app-side. Normalize at the read boundary so nothing downstream
+// has to know the difference.
+function toIso(value: unknown): string {
+  if (value && typeof value === 'object' && typeof (value as Timestamp).toDate === 'function') {
+    return (value as Timestamp).toDate().toISOString();
+  }
+  return typeof value === 'string' ? value : new Date().toISOString();
 }
 
 export const repo = {
@@ -165,7 +177,9 @@ export const repo = {
   notices: {
     subscribeAll: (cb: (items: Notice[]) => void): Unsubscribe => {
       const q = query(collection(db, 'notices'), orderBy('postedAt', 'desc'));
-      return onSnapshot(q, (snap) => cb(snap.docs.map((d) => withId<Notice>(d))));
+      return onSnapshot(q, (snap) =>
+        cb(snap.docs.map((d) => ({ ...withId<Notice>(d), postedAt: toIso(d.data().postedAt) }))),
+      );
     },
     create: (notice: Omit<Notice, 'id'>) =>
       addDoc(collection(db, 'notices'), { ...notice, postedAt: serverTimestamp() }),
@@ -179,7 +193,9 @@ export const repo = {
         where('classId', '==', classId),
         orderBy('uploadedAt', 'desc'),
       );
-      return onSnapshot(q, (snap) => cb(snap.docs.map((d) => withId<StudyMaterial>(d))));
+      return onSnapshot(q, (snap) =>
+        cb(snap.docs.map((d) => ({ ...withId<StudyMaterial>(d), uploadedAt: toIso(d.data().uploadedAt) }))),
+      );
     },
     create: (material: Omit<StudyMaterial, 'id' | 'uploadedAt'>) =>
       addDoc(collection(db, 'studyMaterials'), { ...material, uploadedAt: serverTimestamp() }),

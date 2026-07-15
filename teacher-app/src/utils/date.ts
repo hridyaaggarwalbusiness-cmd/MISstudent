@@ -8,8 +8,21 @@ import {
   parseISO,
 } from 'date-fns';
 
+// Firestore returns Timestamp objects (not ISO strings) for fields written
+// with serverTimestamp() — e.g. Notice.postedAt, StudyMaterial.uploadedAt —
+// even though these fields are typed as `string` app-side. Duck-type them
+// here so callers don't have to know which shape they got.
 export function parseDate(iso: string): Date {
-  return iso.includes('T') ? new Date(iso) : parseISO(iso);
+  const value = iso as unknown;
+  if (value instanceof Date) return value;
+  if (value && typeof value === 'object') {
+    const maybeTimestamp = value as { toDate?: () => Date; seconds?: number };
+    if (typeof maybeTimestamp.toDate === 'function') return maybeTimestamp.toDate();
+    if (typeof maybeTimestamp.seconds === 'number') return new Date(maybeTimestamp.seconds * 1000);
+    return new Date(NaN);
+  }
+  const str = value as string;
+  return str.includes('T') ? new Date(str) : parseISO(str);
 }
 
 export function friendlyDate(iso: string): string {
