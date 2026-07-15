@@ -6,7 +6,6 @@ import { DashboardScreen } from '@screens/dashboard/DashboardScreen';
 import { ClassesScreen } from '@screens/classes/ClassesScreen';
 import { ActivityScreen } from '@screens/activity/ActivityScreen';
 import { ProfileScreen } from '@screens/profile/ProfileScreen';
-import { TimetableScreen } from '@screens/timetable/TimetableScreen';
 import { HomeworkListScreen } from '@screens/homework/HomeworkListScreen';
 import { AttendanceScreen } from '@screens/attendance/AttendanceScreen';
 import { QuickActionSheet } from '@components/dashboard/QuickActionSheet';
@@ -26,7 +25,6 @@ export function MainTabs() {
         <Tab.Screen name="ClassesTab" component={ClassesScreen} />
         <Tab.Screen name="ActivityTab" component={ActivityScreen} />
         <Tab.Screen name="ProfileTab" component={ProfileScreen} />
-        <Tab.Screen name="TimetableTab" component={TimetableScreen} />
         <Tab.Screen name="HomeworkTab" component={HomeworkListScreen} />
         <Tab.Screen name="AttendanceTab" component={AttendanceScreen} />
       </Tab.Navigator>

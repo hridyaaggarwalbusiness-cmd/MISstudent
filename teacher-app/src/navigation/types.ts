@@ -5,7 +5,6 @@ export type MainTabParamList = {
   ClassesTab: undefined;
   ActivityTab: undefined;
   ProfileTab: undefined;
-  TimetableTab: undefined;
   HomeworkTab: undefined;
   AttendanceTab: undefined;
 };

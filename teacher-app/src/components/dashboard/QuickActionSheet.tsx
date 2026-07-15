@@ -50,7 +50,7 @@ export function QuickActionSheet({ visible, onClose }: { visible: boolean; onClo
         navigation.navigate('AcademicCalendar');
         break;
       case 'timetable':
-        navigation.navigate('MainTabs', { screen: 'TimetableTab' });
+        navigation.navigate('MainTabs', { screen: 'ClassesTab' });
         break;
       case 'search':
         navigation.navigate('Search');

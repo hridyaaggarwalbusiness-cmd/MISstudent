@@ -84,8 +84,15 @@ export const repo = {
       const q = query(collection(db, 'timetable'), where('classId', '==', classId));
       return onSnapshot(q, (snap) => cb(snap.docs.map((d) => withId<TimetablePeriod>(d))));
     },
-    upsert: (period: TimetablePeriod) =>
-      setDoc(doc(db, 'timetable', period.id), { ...period }, { merge: true }),
+    // Whole-school timetable across every class, not just the classes this
+    // teacher is assigned to — needed to derive a teacher's own cross-class
+    // schedule (what they teach, and which schoolwide period slots they're
+    // free during) straight from the timetable admins author, with no
+    // separate "teacher timetable" to keep in sync.
+    subscribeAll: (cb: (periods: TimetablePeriod[]) => void): Unsubscribe => {
+      const q = collection(db, 'timetable');
+      return onSnapshot(q, (snap) => cb(snap.docs.map((d) => withId<TimetablePeriod>(d))));
+    },
   },
 
   homework: {

@@ -12,9 +12,10 @@ import { colors, spacing, layout, radius } from '@theme';
 import { RootStackParamList } from '@navigation/types';
 import { useAuthStore } from '@store/useAuthStore';
 import { useNotificationsStore } from '@store/useNotificationsStore';
+import { useTeacherSchedule, slotsForDay } from '@hooks/useTeacherSchedule';
 import { repo } from '@data/repositories';
 import { greetingForNow, todayDayCode, parseDate } from '@utils/date';
-import { Homework, Notice, TimetablePeriod, AttendanceRecord, Exam, ExamResult, StudyMaterial, CalendarEvent } from '@/types';
+import { Homework, Notice, AttendanceRecord, Exam, ExamResult, StudyMaterial, CalendarEvent } from '@/types';
 
 interface Task {
   key: string;
@@ -44,7 +45,7 @@ export function DashboardScreen() {
     initNotifications();
   }, [initNotifications]);
 
-  const [periods, setPeriods] = useState<TimetablePeriod[] | null>(null);
+  const { slotsByDay, loading: scheduleLoading } = useTeacherSchedule();
   const [homework, setHomework] = useState<Homework[] | null>(null);
   const [notices, setNotices] = useState<Notice[] | null>(null);
   const [todaysAttendance, setTodaysAttendance] = useState<AttendanceRecord[] | null>(null);
@@ -56,7 +57,6 @@ export function DashboardScreen() {
 
   useEffect(() => {
     if (!classId) return;
-    const unsubTt = repo.timetable.subscribeForClass(classId, setPeriods);
     const unsubHw = repo.homework.subscribeForClass(classId, setHomework);
     const unsubNotices = repo.notices.subscribeAll(setNotices);
     const unsubAttendance = repo.attendance.subscribeForClassDate(classId, todayIso, setTodaysAttendance);
@@ -65,7 +65,6 @@ export function DashboardScreen() {
     const unsubMaterials = repo.materials.subscribeForClass(classId, setMaterials);
     const unsubEvents = repo.calendar.subscribeAll(setEvents);
     return () => {
-      unsubTt();
       unsubHw();
       unsubNotices();
       unsubAttendance();
@@ -77,17 +76,11 @@ export function DashboardScreen() {
   }, [classId, todayIso]);
 
   const today = todayDayCode();
-  const teachingPeriodsToday = useMemo(
-    () => (periods ?? []).filter((p) => p.day === today && !p.isBreak && p.teacherId === teacher?.id),
-    [periods, today, teacher?.id],
-  );
-  const allPeriodsToday = useMemo(
-    () => (periods ?? []).filter((p) => p.day === today && !p.isBreak),
-    [periods, today],
-  );
-  const freePeriods = Math.max(0, allPeriodsToday.length - teachingPeriodsToday.length);
+  const todaySlots = useMemo(() => slotsForDay(slotsByDay, today), [slotsByDay, today]);
+  const teachingPeriodsToday = useMemo(() => todaySlots.filter((s) => s.taught), [todaySlots]);
+  const freePeriods = Math.max(0, todaySlots.length - teachingPeriodsToday.length);
 
-  const loading = periods === null || homework === null;
+  const loading = scheduleLoading || homework === null;
 
   const tasks: Task[] = useMemo(() => {
     const list: Task[] = [];
