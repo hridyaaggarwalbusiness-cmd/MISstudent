@@ -2,10 +2,12 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 
 export type MainTabParamList = {
   HomeTab: undefined;
+  ClassesTab: undefined;
+  ActivityTab: undefined;
+  ProfileTab: undefined;
   TimetableTab: undefined;
   HomeworkTab: undefined;
   AttendanceTab: undefined;
-  ProfileTab: undefined;
 };
 
 export type RootStackParamList = {
@@ -19,7 +21,6 @@ export type RootStackParamList = {
   StudyMaterials: undefined;
   MaterialUpload: undefined;
   AcademicCalendar: undefined;
-  Notifications: undefined;
   Search: undefined;
 };
 
