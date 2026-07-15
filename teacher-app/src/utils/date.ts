@@ -70,7 +70,11 @@ export function greetingForNow(): string {
   return 'Good evening';
 }
 
-export function todayDayCode(): 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun' {
+export function dayCodeFor(date: Date): 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun' {
   const map = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
-  return map[new Date().getDay()];
+  return map[date.getDay()];
+}
+
+export function todayDayCode(): 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun' {
+  return dayCodeFor(new Date());
 }

@@ -4,33 +4,34 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { formatISO } from 'date-fns';
-import { AppText, Card, Avatar, IconButton, AnimatedPressable, Skeleton, SkeletonCard, EmptyState } from '@components/ui';
-import { UpdatesCarousel, UpdateCard } from '@components/dashboard/UpdatesCarousel';
+import { addDays } from 'date-fns';
+import { AppText, Avatar, IconButton, AnimatedPressable, Skeleton, SkeletonCard, EmptyState } from '@components/ui';
 import { colors, spacing, layout, radius } from '@theme';
 import { RootStackParamList } from '@navigation/types';
 import { useAuthStore } from '@store/useAuthStore';
 import { useNotificationsStore } from '@store/useNotificationsStore';
 import { useTeacherSchedule, slotsForDay } from '@hooks/useTeacherSchedule';
 import { repo } from '@data/repositories';
-import { greetingForNow, todayDayCode, parseDate } from '@utils/date';
-import { Homework, Notice, AttendanceRecord, Exam, ExamResult, StudyMaterial, CalendarEvent } from '@/types';
+import { greetingForNow, dayCodeFor, parseDate, relativeTime } from '@utils/date';
+import { Homework, Notice, ExamResult, StudyMaterial } from '@/types';
 
-interface Task {
+interface ActivityItem {
   key: string;
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
   title: string;
-  subtitle: string;
-  priority: 'High' | 'Medium' | 'Low';
+  time: string;
   onPress: () => void;
 }
 
-const PRIORITY_TONE: Record<Task['priority'], { bg: string; fg: string }> = {
-  High: { bg: colors.dangerBg, fg: colors.dangerStrong },
-  Medium: { bg: colors.warningBg, fg: colors.warningStrong },
-  Low: { bg: colors.successBg, fg: colors.successStrong },
-};
+interface QuickAction {
+  key: string;
+  label: string;
+  subtitle: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  onPress: () => void;
+}
 
 export function DashboardScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -46,144 +47,179 @@ export function DashboardScreen() {
   const { slotsByDay, loading: scheduleLoading } = useTeacherSchedule();
   const [homework, setHomework] = useState<Homework[] | null>(null);
   const [notices, setNotices] = useState<Notice[] | null>(null);
-  const [todaysAttendance, setTodaysAttendance] = useState<AttendanceRecord[] | null>(null);
-  const [exams, setExams] = useState<Exam[]>([]);
   const [results, setResults] = useState<ExamResult[]>([]);
   const [materials, setMaterials] = useState<StudyMaterial[]>([]);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const todayIso = useMemo(() => formatISO(new Date(), { representation: 'date' }), []);
 
   useEffect(() => {
     if (!classId) return;
     const unsubHw = repo.homework.subscribeForClass(classId, setHomework);
     const unsubNotices = repo.notices.subscribeAll(setNotices);
-    const unsubAttendance = repo.attendance.subscribeForClassDate(classId, todayIso, setTodaysAttendance);
-    const unsubExams = repo.exams.subscribeForClass(classId, setExams);
     const unsubResults = repo.results.subscribeForClass(classId, setResults);
     const unsubMaterials = repo.materials.subscribeForClass(classId, setMaterials);
-    const unsubEvents = repo.calendar.subscribeAll(setEvents);
     return () => {
       unsubHw();
       unsubNotices();
-      unsubAttendance();
-      unsubExams();
       unsubResults();
       unsubMaterials();
-      unsubEvents();
     };
-  }, [classId, todayIso]);
+  }, [classId]);
 
-  const today = todayDayCode();
-  const todaySlots = useMemo(() => slotsForDay(slotsByDay, today), [slotsByDay, today]);
-  const teachingPeriodsToday = useMemo(() => todaySlots.filter((s) => s.taught), [todaySlots]);
-  const freePeriods = Math.max(0, todaySlots.length - teachingPeriodsToday.length);
+  // After school hours, the day's own schedule is already over — show
+  // tomorrow's instead so the card stays useful for planning ahead.
+  const isEvening = new Date().getHours() >= 17;
+  const scheduleLabel = isEvening ? 'Tomorrow' : 'Today';
+  const scheduleDayCode = useMemo(() => dayCodeFor(isEvening ? addDays(new Date(), 1) : new Date()), [isEvening]);
+  const scheduleSlots = useMemo(() => slotsForDay(slotsByDay, scheduleDayCode), [slotsByDay, scheduleDayCode]);
+  const scheduleTeaching = useMemo(() => scheduleSlots.filter((s) => s.taught), [scheduleSlots]);
+  const scheduleFree = Math.max(0, scheduleSlots.length - scheduleTeaching.length);
 
   const loading = scheduleLoading || homework === null;
 
-  const tasks: Task[] = useMemo(() => {
-    const list: Task[] = [];
-    const mySubjects = new Set(teacher?.subjects ?? []);
+  const recentActivity: ActivityItem[] = useMemo(() => {
+    const items: { ts: number; item: ActivityItem }[] = [];
 
-    const needsMarks = exams.find(
-      (e) => mySubjects.has(e.subject) && e.status !== 'upcoming' && !results.some((r) => r.examId === e.id),
-    );
-    if (needsMarks) {
-      const overdue = new Date(needsMarks.date).getTime() < Date.now() - 86400000;
-      list.push({
-        key: `marks-${needsMarks.id}`,
-        icon: 'clipboard-outline',
-        color: colors.tileOrange,
-        title: 'Enter Unit Test Marks',
-        subtitle: `${needsMarks.name} · ${needsMarks.subject}`,
-        priority: overdue ? 'High' : 'Medium',
-        onPress: () => navigation.navigate('ResultEntry', { examId: needsMarks.id }),
+    (homework ?? [])
+      .filter((h) => h.teacherId === teacher?.id)
+      .forEach((h) => {
+        items.push({
+          ts: parseDate(h.assignedDate).getTime() || 0,
+          item: {
+            key: `hw-${h.id}`,
+            icon: 'book',
+            color: colors.tileViolet,
+            title: `Homework posted for ${h.subject}`,
+            time: h.assignedDate,
+            onPress: () => navigation.navigate('HomeworkDetail', { id: h.id }),
+          },
+        });
       });
-    }
 
-    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const recentHomework = (homework ?? []).filter((h) => new Date(h.assignedDate).getTime() >= weekAgo);
-    if (recentHomework.length === 0) {
-      list.push({
-        key: 'post-homework',
-        icon: 'cloud-upload-outline',
-        color: colors.tileGreen,
-        title: 'Post Homework',
-        subtitle: teacher ? `${teacher.subjects[0] ?? ''}` : '',
-        priority: 'Medium',
-        onPress: () => navigation.navigate('HomeworkCreate'),
+    materials
+      .filter((m) => m.uploadedBy === teacher?.id)
+      .forEach((m) => {
+        items.push({
+          ts: parseDate(m.uploadedAt).getTime() || 0,
+          item: {
+            key: `mat-${m.id}`,
+            icon: 'document-attach',
+            color: colors.tileGreen,
+            title: `${m.subject} notes uploaded`,
+            time: m.uploadedAt,
+            onPress: () => navigation.navigate('StudyMaterials'),
+          },
+        });
       });
-    }
 
-    const twoWeeksAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
-    const recentMaterials = materials.filter((m) => parseDate(m.uploadedAt).getTime() >= twoWeeksAgo);
-    if (recentMaterials.length === 0) {
-      list.push({
-        key: 'upload-material',
-        icon: 'document-attach-outline',
-        color: colors.tileSky,
-        title: 'Upload Study Material',
-        subtitle: teacher ? `${teacher.subjects[teacher.subjects.length - 1] ?? ''}` : '',
-        priority: 'Low',
-        onPress: () => navigation.navigate('MaterialUpload'),
+    const byExam = new Map<string, ExamResult[]>();
+    results
+      .filter((r) => r.gradedBy === teacher?.id)
+      .forEach((r) => {
+        const list = byExam.get(r.examId) ?? [];
+        list.push(r);
+        byExam.set(r.examId, list);
       });
-    }
-
-    return list;
-  }, [exams, results, homework, materials, teacher, navigation]);
-
-  const updateCards: UpdateCard[] = useMemo(() => {
-    const notifs: { ts: number; item: UpdateCard }[] = [];
-    (notices ?? []).forEach((n) => {
-      notifs.push({
-        ts: parseDate(n.postedAt).getTime() || 0,
+    byExam.forEach((rows) => {
+      const latest = rows.reduce((a, b) => (parseDate(a.gradedAt).getTime() > parseDate(b.gradedAt).getTime() ? a : b));
+      items.push({
+        ts: parseDate(latest.gradedAt).getTime() || 0,
         item: {
-          key: `notice-${n.id}`,
-          icon: 'megaphone',
-          color: colors.tileRed,
-          title: n.title,
-          subtitle: n.body,
-          time: n.postedAt,
-          onPress: () => navigation.navigate('Notices'),
+          key: `res-${latest.examId}`,
+          icon: 'stats-chart',
+          color: colors.tileOrange,
+          title: `Marks entered · ${latest.subject}`,
+          time: latest.gradedAt,
+          onPress: () => navigation.navigate('Results'),
         },
       });
     });
-    events.forEach((e) => {
-      notifs.push({
-        ts: new Date(e.date).getTime() || 0,
-        item: {
-          key: `event-${e.id}`,
-          icon: 'calendar',
-          color: colors.tileBlue,
-          title: e.title,
-          subtitle: e.description || (e.location ?? 'School event'),
-          time: e.date,
-          onPress: () => navigation.navigate('AcademicCalendar'),
-        },
+
+    (notices ?? [])
+      .filter((n) => n.postedBy === teacher?.id)
+      .forEach((n) => {
+        items.push({
+          ts: parseDate(n.postedAt).getTime() || 0,
+          item: {
+            key: `notice-${n.id}`,
+            icon: 'megaphone',
+            color: colors.tileRed,
+            title: `Notice posted: ${n.title}`,
+            time: n.postedAt,
+            onPress: () => navigation.navigate('Notices'),
+          },
+        });
       });
-    });
-    const now = Date.now();
-    return notifs
-      .sort((a, b) => Math.abs(a.ts - now) - Math.abs(b.ts - now))
+
+    return items
+      .sort((a, b) => b.ts - a.ts)
       .slice(0, 5)
-      .map((n) => n.item);
-  }, [notices, events, navigation]);
+      .map((i) => i.item);
+  }, [homework, materials, results, notices, teacher, navigation]);
 
-  const overviewStats = [
-    { icon: 'book' as const, color: colors.tileViolet, bg: colors.primarySoft, value: teachingPeriodsToday.length, label: "Today's Classes" },
-    { icon: 'time' as const, color: colors.tileGreen, bg: colors.successBg, value: freePeriods, label: 'Free Periods' },
-    { icon: 'checkbox' as const, color: colors.tileOrange, bg: colors.warningBg, value: tasks.length, label: 'Pending Tasks' },
-    { icon: 'megaphone' as const, color: colors.tileRed, bg: colors.dangerBg, value: updateCards.length, label: 'School Updates' },
-  ];
-
-  const quickActions: { key: string; label: string; icon: keyof typeof Ionicons.glyphMap; color: string; onPress: () => void }[] = [
-    { key: 'homework', label: 'Post Homework', icon: 'book-outline', color: colors.tileBlue, onPress: () => navigation.navigate('HomeworkCreate') },
-    { key: 'timetable', label: 'My Classes', icon: 'time-outline', color: colors.tileSky, onPress: () => navigation.navigate('MainTabs', { screen: 'ClassesTab' }) },
-    { key: 'attendance', label: 'Attendance', icon: 'checkmark-done-outline', color: colors.tileTeal, onPress: () => navigation.navigate('MainTabs', { screen: 'AttendanceTab' }) },
-    { key: 'marks', label: 'Enter Marks', icon: 'stats-chart-outline', color: colors.tileRed, onPress: () => navigation.navigate('ResultEntry', {}) },
-    { key: 'material', label: 'Upload Material', icon: 'cloud-upload-outline', color: colors.tileGreen, onPress: () => navigation.navigate('MaterialUpload') },
-    { key: 'notice', label: 'Add Notice', icon: 'megaphone-outline', color: colors.tileViolet, onPress: () => navigation.navigate('NoticeCreate') },
-    { key: 'calendar', label: 'Calendar', icon: 'calendar-outline', color: colors.tileYellow, onPress: () => navigation.navigate('AcademicCalendar') },
-    { key: 'search', label: 'Search', icon: 'search-outline', color: colors.textTertiary, onPress: () => navigation.navigate('Search') },
+  const quickActions: QuickAction[] = [
+    {
+      key: 'homework',
+      label: 'Post Homework',
+      subtitle: 'Assign homework to your classes',
+      icon: 'book-outline',
+      color: colors.tileBlue,
+      onPress: () => navigation.navigate('HomeworkCreate'),
+    },
+    {
+      key: 'timetable',
+      label: 'My Classes',
+      subtitle: 'View your classes and timetable',
+      icon: 'time-outline',
+      color: colors.tileSky,
+      onPress: () => navigation.navigate('MainTabs', { screen: 'ClassesTab' }),
+    },
+    {
+      key: 'attendance',
+      label: 'Attendance',
+      subtitle: "Mark today's attendance",
+      icon: 'checkmark-done-outline',
+      color: colors.tileTeal,
+      onPress: () => navigation.navigate('MainTabs', { screen: 'AttendanceTab' }),
+    },
+    {
+      key: 'marks',
+      label: 'Enter Marks',
+      subtitle: 'Add and manage student marks',
+      icon: 'stats-chart-outline',
+      color: colors.tileRed,
+      onPress: () => navigation.navigate('ResultEntry', {}),
+    },
+    {
+      key: 'material',
+      label: 'Upload Material',
+      subtitle: 'Share notes, PDFs and resources',
+      icon: 'cloud-upload-outline',
+      color: colors.tileGreen,
+      onPress: () => navigation.navigate('MaterialUpload'),
+    },
+    {
+      key: 'notice',
+      label: 'Add Notice',
+      subtitle: 'Post a notice to your classes',
+      icon: 'megaphone-outline',
+      color: colors.tileViolet,
+      onPress: () => navigation.navigate('NoticeCreate'),
+    },
+    {
+      key: 'calendar',
+      label: 'Calendar',
+      subtitle: 'View the academic calendar',
+      icon: 'calendar-outline',
+      color: colors.tileYellow,
+      onPress: () => navigation.navigate('AcademicCalendar'),
+    },
+    {
+      key: 'search',
+      label: 'Search',
+      subtitle: 'Find anything across the app',
+      icon: 'search-outline',
+      color: colors.textTertiary,
+      onPress: () => navigation.navigate('Search'),
+    },
   ];
 
   const teacherRoleLine = teacher ? `${teacher.subjects.join(', ')} Teacher` : '';
@@ -219,92 +255,38 @@ export function DashboardScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
-          <Card>
-            <AppText variant="h3">Today's Overview</AppText>
-            {loading ? (
-              <Skeleton height={90} borderRadius={16} style={{ marginTop: spacing.md }} />
-            ) : (
-              <View style={styles.overviewRow}>
-                {overviewStats.map((stat) => (
-                  <View key={stat.label} style={[styles.overviewTile, { backgroundColor: stat.bg }]}>
-                    <View style={[styles.overviewIconWrap, { backgroundColor: stat.color }]}>
-                      <Ionicons name={stat.icon} size={16} color="#fff" />
-                    </View>
-                    <AppText variant="h2" style={{ marginTop: spacing.sm }}>
-                      {stat.value}
-                    </AppText>
-                    <AppText variant="tiny" color={colors.textSecondary} numberOfLines={2}>
-                      {stat.label}
-                    </AppText>
-                  </View>
-                ))}
+          {loading ? (
+            <Skeleton height={140} borderRadius={20} />
+          ) : (
+            <View style={styles.heroCard}>
+              <View style={styles.heroTop}>
+                <View style={styles.heroIconWrap}>
+                  <Ionicons name="calendar" size={20} color={colors.textInverse} />
+                </View>
+                <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                  <AppText variant="bodySemibold" color={colors.textInverse}>
+                    {scheduleLabel}
+                  </AppText>
+                  <AppText variant="caption" color="rgba(255,255,255,0.75)" style={{ marginTop: 2 }}>
+                    {scheduleTeaching.length} Classes • {scheduleFree} Free Periods
+                  </AppText>
+                </View>
               </View>
-            )}
-          </Card>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <AppText variant="h3">Pending Tasks</AppText>
-            <AnimatedPressable onPress={() => navigation.navigate('MainTabs', { screen: 'ActivityTab' })} haptic={false}>
-              <AppText variant="bodyMedium" color={colors.primary}>
-                View all
-              </AppText>
-            </AnimatedPressable>
-          </View>
-          {loading ? (
-            <SkeletonCard lines={2} />
-          ) : tasks.length === 0 ? (
-            <EmptyState icon="checkmark-done-circle-outline" title="All caught up" compact />
-          ) : (
-            <Card padded={false}>
-              {tasks.map((task, i) => {
-                const tone = PRIORITY_TONE[task.priority];
-                return (
-                  <AnimatedPressable
-                    key={task.key}
-                    onPress={task.onPress}
-                    haptic={false}
-                    style={[styles.taskRow, i > 0 && styles.taskRowBorder]}
-                  >
-                    <View style={[styles.taskIconWrap, { backgroundColor: task.color }]}>
-                      <Ionicons name={task.icon} size={18} color="#fff" />
-                    </View>
-                    <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                      <AppText variant="bodySemibold" numberOfLines={1}>
-                        {task.title}
-                      </AppText>
-                      <AppText variant="caption" color={colors.textSecondary} numberOfLines={1}>
-                        {task.subtitle}
-                      </AppText>
-                    </View>
-                    <View style={[styles.priorityPill, { backgroundColor: tone.bg }]}>
-                      <AppText variant="tiny" color={tone.fg} style={{ fontWeight: '700' }}>
-                        {task.priority}
-                      </AppText>
-                    </View>
-                  </AnimatedPressable>
-                );
-              })}
-            </Card>
-          )}
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <AppText variant="h3">School Updates</AppText>
-            <AnimatedPressable onPress={() => navigation.navigate('MainTabs', { screen: 'ActivityTab' })} haptic={false}>
-              <AppText variant="bodyMedium" color={colors.primary}>
-                View all
-              </AppText>
-            </AnimatedPressable>
-          </View>
-          {loading ? (
-            <SkeletonCard lines={2} />
-          ) : updateCards.length === 0 ? (
-            <EmptyState icon="megaphone-outline" title="No updates yet" compact />
-          ) : (
-            <UpdatesCarousel items={updateCards} />
+              <AnimatedPressable
+                onPress={() => navigation.navigate('MainTabs', { screen: 'ClassesTab' })}
+                haptic={false}
+                style={styles.heroLinkRow}
+              >
+                <AppText variant="bodyMedium" color={colors.textInverse}>
+                  View Timetable
+                </AppText>
+                <Ionicons name="arrow-forward" size={16} color={colors.textInverse} style={{ marginLeft: 4 }} />
+              </AnimatedPressable>
+              <View style={styles.heroIllustration} pointerEvents="none">
+                <Ionicons name="calendar" size={64} color="rgba(255,255,255,0.14)" />
+                <Ionicons name="time" size={34} color="rgba(255,255,255,0.22)" style={styles.heroIllustrationClock} />
+              </View>
+            </View>
           )}
         </View>
 
@@ -314,16 +296,63 @@ export function DashboardScreen() {
           </AppText>
           <View style={styles.quickGrid}>
             {quickActions.map((action) => (
-              <AnimatedPressable key={action.key} onPress={action.onPress} style={styles.quickTile} haptic={false}>
-                <View style={[styles.quickIconWrap, { backgroundColor: action.color }]}>
-                  <Ionicons name={action.icon} size={20} color="#fff" />
-                </View>
-                <AppText variant="tiny" color={colors.textSecondary} style={{ marginTop: 6, textAlign: 'center' }} numberOfLines={2}>
-                  {action.label}
-                </AppText>
-              </AnimatedPressable>
+              <View key={action.key} style={styles.quickCard}>
+                <AnimatedPressable
+                  onPress={action.onPress}
+                  haptic={false}
+                  style={[styles.quickCardInner, { backgroundColor: `${action.color}14` }]}
+                >
+                  <View style={[styles.quickIconWrap, { backgroundColor: action.color }]}>
+                    <Ionicons name={action.icon} size={18} color="#fff" />
+                  </View>
+                  <AppText variant="bodySemibold" style={{ marginTop: spacing.sm }} numberOfLines={2}>
+                    {action.label}
+                  </AppText>
+                  <AppText variant="tiny" color={colors.textSecondary} style={{ marginTop: 2 }} numberOfLines={2}>
+                    {action.subtitle}
+                  </AppText>
+                  <Ionicons name="arrow-forward" size={14} color={colors.textTertiary} style={styles.quickArrow} />
+                </AnimatedPressable>
+              </View>
             ))}
           </View>
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <AppText variant="h3">Recent Activity</AppText>
+            <AnimatedPressable onPress={() => navigation.navigate('MainTabs', { screen: 'ActivityTab' })} haptic={false}>
+              <AppText variant="bodyMedium" color={colors.primary}>
+                View all
+              </AppText>
+            </AnimatedPressable>
+          </View>
+          {loading ? (
+            <SkeletonCard lines={2} />
+          ) : recentActivity.length === 0 ? (
+            <EmptyState icon="pulse-outline" title="No activity yet" compact />
+          ) : (
+            <View style={styles.activityCard}>
+              {recentActivity.map((item, i) => (
+                <AnimatedPressable
+                  key={item.key}
+                  onPress={item.onPress}
+                  haptic={false}
+                  style={[styles.activityRow, i > 0 && styles.activityRowBorder]}
+                >
+                  <View style={[styles.activityIconWrap, { backgroundColor: item.color }]}>
+                    <Ionicons name={item.icon} size={16} color="#fff" />
+                  </View>
+                  <AppText variant="bodyMedium" style={{ flex: 1, marginLeft: spacing.sm }} numberOfLines={1}>
+                    {item.title}
+                  </AppText>
+                  <AppText variant="tiny" color={colors.textTertiary}>
+                    {relativeTime(item.time)}
+                  </AppText>
+                </AnimatedPressable>
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -383,53 +412,72 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
   },
-  overviewRow: {
-    flexDirection: 'row',
-    marginTop: spacing.md,
-    gap: spacing.xs,
+  heroCard: {
+    backgroundColor: '#211C4D',
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    overflow: 'hidden',
   },
-  overviewTile: {
-    flex: 1,
+  heroTop: { flexDirection: 'row', alignItems: 'center' },
+  heroIconWrap: {
+    width: 40,
+    height: 40,
     borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.xs,
-    alignItems: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  overviewIconWrap: {
-    width: 28,
-    height: 28,
+  heroLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.md,
+  },
+  heroIllustration: {
+    position: 'absolute',
+    right: spacing.md,
+    top: spacing.md,
+    alignItems: 'flex-end',
+  },
+  heroIllustrationClock: { marginTop: -10 },
+  quickGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  quickCard: { width: '33.333%', padding: 4 },
+  quickCardInner: {
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    minHeight: 128,
+  },
+  quickIconWrap: {
+    width: 36,
+    height: 36,
     borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  taskRow: {
+  quickArrow: {
+    position: 'absolute',
+    right: spacing.sm,
+    bottom: spacing.sm,
+  },
+  activityCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  activityRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.sm + 2,
     paddingHorizontal: spacing.md,
   },
-  taskRowBorder: {
+  activityRowBorder: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.borderSoft,
   },
-  taskIconWrap: {
-    width: 38,
-    height: 38,
+  activityIconWrap: {
+    width: 34,
+    height: 34,
     borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  priorityPill: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-  },
-  quickGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  quickTile: { width: '33.333%', alignItems: 'center', marginBottom: spacing.md },
-  quickIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
