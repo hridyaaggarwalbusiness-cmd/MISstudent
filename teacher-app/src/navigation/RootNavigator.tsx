@@ -13,6 +13,7 @@ import { StudyMaterialsScreen } from '@screens/materials/StudyMaterialsScreen';
 import { MaterialUploadScreen } from '@screens/materials/MaterialUploadScreen';
 import { AcademicCalendarScreen } from '@screens/calendar/AcademicCalendarScreen';
 import { SearchScreen } from '@screens/search/SearchScreen';
+import { AttendanceReportScreen } from '@screens/attendance/AttendanceReportScreen';
 import { colors } from '@theme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -44,6 +45,7 @@ export function RootNavigator() {
         <Stack.Screen name="MaterialUpload" component={MaterialUploadScreen} />
         <Stack.Screen name="AcademicCalendar" component={AcademicCalendarScreen} />
         <Stack.Screen name="Search" component={SearchScreen} options={{ animation: 'fade' }} />
+        <Stack.Screen name="AttendanceReport" component={AttendanceReportScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

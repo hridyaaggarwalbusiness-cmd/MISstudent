@@ -32,6 +32,14 @@ service cloud.firestore {
         classId in get(/databases/$(database)/documents/teachers/$(request.auth.uid)).data.classIds;
     }
 
+    // Attendance is restricted to the class's incharge teacher specifically —
+    // narrower than teachesClass(), which just means they teach some period
+    // there.
+    function isClassIncharge(classId) {
+      return isTeacher() &&
+        get(/databases/$(database)/documents/teachers/$(request.auth.uid)).data.isClassTeacherOf == classId;
+    }
+
     function myStudentClass() {
       return get(/databases/$(database)/documents/students/$(request.auth.uid)).data.classId;
     }
@@ -130,7 +138,9 @@ service cloud.firestore {
     match /attendance/{docId} {
       allow read: if isAdmin() || isMe(resource.data.studentId) ||
         (isTeacher() && teachesClass(resource.data.classId));
-      allow write: if isAdmin() || (isTeacher() && teachesClass(request.resource.data.classId));
+      allow write: if isAdmin() ||
+        (isTeacher() && isClassIncharge(request.resource.data.classId)) ||
+        (isTeacher() && resource != null && isClassIncharge(resource.data.classId));
     }
 
     // ---- per-user notifications ----

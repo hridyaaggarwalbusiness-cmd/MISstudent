@@ -43,9 +43,7 @@ export function AttendanceScreen() {
 
   const monthStats = useMemo(() => {
     if (!data) return { present: 0, total: 0 };
-    const countable = data.days.filter(
-      (d) => d.status !== 'weekend' && d.status !== 'future' && d.status !== 'holiday' && d.status !== 'unmarked',
-    );
+    const countable = data.days.filter((d) => d.status !== 'weekend' && d.status !== 'future' && d.status !== 'holiday');
     const present = countable.filter((d) => d.status === 'present' || d.status === 'late').length;
     return { present, total: countable.length };
   }, [data]);
@@ -76,7 +74,6 @@ export function AttendanceScreen() {
       holiday: 'Holiday',
       weekend: 'Weekend',
       future: '',
-      unmarked: 'Not marked yet',
     };
     Alert.alert(friendlyDate(day.date), labelMap[day.status] ?? day.status);
   };

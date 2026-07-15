@@ -142,6 +142,13 @@ export const repo = {
       );
       return onSnapshot(q, (snap) => cb(snap.docs.map((d) => d.data() as AttendanceRecord)));
     },
+    // Unfiltered by date on purpose — Firestore composite range queries need
+    // an index, and the report screen only needs one month at a time, so it
+    // filters client-side the same way admin-app's equivalent does.
+    subscribeForClassMonth: (classId: string, cb: (records: AttendanceRecord[]) => void): Unsubscribe => {
+      const q = query(collection(db, 'attendance'), where('classId', '==', classId));
+      return onSnapshot(q, (snap) => cb(snap.docs.map((d) => d.data() as AttendanceRecord)));
+    },
     markBulk: async (
       classId: string,
       date: string,

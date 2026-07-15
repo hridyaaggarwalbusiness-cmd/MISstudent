@@ -388,7 +388,9 @@ export const repo = {
         if (record) return { date: iso, status: record.status };
         if (holidayDates.has(iso)) return { date: iso, status: 'holiday' };
         if (isWeekend(d)) return { date: iso, status: 'weekend' };
-        return { date: iso, status: 'unmarked' as AttendanceStatus };
+        // No record for a past school day means nobody marked it — assumed
+        // present, same rule as an unchanged row on the teacher's save.
+        return { date: iso, status: 'present' };
       });
     },
     getCurrentMonth: (studentId: string) => repo.attendance.getMonth(studentId, new Date()),

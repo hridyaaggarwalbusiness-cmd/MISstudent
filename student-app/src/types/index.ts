@@ -109,16 +109,7 @@ export interface Notice {
   pinned?: boolean;
 }
 
-export type AttendanceStatus =
-  | 'present'
-  | 'absent'
-  | 'late'
-  | 'leave'
-  | 'holiday'
-  | 'weekend'
-  | 'future'
-  // Client-only: a past school day the teacher hasn't marked attendance for yet.
-  | 'unmarked';
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'leave' | 'holiday' | 'weekend' | 'future';
 
 export interface AttendanceDay {
   date: string; // ISO date

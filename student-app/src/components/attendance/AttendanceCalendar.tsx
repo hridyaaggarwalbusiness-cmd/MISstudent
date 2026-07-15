@@ -22,7 +22,6 @@ const statusColor: Record<AttendanceStatus, { bg: string; fg: string }> = {
   holiday: { bg: colors.surfaceAlt, fg: colors.textTertiary },
   weekend: { bg: colors.surfaceAlt, fg: colors.textTertiary },
   future: { bg: 'transparent', fg: colors.textTertiary },
-  unmarked: { bg: 'transparent', fg: colors.textTertiary },
 };
 
 interface AttendanceCalendarProps {
@@ -66,23 +65,16 @@ export function AttendanceCalendar({ monthDate, days, onDayPress }: AttendanceCa
           const entry = dayMap.get(iso);
           const status = entry?.status ?? 'future';
           const colorSet = statusColor[status];
-          const isDisabled = status === 'future' || status === 'unmarked' || !onDayPress;
+          const isDisabled = status === 'future' || !onDayPress;
           return (
             <View key={iso} style={styles.cell}>
               <AnimatedPressable
-                haptic={status !== 'future' && status !== 'unmarked'}
+                haptic={status !== 'future'}
                 disabled={isDisabled}
                 onPress={() => entry && onDayPress?.(entry)}
-                style={[
-                  styles.dayCircle,
-                  { backgroundColor: colorSet.bg },
-                  status === 'unmarked' && styles.dayCircleUnmarked,
-                ]}
+                style={[styles.dayCircle, { backgroundColor: colorSet.bg }]}
               >
-                <AppText
-                  variant="bodyMedium"
-                  color={status === 'future' || status === 'unmarked' ? colors.textTertiary : colorSet.fg}
-                >
+                <AppText variant="bodyMedium" color={status === 'future' ? colors.textTertiary : colorSet.fg}>
                   {format(date, 'd')}
                 </AppText>
               </AnimatedPressable>
@@ -101,7 +93,6 @@ export function AttendanceLegend() {
     { label: 'Absent', status: 'absent' },
     { label: 'Leave', status: 'leave' },
     { label: 'Holiday', status: 'holiday' },
-    { label: 'Not marked', status: 'unmarked' },
   ];
   return (
     <View style={styles.legendRow}>
@@ -134,11 +125,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  dayCircleUnmarked: {
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    borderStyle: 'dashed',
   },
   legendRow: {
     flexDirection: 'row',

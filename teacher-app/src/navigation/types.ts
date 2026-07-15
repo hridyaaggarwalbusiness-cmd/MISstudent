@@ -21,6 +21,7 @@ export type RootStackParamList = {
   MaterialUpload: undefined;
   AcademicCalendar: undefined;
   Search: undefined;
+  AttendanceReport: undefined;
 };
 
 declare global {

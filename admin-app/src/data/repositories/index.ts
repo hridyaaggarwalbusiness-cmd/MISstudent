@@ -37,6 +37,7 @@ import type {
   CalendarEvent,
   ExamResult,
   AttendanceRecord,
+  AttendanceStatus,
   Role,
   AppUser,
 } from '@/types';
@@ -237,6 +238,27 @@ export const repo = {
     ): Unsubscribe => {
       const q = query(collection(db, 'attendance'), where('classId', '==', classId));
       return onSnapshot(q, (snap) => cb(snap.docs.map((d) => d.data() as AttendanceRecord)));
+    },
+    // Unlike teacher-app, admin can mark attendance for any class — not just
+    // one they're the incharge teacher of.
+    markBulk: async (
+      classId: string,
+      date: string,
+      records: { studentId: string; status: AttendanceStatus }[],
+      markedBy: string,
+    ) => {
+      await Promise.all(
+        records.map((r) =>
+          setDoc(doc(db, 'attendance', `${r.studentId}_${date}`), {
+            studentId: r.studentId,
+            classId,
+            date,
+            status: r.status,
+            markedBy,
+            markedAt: new Date().toISOString(),
+          }),
+        ),
+      );
     },
   },
 

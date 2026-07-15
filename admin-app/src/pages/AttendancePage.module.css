@@ -58,3 +58,53 @@
   font-size: var(--text-sm);
   color: var(--color-text-tertiary);
 }
+
+.markList {
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+}
+
+.markRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.markRow:last-child {
+  border-bottom: none;
+}
+
+.markName {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.markChips {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.markChip {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-alt);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.markChipActive {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
