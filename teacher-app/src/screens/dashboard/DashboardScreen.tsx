@@ -177,12 +177,12 @@ export function DashboardScreen() {
 
   const quickActions: { key: string; label: string; icon: keyof typeof Ionicons.glyphMap; color: string; onPress: () => void }[] = [
     { key: 'homework', label: 'Post Homework', icon: 'book-outline', color: colors.tileBlue, onPress: () => navigation.navigate('HomeworkCreate') },
+    { key: 'timetable', label: 'My Classes', icon: 'time-outline', color: colors.tileSky, onPress: () => navigation.navigate('MainTabs', { screen: 'ClassesTab' }) },
+    { key: 'attendance', label: 'Attendance', icon: 'checkmark-done-outline', color: colors.tileTeal, onPress: () => navigation.navigate('MainTabs', { screen: 'AttendanceTab' }) },
     { key: 'marks', label: 'Enter Marks', icon: 'stats-chart-outline', color: colors.tileRed, onPress: () => navigation.navigate('ResultEntry', {}) },
     { key: 'material', label: 'Upload Material', icon: 'cloud-upload-outline', color: colors.tileGreen, onPress: () => navigation.navigate('MaterialUpload') },
     { key: 'notice', label: 'Add Notice', icon: 'megaphone-outline', color: colors.tileViolet, onPress: () => navigation.navigate('NoticeCreate') },
-    { key: 'attendance', label: 'Attendance', icon: 'checkmark-done-outline', color: colors.tileTeal, onPress: () => navigation.navigate('MainTabs', { screen: 'AttendanceTab' }) },
     { key: 'calendar', label: 'Calendar', icon: 'calendar-outline', color: colors.tileYellow, onPress: () => navigation.navigate('AcademicCalendar') },
-    { key: 'timetable', label: 'My Classes', icon: 'time-outline', color: colors.tileSky, onPress: () => navigation.navigate('MainTabs', { screen: 'ClassesTab' }) },
     { key: 'search', label: 'Search', icon: 'search-outline', color: colors.textTertiary, onPress: () => navigation.navigate('Search') },
   ];
 
@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  quickTile: { width: '20%', alignItems: 'center' },
+  quickTile: { width: '33.333%', alignItems: 'center', marginBottom: spacing.md },
   quickIconWrap: {
     width: 48,
     height: 48,
