@@ -4,11 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import { formatISO, addDays } from 'date-fns';
-import { AppText, Button, DetailHeader, DatePickerField, SelectField, AttachmentRow, AnimatedPressable } from '@components/ui';
+import { AppText, Button, DetailHeader, SelectField, AttachmentRow, AnimatedPressable } from '@components/ui';
 import { colors, spacing, radius } from '@theme';
 import { useAuthStore } from '@store/useAuthStore';
 import { repo, MAX_ATTACHMENT_BYTES } from '@data/repositories';
-import { Attachment, SchoolClass } from '@/types';
+import { Attachment, Homework, SchoolClass } from '@/types';
 
 export function HomeworkCreateScreen() {
   const navigation = useNavigation();
@@ -21,7 +21,6 @@ export function HomeworkCreateScreen() {
   const [title, setTitle] = useState('');
   const [homeworkText, setHomeworkText] = useState('');
   const [classWork, setClassWork] = useState('');
-  const [dueDate, setDueDate] = useState(formatISO(addDays(new Date(), 3), { representation: 'date' }));
   const [pickedFile, setPickedFile] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -78,18 +77,25 @@ export function HomeworkCreateScreen() {
           },
         ];
       }
-      await repo.homework.create({
+      const payload: Omit<Homework, 'id'> = {
         classId,
         subject,
         title: title.trim(),
         instructions: homeworkText.trim(),
-        classWork: classWork.trim() || undefined,
         teacherId: teacher.id,
         teacherName: teacher.name,
         assignedDate: formatISO(new Date(), { representation: 'date' }),
-        dueDate,
+        // No due-date input on this form — default to a week out so
+        // sorting/overdue tracking elsewhere in the app still has a value
+        // to work with.
+        dueDate: formatISO(addDays(new Date(), 7), { representation: 'date' }),
         attachments,
-      });
+      };
+      // Firestore rejects `undefined` field values outright (this project
+      // isn't configured with ignoreUndefinedProperties), so an empty
+      // Class Work must be an absent key, not classWork: undefined.
+      if (classWork.trim()) payload.classWork = classWork.trim();
+      await repo.homework.create(payload);
       navigation.goBack();
     } catch (e) {
       Alert.alert('Could not post homework', e instanceof Error ? e.message : 'Please try again.');
@@ -149,10 +155,6 @@ export function HomeworkCreateScreen() {
             multiline
             style={[styles.input, styles.textArea]}
           />
-        </Field>
-
-        <Field label="Due date">
-          <DatePickerField value={dueDate} onChange={setDueDate} minDate={new Date()} />
         </Field>
 
         <Field label="Attach File (Optional)">
