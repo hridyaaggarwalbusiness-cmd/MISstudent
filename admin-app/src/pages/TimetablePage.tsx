@@ -86,7 +86,12 @@ export function TimetablePage() {
     setSaving(true);
     try {
       const teacher = teachers.find((t) => t.id === form.teacherId);
-      const id = `${classId}_${activeCell.day}_${activeCell.periodNumber}`;
+      // Reuse the existing document's id when editing a cell that already
+      // has one — some periods (e.g. seeded ones) don't use this screen's
+      // own id scheme, and minting a fresh id for them here would write a
+      // second, duplicate document instead of updating the one being edited.
+      const existing = cellFor(activeCell.day, activeCell.periodNumber);
+      const id = existing?.id ?? `${classId}_${activeCell.day}_${activeCell.periodNumber}`;
       await repo.timetable.upsert({
         id,
         classId,
@@ -112,8 +117,8 @@ export function TimetablePage() {
     if (!activeCell || !classId) return;
     setError('');
     try {
-      const id = `${classId}_${activeCell.day}_${activeCell.periodNumber}`;
-      await repo.timetable.remove(id);
+      const existing = cellFor(activeCell.day, activeCell.periodNumber);
+      if (existing) await repo.timetable.remove(existing.id);
       setModalOpen(false);
     } catch (e) {
       setError(getErrorMessage(e));
