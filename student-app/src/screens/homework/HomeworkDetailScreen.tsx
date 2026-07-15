@@ -65,11 +65,20 @@ export function HomeworkDetailScreen() {
         </View>
 
         <Card style={{ marginTop: spacing.lg }}>
-          <AppText variant="h3">Instructions</AppText>
+          <AppText variant="h3">Homework</AppText>
           <AppText variant="body" color={colors.textSecondary} style={{ marginTop: spacing.xs, lineHeight: 22 }}>
             {homework.instructions}
           </AppText>
         </Card>
+
+        {!!homework.classWork && (
+          <Card style={{ marginTop: spacing.lg }}>
+            <AppText variant="h3">Class Work</AppText>
+            <AppText variant="body" color={colors.textSecondary} style={{ marginTop: spacing.xs, lineHeight: 22 }}>
+              {homework.classWork}
+            </AppText>
+          </Card>
+        )}
 
         {homework.attachments.length > 0 && (
           <View style={{ marginTop: spacing.lg }}>

@@ -61,6 +61,7 @@ export interface Homework {
   subject: string;
   title: string;
   instructions: string;
+  classWork?: string;
   assignedDate: string; // ISO date
   dueDate: string; // ISO date
   teacher: string;

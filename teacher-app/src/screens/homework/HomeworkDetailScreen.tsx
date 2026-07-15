@@ -104,9 +104,22 @@ export function HomeworkDetailScreen() {
         <AppText variant="displayMd" style={{ marginTop: spacing.sm }}>
           {homework.title}
         </AppText>
-        <AppText variant="body" color={colors.textSecondary} style={{ marginTop: spacing.sm, lineHeight: 22 }}>
+        <AppText variant="caption" color={colors.textSecondary} style={{ marginTop: spacing.md }}>
+          Homework
+        </AppText>
+        <AppText variant="body" color={colors.textSecondary} style={{ marginTop: 4, lineHeight: 22 }}>
           {homework.instructions}
         </AppText>
+        {!!homework.classWork && (
+          <>
+            <AppText variant="caption" color={colors.textSecondary} style={{ marginTop: spacing.md }}>
+              Class Work
+            </AppText>
+            <AppText variant="body" color={colors.textSecondary} style={{ marginTop: 4, lineHeight: 22 }}>
+              {homework.classWork}
+            </AppText>
+          </>
+        )}
         <AppText variant="caption" color={colors.textTertiary} style={{ marginTop: spacing.sm }}>
           Due {friendlyDate(homework.dueDate)}
         </AppText>

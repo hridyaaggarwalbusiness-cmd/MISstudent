@@ -57,6 +57,7 @@ interface BackendHomework {
   subject: string;
   title: string;
   instructions: string;
+  classWork?: string;
   teacherId: string;
   teacherName: string;
   assignedDate: string;
@@ -222,6 +223,7 @@ export const repo = {
             subject: hw.subject,
             title: hw.title,
             instructions: hw.instructions,
+            classWork: hw.classWork,
             assignedDate: hw.assignedDate,
             dueDate: hw.dueDate,
             teacher: hw.teacherName,

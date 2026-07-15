@@ -22,3 +22,4 @@ export * from './AttachmentRow';
 export * from './DetailHeader';
 export * from './EdgeFade';
 export * from './DatePickerField';
+export * from './SelectField';

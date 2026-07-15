@@ -83,6 +83,7 @@ export interface Homework {
   subject: string;
   title: string;
   instructions: string;
+  classWork?: string;
   teacherId: string;
   teacherName: string;
   assignedDate: string;
