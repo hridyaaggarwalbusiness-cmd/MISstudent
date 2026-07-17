@@ -23,6 +23,8 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { PageHeader } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import { repo } from '@/data/repositories';
 import { getErrorMessage } from '@/utils/errors';
 import { TONE_COLORS } from '@/utils/toneColors';
@@ -80,6 +82,8 @@ export function CalendarPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [listError, setListError] = useState('');
+  const confirm = useConfirm();
+  const { show } = useToast();
 
   function openCreate(date?: Date) {
     setForm({ ...emptyForm, date: date ? format(date, 'yyyy-MM-dd') : '' });
@@ -103,6 +107,7 @@ export function CalendarPage() {
     try {
       await repo.calendar.upsert({ ...form, id: form.id ?? '' } as CalendarEvent);
       setModalOpen(false);
+      show(form.id ? 'Event updated' : 'Event added');
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
@@ -111,11 +116,13 @@ export function CalendarPage() {
   }
 
   async function onDelete(id: string) {
-    if (!confirm('Delete this event?')) return;
+    const ok = await confirm({ title: 'Delete event', message: 'Delete this event? This cannot be undone.', confirmLabel: 'Delete' });
+    if (!ok) return;
     setListError('');
     try {
       await repo.calendar.remove(id);
       setModalOpen(false);
+      show('Event deleted');
     } catch (e) {
       setListError(getErrorMessage(e));
     }
@@ -141,6 +148,7 @@ export function CalendarPage() {
   return (
     <div>
       <PageHeader
+        title="Academic Calendar"
         description="Manage holidays, exams and school events"
         toolbar={
           <Button onClick={() => openCreate()} icon={<Plus size={16} />}>

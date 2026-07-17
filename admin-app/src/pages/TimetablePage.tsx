@@ -128,6 +128,7 @@ export function TimetablePage() {
   return (
     <div>
       <PageHeader
+        title="Timetable"
         description="Build the weekly timetable for each class"
         toolbar={
           <select className={pageHeaderStyles.select} value={classId} onChange={(e) => setClassId(e.target.value)}>

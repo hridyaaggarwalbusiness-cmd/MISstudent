@@ -13,6 +13,9 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { PageHeader } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
+import { useQuickActionIntent } from '@/hooks/useQuickActionIntent';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import { repo, MAX_ATTACHMENT_BYTES } from '@/data/repositories';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getErrorMessage } from '@/utils/errors';
@@ -64,6 +67,8 @@ export function NoticesPage() {
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const confirm = useConfirm();
+  const { show } = useToast();
 
   function openCreate() {
     setForm(emptyForm);
@@ -72,6 +77,8 @@ export function NoticesPage() {
     setError('');
     setModalOpen(true);
   }
+
+  useQuickActionIntent(!loading, openCreate);
 
   function onPickFile(picked: File | null) {
     if (picked && picked.size > MAX_ATTACHMENT_BYTES) {
@@ -126,6 +133,7 @@ export function NoticesPage() {
         ...(attachments ? { attachments } : {}),
       });
       setModalOpen(false);
+      show('Notice posted');
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
@@ -134,10 +142,12 @@ export function NoticesPage() {
   }
 
   async function onDelete(id: string) {
-    if (!confirm('Delete this notice?')) return;
+    const ok = await confirm({ title: 'Delete notice', message: 'Delete this notice? This cannot be undone.', confirmLabel: 'Delete' });
+    if (!ok) return;
     setListError('');
     try {
       await repo.notices.remove(id);
+      show('Notice deleted');
     } catch (e) {
       setListError(getErrorMessage(e));
     }
@@ -151,6 +161,7 @@ export function NoticesPage() {
   return (
     <div>
       <PageHeader
+        title="Notices"
         description="Post announcements visible to teachers and students in real time"
         toolbar={
           <Button onClick={openCreate} icon={<Plus size={16} />}>

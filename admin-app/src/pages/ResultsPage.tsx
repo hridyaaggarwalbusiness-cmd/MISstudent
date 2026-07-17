@@ -66,6 +66,7 @@ export function ResultsPage() {
   return (
     <div>
       <PageHeader
+        title="Results"
         description="Read-only view of results entered by subject teachers"
         toolbar={
           <select className={pageHeaderStyles.select} value={classFilter} onChange={(e) => setClassFilter(e.target.value)}>

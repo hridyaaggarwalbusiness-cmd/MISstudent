@@ -7,11 +7,12 @@ interface EmptyStateProps {
   title: string;
   description?: string;
   action?: ReactNode;
+  compact?: boolean;
 }
 
-export function EmptyState({ icon = <Inbox size={32} />, title, description, action }: EmptyStateProps) {
+export function EmptyState({ icon = <Inbox size={32} />, title, description, action, compact }: EmptyStateProps) {
   return (
-    <div className={styles.wrapper}>
+    <div className={[styles.wrapper, compact && styles.compact].filter(Boolean).join(' ')}>
       <div className={styles.icon}>{icon}</div>
       <span className={styles.title}>{title}</span>
       {description && <span className={styles.description}>{description}</span>}

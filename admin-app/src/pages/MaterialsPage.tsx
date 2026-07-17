@@ -13,6 +13,8 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { PageHeader, pageHeaderStyles } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import { repo, MAX_ATTACHMENT_BYTES } from '@/data/repositories';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getErrorMessage } from '@/utils/errors';
@@ -57,6 +59,8 @@ export function MaterialsPage() {
   const [error, setError] = useState('');
   const [listError, setListError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const confirm = useConfirm();
+  const { show } = useToast();
 
   function openCreate() {
     setForm({ title: '', description: '', subject: '', type: 'note', classId: '' });
@@ -104,6 +108,7 @@ export function MaterialsPage() {
         sizeLabel: sizeLabel(file.size),
       });
       setModalOpen(false);
+      show('Material uploaded');
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
@@ -112,10 +117,12 @@ export function MaterialsPage() {
   }
 
   async function onDelete(id: string) {
-    if (!confirm('Delete this study material?')) return;
+    const ok = await confirm({ title: 'Delete material', message: 'Delete this study material? This cannot be undone.', confirmLabel: 'Delete' });
+    if (!ok) return;
     setListError('');
     try {
       await repo.materials.remove(id);
+      show('Material deleted');
     } catch (e) {
       setListError(getErrorMessage(e));
     }
@@ -130,6 +137,7 @@ export function MaterialsPage() {
   return (
     <div>
       <PageHeader
+        title="Study Materials"
         description="Upload notes, worksheets and presentations for students"
         toolbar={
           <>

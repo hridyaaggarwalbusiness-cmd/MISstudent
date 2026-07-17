@@ -53,3 +53,47 @@
   flex-direction: column;
   gap: var(--space-5);
 }
+
+.greeting {
+  margin-bottom: var(--space-5);
+}
+
+.greetingTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-display-md);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.greetingSubtitle {
+  font-size: var(--text-base);
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+
+.viewAll {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.viewAll:hover {
+  text-decoration: underline;
+}
+
+.listItem {
+  cursor: pointer;
+}
+
+.taskLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.taskIcon {
+  color: var(--color-warning-strong);
+  flex-shrink: 0;
+}

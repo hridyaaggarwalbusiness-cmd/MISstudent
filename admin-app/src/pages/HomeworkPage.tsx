@@ -11,6 +11,8 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { PageHeader, pageHeaderStyles } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import { repo } from '@/data/repositories';
 import { getErrorMessage } from '@/utils/errors';
 import { subjectIcon, subjectAccentStyle } from '@/utils/subjectVisuals';
@@ -31,6 +33,8 @@ export function HomeworkPage() {
   const { data: classes } = useCollection<SchoolClass>((cb) => repo.classes.subscribeAll(cb));
   const [classFilter, setClassFilter] = useState('');
   const [listError, setListError] = useState('');
+  const confirm = useConfirm();
+  const { show } = useToast();
 
   const filtered = useMemo(
     () => (classFilter ? homework.filter((h) => h.classId === classFilter) : homework),
@@ -38,10 +42,12 @@ export function HomeworkPage() {
   );
 
   async function onDelete(id: string) {
-    if (!confirm('Delete this homework assignment?')) return;
+    const ok = await confirm({ title: 'Delete homework', message: 'Delete this homework assignment? This cannot be undone.', confirmLabel: 'Delete' });
+    if (!ok) return;
     setListError('');
     try {
       await repo.homework.remove(id);
+      show('Homework deleted');
     } catch (e) {
       setListError(getErrorMessage(e));
     }
@@ -112,6 +118,7 @@ export function HomeworkPage() {
   return (
     <div>
       <PageHeader
+        title="Homework"
         description="Read-only view of homework posted by teachers across all classes"
         toolbar={
           <select className={pageHeaderStyles.select} value={classFilter} onChange={(e) => setClassFilter(e.target.value)}>

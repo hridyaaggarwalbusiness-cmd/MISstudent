@@ -15,6 +15,8 @@ import { SpreadsheetGrid, type SpreadsheetRowStatus } from '@/components/ui/Spre
 import { ViewToggle } from '@/components/ui/ViewToggle';
 import { PageHeader } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import { repo } from '@/data/repositories';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getErrorMessage } from '@/utils/errors';
@@ -39,6 +41,8 @@ interface ImportRow {
 export function AdminsPage() {
   const { data: admins, loading } = useCollection<AppUser>((cb) => repo.admins.subscribeAll(cb));
   const myId = useAuthStore((s) => s.profile?.id);
+  const confirm = useConfirm();
+  const { show } = useToast();
   const [modalOpen, setModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -76,6 +80,7 @@ export function AdminsPage() {
         displayName: form.name.trim(),
       });
       setModalOpen(false);
+      show('Admin added');
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
@@ -85,17 +90,23 @@ export function AdminsPage() {
 
   async function onDelete(id: string) {
     if (id === myId) {
-      alert("You can't remove your own admin account while signed in as it.");
+      show("You can't remove your own admin account while signed in as it.", 'error');
       return;
     }
     if (admins.length <= 1) {
-      alert('This is the only admin account — add another admin before removing this one.');
+      show('This is the only admin account — add another admin before removing this one.', 'error');
       return;
     }
-    if (!confirm('Remove this admin? Their account access will be revoked.')) return;
+    const ok = await confirm({
+      title: 'Remove admin',
+      message: 'Remove this admin? Their account access will be revoked.',
+      confirmLabel: 'Remove',
+    });
+    if (!ok) return;
     setListError('');
     try {
       await repo.admins.remove(id);
+      show('Admin removed');
     } catch (e) {
       setListError(getErrorMessage(e));
     }
@@ -161,6 +172,7 @@ export function AdminsPage() {
   return (
     <div>
       <PageHeader
+        title="Admins"
         description="Manage who has full administrative access to the school console"
         toolbar={
           <>

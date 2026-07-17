@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Upload, Plus, GraduationCap, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
@@ -16,6 +17,9 @@ import { SpreadsheetGrid, type SpreadsheetRowStatus } from '@/components/ui/Spre
 import { ViewToggle } from '@/components/ui/ViewToggle';
 import { PageHeader, pageHeaderStyles } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
+import { useQuickActionIntent } from '@/hooks/useQuickActionIntent';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import { repo } from '@/data/repositories';
 import { getErrorMessage } from '@/utils/errors';
 import { generateTempPassword } from '@/utils/password';
@@ -77,6 +81,7 @@ interface ImportRow {
 }
 
 export function StudentsPage() {
+  const [searchParams] = useSearchParams();
   const { data: students, loading } = useCollection<Student>((cb) => repo.students.subscribeAll(cb));
   const { data: classes } = useCollection<SchoolClass>((cb) => repo.classes.subscribeAll(cb));
   const [modalOpen, setModalOpen] = useState(false);
@@ -86,9 +91,11 @@ export function StudentsPage() {
   const [error, setError] = useState('');
   const [listError, setListError] = useState('');
   const [classFilter, setClassFilter] = useState('');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
   const [view, setView] = useState<'list' | 'spreadsheet'>('list');
   const [cellStatus, setCellStatus] = useState<Record<number, SpreadsheetRowStatus>>({});
+  const confirm = useConfirm();
+  const { show } = useToast();
 
   const filtered = useMemo(
     () =>
@@ -106,6 +113,8 @@ export function StudentsPage() {
     setError('');
     setModalOpen(true);
   }
+
+  useQuickActionIntent(!loading, openCreate);
 
   function validate(f: FormState): string | null {
     if (!f.name.trim()) return 'Full name is required.';
@@ -152,6 +161,7 @@ export function StudentsPage() {
         },
       });
       setModalOpen(false);
+      show('Student added');
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
@@ -160,10 +170,16 @@ export function StudentsPage() {
   }
 
   async function onDelete(id: string) {
-    if (!confirm('Remove this student? Their account access will be revoked.')) return;
+    const ok = await confirm({
+      title: 'Remove student',
+      message: 'Remove this student? Their account access will be revoked.',
+      confirmLabel: 'Remove',
+    });
+    if (!ok) return;
     setListError('');
     try {
       await repo.students.remove(id);
+      show('Student removed');
     } catch (e) {
       setListError(getErrorMessage(e));
     }
@@ -319,6 +335,7 @@ export function StudentsPage() {
   return (
     <div>
       <PageHeader
+        title="Students"
         description="Manage student records, class assignments and guardians"
         toolbar={
           <>

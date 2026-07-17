@@ -36,3 +36,18 @@
 .action {
   margin-top: var(--space-3);
 }
+
+.compact {
+  padding: var(--space-5) var(--space-4);
+}
+
+.compact .icon {
+  width: 40px;
+  height: 40px;
+  font-size: var(--text-2xl);
+  margin-bottom: 0;
+}
+
+.compact .title {
+  font-size: var(--text-md);
+}

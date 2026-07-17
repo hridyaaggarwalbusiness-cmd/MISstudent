@@ -12,6 +12,9 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { PageHeader } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
+import { useQuickActionIntent } from '@/hooks/useQuickActionIntent';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import { repo } from '@/data/repositories';
 import { getErrorMessage } from '@/utils/errors';
 import type { SchoolClass, Teacher } from '@/types';
@@ -27,12 +30,16 @@ export function ClassesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [listError, setListError] = useState('');
+  const confirm = useConfirm();
+  const { show } = useToast();
 
   function openCreate() {
     setForm(emptyForm);
     setError('');
     setModalOpen(true);
   }
+
+  useQuickActionIntent(!loading, openCreate);
 
   function openEdit(cls: SchoolClass) {
     setForm(cls);
@@ -48,9 +55,11 @@ export function ClassesPage() {
     setError('');
     setSaving(true);
     try {
+      const isNew = !form.id;
       const id = form.id || `${form.name.toLowerCase().replace(/\s+/g, '')}-${form.section.toLowerCase()}`;
-      await repo.classes.upsert({ ...form, id });
+      await repo.classes.upsert({ ...form, id }, isNew);
       setModalOpen(false);
+      show(isNew ? 'Class added' : 'Class updated');
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
@@ -59,10 +68,12 @@ export function ClassesPage() {
   }
 
   async function onDelete(id: string) {
-    if (!confirm('Delete this class? This cannot be undone.')) return;
+    const ok = await confirm({ title: 'Delete class', message: 'Delete this class? This cannot be undone.', confirmLabel: 'Delete' });
+    if (!ok) return;
     setListError('');
     try {
       await repo.classes.remove(id);
+      show('Class deleted');
     } catch (e) {
       setListError(getErrorMessage(e));
     }
@@ -73,6 +84,7 @@ export function ClassesPage() {
   return (
     <div>
       <PageHeader
+        title="Classes"
         description="Manage grade sections and assign class teachers"
         toolbar={
           <Button onClick={openCreate} icon={<Plus size={16} />}>

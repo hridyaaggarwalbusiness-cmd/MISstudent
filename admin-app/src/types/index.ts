@@ -5,6 +5,7 @@ export interface AppUser {
   role: Role;
   email: string;
   displayName: string;
+  createdAt?: string;
 }
 
 export interface Teacher {
@@ -16,6 +17,7 @@ export interface Teacher {
   subjects: string[];
   classIds: string[];
   isClassTeacherOf: string | null;
+  createdAt?: string;
 }
 
 export interface SchoolClass {
@@ -49,6 +51,7 @@ export interface Student {
   emergencyContactRelation: string;
   house?: string;
   busRoute?: string;
+  createdAt?: string;
 }
 
 export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat';
@@ -183,4 +186,26 @@ export interface CalendarEvent {
   type: CalendarEventType;
   description?: string;
   location?: string;
+}
+
+export type AuditAction =
+  | 'student_created'
+  | 'student_removed'
+  | 'teacher_created'
+  | 'teacher_removed'
+  | 'admin_created'
+  | 'admin_removed'
+  | 'attendance_marked'
+  | 'notice_posted'
+  | 'exam_scheduled'
+  | 'homework_posted'
+  | 'class_created';
+
+export interface AuditLog {
+  id: string;
+  action: AuditAction;
+  summary: string;
+  actorName: string;
+  actorId: string;
+  at: string;
 }

@@ -4,10 +4,13 @@ import {
   query,
   where,
   orderBy,
+  limit as fsLimit,
   onSnapshot,
+  addDoc,
   setDoc,
   updateDoc,
   deleteDoc,
+  getDoc,
   getDocs,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -25,6 +28,7 @@ import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth as getSecondaryAuth } from 'firebase/auth';
 import { db, auth } from '@/services/firebase';
 import { firebaseConfig } from '@/services/firebaseConfig';
+import { useAuthStore } from '@/store/useAuthStore';
 import type {
   Teacher,
   SchoolClass,
@@ -40,10 +44,36 @@ import type {
   AttendanceStatus,
   Role,
   AppUser,
+  AuditAction,
+  AuditLog,
 } from '@/types';
 
 function withId<T>(d: { id: string; data: () => unknown }): T {
   return { id: d.id, ...(d.data() as object) } as T;
+}
+
+function toIso(value: unknown): string {
+  if (value && typeof value === 'object' && typeof (value as { toDate?: () => Date }).toDate === 'function') {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+  return typeof value === 'string' ? value : new Date().toISOString();
+}
+
+// Fire-and-forget audit trail for the System Logs page. Never allowed to
+// throw into a caller's mutation flow - a logging failure shouldn't roll
+// back or surface as an error on the action it's describing.
+function currentActor(): { actorId: string; actorName: string } {
+  const profile = useAuthStore.getState().profile;
+  return { actorId: profile?.id ?? 'system', actorName: profile?.displayName ?? 'System' };
+}
+
+function logAudit(action: AuditAction, summary: string): void {
+  addDoc(collection(db, 'auditLogs'), {
+    action,
+    summary,
+    ...currentActor(),
+    at: serverTimestamp(),
+  }).catch(() => {});
 }
 
 // Cloud Functions (and the Admin SDK they'd wrap) require the Blaze plan,
@@ -77,6 +107,12 @@ async function createAuthAccountWithoutSignIn(
 // straight from there.
 const PROFILE_COLLECTION: Partial<Record<Role, string>> = { teacher: 'teachers', student: 'students' };
 
+const AUDIT_ACTION_FOR_ROLE: Record<Role, { created: AuditAction; removed: AuditAction }> = {
+  admin: { created: 'admin_created', removed: 'admin_removed' },
+  teacher: { created: 'teacher_created', removed: 'teacher_removed' },
+  student: { created: 'student_created', removed: 'student_removed' },
+};
+
 async function createSchoolUser(role: Role, payload: {
   email: string;
   password: string;
@@ -89,14 +125,17 @@ async function createSchoolUser(role: Role, payload: {
     role,
     email: payload.email,
     displayName: payload.displayName,
+    createdAt: serverTimestamp(),
   });
   const profileCollection = PROFILE_COLLECTION[role];
   if (profileCollection) {
     await setDoc(doc(db, profileCollection, uid), {
       id: uid,
       ...payload.profile,
+      createdAt: serverTimestamp(),
     });
   }
+  logAudit(AUDIT_ACTION_FOR_ROLE[role].created, `${payload.displayName} added as ${role}`);
   return uid;
 }
 
@@ -106,11 +145,14 @@ async function createSchoolUser(role: Role, payload: {
 // documents, so the account can no longer read or write anything once they're
 // gone - it just leaves a harmless orphaned credential behind.
 async function revokeSchoolUser(role: Role, uid: string): Promise<void> {
+  const snap = await getDoc(doc(db, 'users', uid));
+  const displayName = snap.exists() ? (snap.data().displayName as string) : uid;
   await deleteDoc(doc(db, 'users', uid));
   const profileCollection = PROFILE_COLLECTION[role];
   if (profileCollection) {
     await deleteDoc(doc(db, profileCollection, uid));
   }
+  logAudit(AUDIT_ACTION_FOR_ROLE[role].removed, `${displayName} removed as ${role}`);
 }
 
 export const repo = {
@@ -123,7 +165,10 @@ export const repo = {
   classes: {
     subscribeAll: (cb: (items: SchoolClass[]) => void): Unsubscribe =>
       onSnapshot(collection(db, 'classes'), (snap) => cb(snap.docs.map((d) => withId<SchoolClass>(d)))),
-    upsert: (item: SchoolClass) => setDoc(doc(db, 'classes', item.id), item, { merge: true }),
+    upsert: async (item: SchoolClass, isNew = false) => {
+      await setDoc(doc(db, 'classes', item.id), item, { merge: true });
+      if (isNew) logAudit('class_created', `Class ${item.name} - ${item.section} created`);
+    },
     remove: (id: string) => deleteDoc(doc(db, 'classes', id)),
   },
 
@@ -190,7 +235,12 @@ export const repo = {
       const q = query(collection(db, 'exams'), orderBy('date', 'asc'));
       return onSnapshot(q, (snap) => cb(snap.docs.map((d) => withId<Exam>(d))));
     },
-    upsert: (exam: Exam) => setDoc(doc(db, 'exams', exam.id || cryptoId()), exam, { merge: true }),
+    upsert: (exam: Exam) => {
+      const isNew = !exam.id;
+      const write = setDoc(doc(db, 'exams', exam.id || cryptoId()), exam, { merge: true });
+      if (isNew) write.then(() => logAudit('exam_scheduled', `${exam.name} (${exam.subject}) scheduled`));
+      return write;
+    },
     remove: (id: string) => deleteDoc(doc(db, 'exams', id)),
   },
 
@@ -204,8 +254,16 @@ export const repo = {
       const q = query(collection(db, 'notices'), orderBy('postedAt', 'desc'));
       return onSnapshot(q, (snap) => cb(snap.docs.map((d) => withId<Notice>(d))));
     },
-    upsert: (notice: Notice) =>
-      setDoc(doc(db, 'notices', notice.id || cryptoId()), { ...notice, postedAt: serverTimestamp() }, { merge: true }),
+    upsert: (notice: Notice) => {
+      const isNew = !notice.id;
+      const write = setDoc(
+        doc(db, 'notices', notice.id || cryptoId()),
+        { ...notice, postedAt: serverTimestamp() },
+        { merge: true },
+      );
+      if (isNew) write.then(() => logAudit('notice_posted', `Notice posted: ${notice.title}`));
+      return write;
+    },
     remove: (id: string) => deleteDoc(doc(db, 'notices', id)),
   },
 
@@ -239,6 +297,11 @@ export const repo = {
       const q = query(collection(db, 'attendance'), where('classId', '==', classId));
       return onSnapshot(q, (snap) => cb(snap.docs.map((d) => d.data() as AttendanceRecord)));
     },
+    // Whole-school records, for the Dashboard trend chart and Reports page -
+    // both need to aggregate across every class at once rather than one at
+    // a time like the per-class month view above.
+    subscribeAll: (cb: (items: AttendanceRecord[]) => void): Unsubscribe =>
+      onSnapshot(collection(db, 'attendance'), (snap) => cb(snap.docs.map((d) => d.data() as AttendanceRecord))),
     // Unlike teacher-app, admin can mark attendance for any class — not just
     // one they're the incharge teacher of.
     markBulk: async (
@@ -258,6 +321,26 @@ export const repo = {
             markedAt: new Date().toISOString(),
           }),
         ),
+      );
+      logAudit('attendance_marked', `Attendance marked for ${records.length} student(s) on ${date}`);
+    },
+  },
+
+  school: {
+    subscribe: (cb: (school: { name: string; address: string; phone: string } | null) => void): Unsubscribe => {
+      return onSnapshot(doc(db, 'settings', 'school'), (snap) =>
+        cb(snap.exists() ? (snap.data() as { name: string; address: string; phone: string }) : null),
+      );
+    },
+    update: (changes: { name: string; address: string; phone: string }) =>
+      setDoc(doc(db, 'settings', 'school'), changes, { merge: true }),
+  },
+
+  auditLogs: {
+    subscribeRecent: (cb: (items: AuditLog[]) => void, max = 30): Unsubscribe => {
+      const q = query(collection(db, 'auditLogs'), orderBy('at', 'desc'), fsLimit(max));
+      return onSnapshot(q, (snap) =>
+        cb(snap.docs.map((d) => ({ ...withId<AuditLog>(d), at: toIso(d.data().at) }))),
       );
     },
   },

@@ -13,6 +13,9 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { PageHeader } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
+import { useQuickActionIntent } from '@/hooks/useQuickActionIntent';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import { repo } from '@/data/repositories';
 import { getErrorMessage } from '@/utils/errors';
 import { subjectAccentStyle } from '@/utils/subjectVisuals';
@@ -47,12 +50,16 @@ export function ExamsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [listError, setListError] = useState('');
+  const confirm = useConfirm();
+  const { show } = useToast();
 
   function openCreate() {
     setForm(emptyForm);
     setError('');
     setModalOpen(true);
   }
+
+  useQuickActionIntent(!loading, openCreate);
 
   function openEdit(exam: Exam) {
     setForm(exam);
@@ -68,8 +75,10 @@ export function ExamsPage() {
     setError('');
     setSaving(true);
     try {
+      const isNew = !form.id;
       await repo.exams.upsert({ ...form, id: form.id ?? '' } as Exam);
       setModalOpen(false);
+      show(isNew ? 'Exam scheduled' : 'Exam updated');
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
@@ -78,10 +87,12 @@ export function ExamsPage() {
   }
 
   async function onDelete(id: string) {
-    if (!confirm('Delete this exam?')) return;
+    const ok = await confirm({ title: 'Delete exam', message: 'Delete this exam? This cannot be undone.', confirmLabel: 'Delete' });
+    if (!ok) return;
     setListError('');
     try {
       await repo.exams.remove(id);
+      show('Exam deleted');
     } catch (e) {
       setListError(getErrorMessage(e));
     }
@@ -161,6 +172,7 @@ export function ExamsPage() {
   return (
     <div>
       <PageHeader
+        title="Exams"
         description="Schedule exams and track their status"
         toolbar={
           <Button onClick={openCreate} icon={<Plus size={16} />}>

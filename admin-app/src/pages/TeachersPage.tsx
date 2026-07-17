@@ -15,6 +15,9 @@ import { SpreadsheetGrid, type SpreadsheetRowStatus } from '@/components/ui/Spre
 import { ViewToggle } from '@/components/ui/ViewToggle';
 import { PageHeader } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
+import { useQuickActionIntent } from '@/hooks/useQuickActionIntent';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import { repo } from '@/data/repositories';
 import { getErrorMessage } from '@/utils/errors';
 import { generateTempPassword } from '@/utils/password';
@@ -53,12 +56,16 @@ export function TeachersPage() {
   const [listError, setListError] = useState('');
   const [view, setView] = useState<'list' | 'spreadsheet'>('list');
   const [cellStatus, setCellStatus] = useState<Record<number, SpreadsheetRowStatus>>({});
+  const confirm = useConfirm();
+  const { show } = useToast();
 
   function openCreate() {
     setForm(emptyForm);
     setError('');
     setModalOpen(true);
   }
+
+  useQuickActionIntent(!loading, openCreate);
 
   function toggleClass(id: string) {
     setForm((f) => ({
@@ -97,6 +104,7 @@ export function TeachersPage() {
         },
       });
       setModalOpen(false);
+      show('Teacher added');
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
@@ -105,10 +113,16 @@ export function TeachersPage() {
   }
 
   async function onDelete(id: string) {
-    if (!confirm('Remove this teacher? Their account access will be revoked.')) return;
+    const ok = await confirm({
+      title: 'Remove teacher',
+      message: 'Remove this teacher? Their account access will be revoked.',
+      confirmLabel: 'Remove',
+    });
+    if (!ok) return;
     setListError('');
     try {
       await repo.teachers.remove(id);
+      show('Teacher removed');
     } catch (e) {
       setListError(getErrorMessage(e));
     }
@@ -251,6 +265,7 @@ export function TeachersPage() {
   return (
     <div>
       <PageHeader
+        title="Teachers"
         description="Manage teaching staff and their class assignments"
         toolbar={
           <>

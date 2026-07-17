@@ -148,5 +148,16 @@ service cloud.firestore {
       allow read, update: if isMe(uid) || isAdmin();
       allow create: if isAdmin() || isTeacher();
     }
+
+    // ---- audit trail for the admin console's System Logs page ----
+    match /auditLogs/{logId} {
+      allow read, create: if isAdmin();
+    }
+
+    // ---- school-wide settings (singleton docs, e.g. settings/school) ----
+    match /settings/{docId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
   }
 }

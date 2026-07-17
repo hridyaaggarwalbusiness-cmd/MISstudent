@@ -12,6 +12,8 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { IconButton } from '@/components/ui/IconButton';
 import { PageHeader, pageHeaderStyles } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
+import { useQuickActionIntent } from '@/hooks/useQuickActionIntent';
+import { useToast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/store/useAuthStore';
 import { repo } from '@/data/repositories';
 import { getErrorMessage } from '@/utils/errors';
@@ -42,6 +44,7 @@ function schoolDaysInMonth(monthDate: Date, holidayDates: Set<string>): string[]
 
 export function AttendancePage() {
   const adminId = useAuthStore((s) => s.profile?.id);
+  const { show } = useToast();
   const { data: classes } = useCollection<SchoolClass>((cb) => repo.classes.subscribeAll(cb));
   const [classId, setClassId] = useState('');
   const [monthDate, setMonthDate] = useState(new Date());
@@ -112,6 +115,8 @@ export function AttendancePage() {
       .sort((a, b) => a.pct - b.pct);
   }, [students, schoolDays, monthRecords]);
 
+  useQuickActionIntent(!!classId && students.length > 0, openMarkModal);
+
   function openMarkModal() {
     const existing = (records ?? []).filter((r) => r.date === markDate);
     const map: Record<string, AttendanceStatus> = {};
@@ -139,6 +144,7 @@ export function AttendancePage() {
       const rows = students.map((s) => ({ studentId: s.id, status: markStatuses[s.id] ?? 'present' }));
       await repo.attendance.markBulk(classId, markDate, rows, adminId);
       setMarkOpen(false);
+      show('Attendance saved');
     } catch (e) {
       setMarkError(getErrorMessage(e));
     } finally {
@@ -171,6 +177,7 @@ export function AttendancePage() {
   return (
     <div>
       <PageHeader
+        title="Attendance"
         description="Attendance by class and month — admins can mark any class's attendance directly, alongside what class teachers record"
         toolbar={
           <>
