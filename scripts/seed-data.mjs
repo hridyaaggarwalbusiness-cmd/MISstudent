@@ -1,18 +1,47 @@
-// One-time seed: creates real Firebase Auth accounts + matching Firestore
-// documents for a starter school (one class, a few teachers/students,
-// a weekly timetable, and a handful of homework/notices/exam/result/
-// material/calendar records) so all three apps have real data to work
-// with from day one. Safe to re-run - uses deterministic ids and upserts.
+// One-time (idempotent) seed: creates real Firebase Auth accounts + matching
+// Firestore documents for a starter school with three classes, a full
+// teaching staff, students, weekly timetables, homework, exams + results,
+// notices, study materials, calendar events, and several weeks of
+// attendance history - so all three apps (student/teacher/admin) have rich,
+// realistic data to work with from day one. Safe to re-run - uses
+// deterministic ids and upserts throughout.
 
 import { getAccessToken, api, step, logResult, toFirestoreFields } from './lib/gcp.mjs';
 
 const PROJECT_ID = 'mis-student-6yhtxk';
 const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
+const DEFAULT_PASSWORD = 'MisStudent@2026';
 
-function isoToday(offsetDays = 0) {
+function isoDate(offsetDays = 0) {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
   return d.toISOString().slice(0, 10);
+}
+
+function isoDateTime(offsetDays = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d.toISOString();
+}
+
+// Deterministic pseudo-random in [0, 1) so re-running the script always
+// produces the same attendance/marks pattern instead of drifting each run.
+function pseudoRandom(seed) {
+  const x = Math.sin(seed * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+function lastNWeekdays(n) {
+  const days = [];
+  let offset = 0;
+  while (days.length < n) {
+    const d = new Date();
+    d.setDate(d.getDate() - offset);
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) days.unshift(d.toISOString().slice(0, 10));
+    offset++;
+  }
+  return days;
 }
 
 async function upsertDoc(call, collection, id, fields) {
@@ -22,20 +51,13 @@ async function upsertDoc(call, collection, id, fields) {
     { fields: toFirestoreFields(fields) },
   );
   if (res.ok) return logResult(`create ${collection}/${id}`, res);
-  // Already exists - update instead.
   const updateRes = await call('PATCH', `${FIRESTORE_BASE}/${collection}/${id}`, {
     fields: toFirestoreFields(fields),
   });
   return logResult(`update ${collection}/${id}`, updateRes);
 }
 
-async function upsertSubDoc(call, parentPath, subcollection, id, fields) {
-  const url = `${FIRESTORE_BASE}/${parentPath}/${subcollection}/${id}`;
-  const res = await call('PATCH', url, { fields: toFirestoreFields(fields) });
-  return logResult(`upsert ${parentPath}/${subcollection}/${id}`, res);
-}
-
-async function createAuthUser(call, apiKey, { uid, email, password, displayName }) {
+async function createAuthUser(call, { uid, email, password, displayName }) {
   const res = await call(
     'POST',
     `https://identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}/accounts`,
@@ -53,7 +75,20 @@ async function createAuthUser(call, apiKey, { uid, email, password, displayName 
   return false;
 }
 
-const CLASS_ID = 'grade9-b';
+// Runs a batch of async jobs with limited concurrency, to keep the REST API
+// happy without waiting on hundreds of fully-sequential round trips.
+async function runPool(items, worker, concurrency = 8) {
+  const queue = [...items];
+  async function runner() {
+    while (queue.length) {
+      const item = queue.shift();
+      await worker(item);
+    }
+  }
+  await Promise.all(Array.from({ length: concurrency }, runner));
+}
+
+const SUBJECTS = ['Mathematics', 'English', 'Science', 'Social Studies', 'Hindi', 'Computer Science'];
 
 const teachers = [
   { uid: 'teacher-arvind', name: 'Mr. Arvind Rao', email: 'arvind.rao@misstudent.edu', subjects: ['Mathematics'] },
@@ -63,30 +98,66 @@ const teachers = [
   { uid: 'teacher-anjali', name: 'Mrs. Anjali Gupta', email: 'anjali.gupta@misstudent.edu', subjects: ['Hindi'] },
   { uid: 'teacher-rohit', name: 'Mr. Rohit Malhotra', email: 'rohit.malhotra@misstudent.edu', subjects: ['Computer Science'] },
 ];
+const subjectTeacher = Object.fromEntries(teachers.map((t) => [t.subjects[0], t]));
 
-const students = [
-  { uid: 'student-ananya', name: 'Ananya Sharma', rollNumber: '1', admissionNumber: 'MIS-2021-0342' },
-  { uid: 'student-rahul', name: 'Rahul Kapoor', rollNumber: '2', admissionNumber: 'MIS-2021-0343' },
-  { uid: 'student-diya', name: 'Diya Patel', rollNumber: '3', admissionNumber: 'MIS-2021-0344' },
-  { uid: 'student-arjun', name: 'Arjun Singh', rollNumber: '4', admissionNumber: 'MIS-2021-0345' },
-  { uid: 'student-meera', name: 'Meera Iyer', rollNumber: '5', admissionNumber: 'MIS-2021-0346' },
-  { uid: 'student-vikrant', name: 'Vikrant Joshi', rollNumber: '6', admissionNumber: 'MIS-2021-0347' },
+const classes = [
+  {
+    id: 'grade8-a',
+    name: 'Grade 8',
+    section: 'A',
+    classTeacherUid: 'teacher-anjali',
+    house: 'Griffin House',
+    busRoute: 'Route 3 - Riverside Loop',
+    students: [
+      { uid: 'student-kabir', name: 'Kabir Malhotra', rollNumber: '1', admissionNumber: 'MIS-2022-0501' },
+      { uid: 'student-tara', name: 'Tara Bhatt', rollNumber: '2', admissionNumber: 'MIS-2022-0502' },
+      { uid: 'student-ishaan', name: 'Ishaan Chawla', rollNumber: '3', admissionNumber: 'MIS-2022-0503' },
+      { uid: 'student-myra', name: 'Myra Desai', rollNumber: '4', admissionNumber: 'MIS-2022-0504' },
+      { uid: 'student-devansh', name: 'Devansh Kulkarni', rollNumber: '5', admissionNumber: 'MIS-2022-0505' },
+    ],
+  },
+  {
+    id: 'grade9-b',
+    name: 'Grade 9',
+    section: 'B',
+    classTeacherUid: 'teacher-arvind',
+    house: 'Falcon House',
+    busRoute: 'Route 7 - Sector 12 Loop',
+    students: [
+      { uid: 'student-ananya', name: 'Ananya Sharma', rollNumber: '1', admissionNumber: 'MIS-2021-0342' },
+      { uid: 'student-rahul', name: 'Rahul Kapoor', rollNumber: '2', admissionNumber: 'MIS-2021-0343' },
+      { uid: 'student-diya', name: 'Diya Patel', rollNumber: '3', admissionNumber: 'MIS-2021-0344' },
+      { uid: 'student-arjun', name: 'Arjun Singh', rollNumber: '4', admissionNumber: 'MIS-2021-0345' },
+      { uid: 'student-meera', name: 'Meera Iyer', rollNumber: '5', admissionNumber: 'MIS-2021-0346' },
+      { uid: 'student-vikrant', name: 'Vikrant Joshi', rollNumber: '6', admissionNumber: 'MIS-2021-0347' },
+    ],
+  },
+  {
+    id: 'grade10-a',
+    name: 'Grade 10',
+    section: 'A',
+    classTeacherUid: 'teacher-sunita',
+    house: 'Phoenix House',
+    busRoute: 'Route 1 - City Center Loop',
+    students: [
+      { uid: 'student-aarav', name: 'Aarav Khanna', rollNumber: '1', admissionNumber: 'MIS-2020-0201' },
+      { uid: 'student-sara', name: 'Sara Fernandes', rollNumber: '2', admissionNumber: 'MIS-2020-0202' },
+      { uid: 'student-yuvraj', name: 'Yuvraj Thakur', rollNumber: '3', admissionNumber: 'MIS-2020-0203' },
+      { uid: 'student-naina', name: 'Naina Reddy', rollNumber: '4', admissionNumber: 'MIS-2020-0204' },
+      { uid: 'student-omkar', name: 'Omkar Pillai', rollNumber: '5', admissionNumber: 'MIS-2020-0205' },
+    ],
+  },
 ];
 
-const DEFAULT_PASSWORD = 'MisStudent@2026';
-
-const weeklyPattern = {
-  Mon: ['Mathematics', 'English', 'Science', null, 'Social Studies', 'Hindi', 'Computer Science'],
-  Tue: ['Science', 'Mathematics', 'Computer Science', null, 'English', 'Hindi', 'Social Studies'],
-  Wed: ['Hindi', 'Social Studies', 'Mathematics', null, 'Science', 'English', 'Computer Science'],
-  Thu: ['English', 'Science', 'Social Studies', null, 'Mathematics', 'Computer Science', 'Hindi'],
-  Fri: ['Mathematics', 'Hindi', 'English', null, 'Science', 'Social Studies', 'Computer Science'],
-};
 const periodTimes = [
   ['08:00', '08:45'], ['08:45', '09:30'], ['09:30', '10:15'], ['10:15', '10:35'],
   ['10:35', '11:20'], ['11:20', '12:05'], ['12:05', '12:50'],
 ];
-const subjectTeacher = Object.fromEntries(teachers.map((t) => [t.subjects[0], t]));
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+const DAY_INDEX = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4 };
+// Non-recess period slots (period 4 is always recess).
+const SLOT_TO_PERIOD = [1, 2, 3, 5, 6, 7];
+const ROOMS = { Science: 'Lab 3', 'Computer Science': 'Computer Lab' };
 
 async function main() {
   const refreshToken = process.env.FIREBASE_TOKEN;
@@ -94,154 +165,282 @@ async function main() {
   const accessToken = await getAccessToken(refreshToken);
   const call = api(accessToken);
 
-  step('Creating class');
-  await upsertDoc(call, 'classes', CLASS_ID, {
-    name: 'Grade 9',
-    section: 'B',
-    classTeacherId: 'teacher-arvind',
-    studentCount: students.length,
+  step('Creating school settings');
+  await upsertDoc(call, 'settings', 'school', {
+    name: 'MIS School',
+    address: '221 Ridgeview Avenue, New Delhi, India',
+    phone: '+91 11 4000 5000',
   });
 
-  step('Creating teacher auth accounts + profiles');
-  for (const t of teachers) {
-    await createAuthUser(call, null, {
-      uid: t.uid,
-      email: t.email,
-      password: DEFAULT_PASSWORD,
-      displayName: t.name,
+  step('Creating admin accounts');
+  const admins = [
+    { uid: 'admin-001', email: 'admin@misstudent.edu', name: 'School Admin', createdAt: isoDateTime(-400) },
+    { uid: 'admin-ops', email: 'ops@misstudent.edu', name: 'Karan Malhotra', createdAt: isoDateTime(-30) },
+  ];
+  for (const a of admins) {
+    await createAuthUser(call, { uid: a.uid, email: a.email, password: DEFAULT_PASSWORD, displayName: a.name });
+    await upsertDoc(call, 'users', a.uid, { role: 'admin', email: a.email, displayName: a.name, createdAt: a.createdAt });
+  }
+
+  step('Creating classes');
+  for (const c of classes) {
+    await upsertDoc(call, 'classes', c.id, {
+      name: c.name,
+      section: c.section,
+      classTeacherId: c.classTeacherUid,
+      studentCount: c.students.length,
     });
-    await upsertDoc(call, 'users', t.uid, { role: 'teacher', email: t.email, displayName: t.name });
+  }
+
+  step('Creating teacher auth accounts + profiles');
+  const classIds = classes.map((c) => c.id);
+  for (let ti = 0; ti < teachers.length; ti++) {
+    const t = teachers[ti];
+    await createAuthUser(call, { uid: t.uid, email: t.email, password: DEFAULT_PASSWORD, displayName: t.name });
+    await upsertDoc(call, 'users', t.uid, { role: 'teacher', email: t.email, displayName: t.name, createdAt: isoDateTime(-300 + ti * 5) });
+    const inchargeOf = classes.find((c) => c.classTeacherUid === t.uid);
     await upsertDoc(call, 'teachers', t.uid, {
       name: t.name,
       email: t.email,
-      phone: '+91 90000 00000',
+      phone: `+91 90000 000${String(ti).padStart(2, '0')}`,
       subjects: t.subjects,
-      classIds: [CLASS_ID],
-      isClassTeacherOf: t.uid === 'teacher-arvind' ? CLASS_ID : null,
+      classIds,
+      isClassTeacherOf: inchargeOf ? inchargeOf.id : null,
+      createdAt: isoDateTime(-300 + ti * 5),
     });
   }
 
   step('Creating student auth accounts + profiles');
-  for (const s of students) {
-    await createAuthUser(call, null, {
-      uid: s.uid,
-      email: `${s.uid.replace('student-', '')}@misstudent.edu`,
-      password: DEFAULT_PASSWORD,
-      displayName: s.name,
-    });
-    const email = `${s.uid.replace('student-', '')}@misstudent.edu`;
-    await upsertDoc(call, 'users', s.uid, { role: 'student', email, displayName: s.name });
-    await upsertDoc(call, 'students', s.uid, {
-      name: s.name,
-      photoUrl: null,
-      classId: CLASS_ID,
-      className: 'Grade 9',
-      section: 'B',
-      rollNumber: s.rollNumber,
-      admissionNumber: s.admissionNumber,
-      dateOfBirth: '2011-03-14',
-      bloodGroup: 'B+',
-      gender: 'Not specified',
-      email,
-      phone: '+91 98765 00000',
-      address: 'New Delhi, India',
-      fatherName: `${s.name.split(' ')[1]}'s Father`,
-      motherName: `${s.name.split(' ')[1]}'s Mother`,
-      guardianPhone: '+91 98765 11111',
-      emergencyContactName: `${s.name.split(' ')[1]}'s Father`,
-      emergencyContactPhone: '+91 98765 11111',
-      emergencyContactRelation: 'Father',
-      house: 'Falcon House',
-      busRoute: 'Route 7 - Sector 12 Loop',
-    });
+  let globalStudentIndex = 0;
+  for (const c of classes) {
+    for (const s of c.students) {
+      const email = `${s.uid.replace('student-', '')}@misstudent.edu`;
+      const surname = s.name.split(' ').slice(-1)[0];
+      // Two freshly-admitted students (for the admin dashboard's "N new
+      // this week" delta) - everyone else has an older admission date.
+      const createdAt = globalStudentIndex < 2 ? isoDateTime(-(globalStudentIndex + 1)) : isoDateTime(-(200 + globalStudentIndex * 3));
+      await createAuthUser(call, { uid: s.uid, email, password: DEFAULT_PASSWORD, displayName: s.name });
+      await upsertDoc(call, 'users', s.uid, { role: 'student', email, displayName: s.name, createdAt });
+      await upsertDoc(call, 'students', s.uid, {
+        name: s.name,
+        photoUrl: null,
+        classId: c.id,
+        className: c.name,
+        section: c.section,
+        rollNumber: s.rollNumber,
+        admissionNumber: s.admissionNumber,
+        dateOfBirth: `20${10 + (globalStudentIndex % 6)}-0${1 + (globalStudentIndex % 9)}-14`,
+        bloodGroup: ['O+', 'A+', 'B+', 'AB+', 'O-'][globalStudentIndex % 5],
+        gender: globalStudentIndex % 2 === 0 ? 'Female' : 'Male',
+        email,
+        phone: `+91 98765 ${String(10000 + globalStudentIndex).slice(-5)}`,
+        address: 'New Delhi, India',
+        fatherName: `${surname}'s Father`,
+        motherName: `${surname}'s Mother`,
+        guardianPhone: '+91 98765 11111',
+        emergencyContactName: `${surname}'s Father`,
+        emergencyContactPhone: '+91 98765 11111',
+        emergencyContactRelation: 'Father',
+        house: c.house,
+        busRoute: c.busRoute,
+        createdAt,
+      });
+      globalStudentIndex++;
+    }
   }
 
-  step('Creating admin auth account');
-  await createAuthUser(call, null, {
-    uid: 'admin-001',
-    email: 'admin@misstudent.edu',
-    password: DEFAULT_PASSWORD,
-    displayName: 'School Admin',
-  });
-  await upsertDoc(call, 'users', 'admin-001', {
-    role: 'admin',
-    email: 'admin@misstudent.edu',
-    displayName: 'School Admin',
-  });
-
-  step('Creating weekly timetable');
-  for (const [day, subjects] of Object.entries(weeklyPattern)) {
-    for (let i = 0; i < subjects.length; i++) {
-      const subject = subjects[i];
-      const [startTime, endTime] = periodTimes[i];
-      const id = `${CLASS_ID}-${day}-${i + 1}`;
-      if (!subject) {
+  step('Creating weekly timetables (rotated per class to avoid teacher clashes)');
+  for (let ci = 0; ci < classes.length; ci++) {
+    const c = classes[ci];
+    for (const day of DAYS) {
+      for (let slot = 0; slot < SLOT_TO_PERIOD.length; slot++) {
+        const periodNumber = SLOT_TO_PERIOD[slot];
+        const [startTime, endTime] = periodTimes[periodNumber - 1];
+        const id = `${c.id}-${day}-${periodNumber}`;
+        const subjectIdx = (slot + DAY_INDEX[day] + ci * 2) % SUBJECTS.length;
+        const subject = SUBJECTS[subjectIdx];
+        const teacher = subjectTeacher[subject];
         await upsertDoc(call, 'timetable', id, {
-          classId: CLASS_ID, day, periodNumber: i + 1, startTime, endTime,
-          subject: 'Recess', teacher: '', teacherId: '', room: '', isBreak: true,
+          classId: c.id, day, periodNumber, startTime, endTime,
+          subject, teacher: teacher.name, teacherId: teacher.uid,
+          room: ROOMS[subject] ?? `Room ${200 + ci}`,
+          isBreak: false,
         });
-        continue;
       }
-      const teacher = subjectTeacher[subject];
-      await upsertDoc(call, 'timetable', id, {
-        classId: CLASS_ID, day, periodNumber: i + 1, startTime, endTime,
-        subject, teacher: teacher.name, teacherId: teacher.uid,
-        room: subject === 'Science' ? 'Lab 3' : subject === 'Computer Science' ? 'Computer Lab' : 'Room 204',
-        isBreak: false,
+      // Recess, period 4, same for every class.
+      const [startTime, endTime] = periodTimes[3];
+      await upsertDoc(call, 'timetable', `${c.id}-${day}-4`, {
+        classId: c.id, day, periodNumber: 4, startTime, endTime,
+        subject: 'Recess', teacher: '', teacherId: '', room: '', isBreak: true,
       });
     }
   }
 
-  step('Creating sample homework');
-  await upsertDoc(call, 'homework', 'hw-quadratic', {
-    classId: CLASS_ID, subject: 'Mathematics', title: 'Quadratic Equations — Practice Set 4',
-    instructions: 'Solve all 15 problems from Chapter 4, Exercise 4.3. Show complete step-by-step working.',
-    teacherId: 'teacher-arvind', teacherName: 'Mr. Arvind Rao',
-    assignedDate: isoToday(-2), dueDate: isoToday(1), status: 'pending', attachments: [],
-    createdAt: new Date(),
-  });
-  await upsertDoc(call, 'homework', 'hw-essay', {
-    classId: CLASS_ID, subject: 'English', title: 'Essay: "A Journey I Will Never Forget"',
-    instructions: 'Write a descriptive essay of 400-500 words with vivid sensory detail.',
-    teacherId: 'teacher-priya', teacherName: 'Ms. Priya Nair',
-    assignedDate: isoToday(-1), dueDate: isoToday(3), status: 'pending', attachments: [],
-    createdAt: new Date(),
+  step('Creating homework across classes and subjects');
+  const homeworkTemplates = [
+    { subject: 'Mathematics', title: 'Quadratic Equations — Practice Set 4', body: 'Solve all 15 problems from Chapter 4, Exercise 4.3. Show complete step-by-step working.' },
+    { subject: 'English', title: 'Essay: "A Journey I Will Never Forget"', body: 'Write a descriptive essay of 400-500 words with vivid sensory detail.' },
+    { subject: 'Science', title: 'Lab Report: States of Matter', body: 'Write up your observations from this week\'s states-of-matter experiment.' },
+    { subject: 'Social Studies', title: 'Map Work: Rivers of India', body: 'Label all major rivers and their tributaries on the provided outline map.' },
+  ];
+  for (let ci = 0; ci < classes.length; ci++) {
+    const c = classes[ci];
+    for (let hi = 0; hi < homeworkTemplates.length; hi++) {
+      const tpl = homeworkTemplates[hi];
+      const teacher = subjectTeacher[tpl.subject];
+      const id = `hw-${c.id}-${hi}`;
+      await upsertDoc(call, 'homework', id, {
+        classId: c.id, subject: tpl.subject, title: tpl.title, instructions: tpl.body,
+        teacherId: teacher.uid, teacherName: teacher.name,
+        assignedDate: isoDate(-3 - hi), dueDate: isoDate(4 - hi * 2),
+        attachments: [],
+      });
+    }
+  }
+
+  step('Creating exams (past, for results, and upcoming)');
+  const examSpecs = [
+    { key: 'unit1', name: 'Unit Test 1', subject: 'Mathematics', date: -18, maxMarks: 50, status: 'completed' },
+    { key: 'unit2', name: 'Unit Test 2', subject: 'Science', date: -8, maxMarks: 50, status: 'completed' },
+    { key: 'midterm', name: 'Mid Term Examination', subject: 'English', date: 10, maxMarks: 100, status: 'upcoming' },
+  ];
+  const examDocs = [];
+  for (const c of classes) {
+    for (const spec of examSpecs) {
+      const id = `exam-${c.id}-${spec.key}`;
+      await upsertDoc(call, 'exams', id, {
+        classId: c.id, name: spec.name, subject: spec.subject,
+        date: isoDate(spec.date), startTime: '09:00', endTime: '11:00',
+        room: 'Exam Hall A', syllabus: 'As per the term syllabus', status: spec.status,
+      });
+      examDocs.push({ id, classId: c.id, ...spec });
+    }
+  }
+
+  step('Creating exam results for completed exams');
+  const gradedTeacher = teachers[0];
+  const resultJobs = [];
+  for (const exam of examDocs) {
+    if (exam.status !== 'completed') continue;
+    const c = classes.find((cl) => cl.id === exam.classId);
+    c.students.forEach((s, si) => {
+      resultJobs.push({ exam, c, s, si });
+    });
+  }
+  await runPool(resultJobs, async ({ exam, c, s, si }) => {
+    const teacher = subjectTeacher[exam.subject] ?? gradedTeacher;
+    const pct = 0.55 + pseudoRandom(si * 17 + exam.date) * 0.4;
+    const marksObtained = Math.round(exam.maxMarks * pct);
+    const grade = pct >= 0.9 ? 'A+' : pct >= 0.8 ? 'A' : pct >= 0.7 ? 'B' : pct >= 0.6 ? 'C' : 'D';
+    const id = `result-${exam.id}-${s.uid}`;
+    await upsertDoc(call, 'results', id, {
+      studentId: s.uid, classId: c.id, examId: exam.id, examName: exam.name,
+      subject: exam.subject, term: 'Term 1', date: isoDate(exam.date),
+      marksObtained, maxMarks: exam.maxMarks, grade,
+      gradedBy: teacher.uid, gradedAt: isoDateTime(exam.date + 2),
+    });
   });
 
-  step('Creating sample exam');
-  await upsertDoc(call, 'exams', 'exam-midterm-math', {
-    classId: CLASS_ID, name: 'Mid-Term Examination', subject: 'Mathematics',
-    date: isoToday(5), startTime: '09:00', endTime: '11:00', room: 'Exam Hall A',
-    syllabus: 'Chapters 1-6', status: 'upcoming',
-  });
+  step('Creating attendance history (last 20 school days)');
+  const schoolDays = lastNWeekdays(20);
+  const attendanceJobs = [];
+  let studentSeed = 0;
+  for (const c of classes) {
+    c.students.forEach((s, si) => {
+      const isAtRisk = si === c.students.length - 1; // one deliberately at-risk student per class
+      schoolDays.forEach((date, di) => {
+        attendanceJobs.push({ c, s, date, seed: studentSeed, di, isAtRisk });
+      });
+      studentSeed++;
+    });
+  }
+  await runPool(attendanceJobs, async ({ c, s, date, seed, di, isAtRisk }) => {
+    const r = pseudoRandom(seed * 31 + di * 7);
+    let status = 'present';
+    if (isAtRisk) {
+      if (r < 0.35) status = 'absent';
+      else if (r < 0.45) status = 'late';
+    } else {
+      if (r < 0.06) status = 'absent';
+      else if (r < 0.11) status = 'late';
+      else if (r < 0.13) status = 'leave';
+    }
+    const markedBy = c.classTeacherUid;
+    await upsertDoc(call, 'attendance', `${s.uid}_${date}`, {
+      studentId: s.uid, classId: c.id, date, status,
+      markedBy, markedAt: `${date}T09:00:00.000Z`,
+    });
+  }, 12);
 
-  step('Creating sample notice');
-  await upsertDoc(call, 'notices', 'notice-sports-day', {
-    title: 'Annual Sports Day — 15th of Next Month',
-    body: 'The school Annual Sports Day will be held on the school grounds. All students must report by 7:30 AM in house colors.',
-    category: 'event', postedBy: 'Principal Office', postedByName: 'Principal Office',
-    postedAt: new Date(), targetClassIds: [], attachments: [], readBy: [], pinned: true,
-  });
+  step('Creating notices');
+  const notices = [
+    { id: 'notice-sports-day', title: 'Annual Sports Day — 15th of Next Month', body: 'The school Annual Sports Day will be held on the school grounds. All students must report by 7:30 AM in house colors.', category: 'event', pinned: true, postedAt: -5 },
+    { id: 'notice-ptm', title: 'Parent-Teacher Meeting Rescheduled', body: 'The PTM originally scheduled for this Friday has been moved to next Monday at 10 AM in the main hall.', category: 'academic', pinned: true, postedAt: -2 },
+    { id: 'notice-diwali', title: 'Diwali Holiday Announcement', body: 'The school will remain closed for Diwali from the 1st to the 5th of next month. Classes resume on the 6th.', category: 'holiday', pinned: false, postedAt: -10 },
+    { id: 'notice-uniform', title: 'Winter Uniform Guidelines', body: 'Starting next Monday, all students are required to wear the winter uniform. Please refer to the handbook for details.', category: 'general', pinned: false, postedAt: -14 },
+  ];
+  for (const n of notices) {
+    await upsertDoc(call, 'notices', n.id, {
+      title: n.title, body: n.body, category: n.category,
+      postedBy: 'admin-001', postedByName: 'School Admin',
+      postedAt: isoDateTime(n.postedAt), targetClassIds: [], attachments: [], pinned: n.pinned,
+    });
+  }
 
-  step('Creating sample calendar event');
-  await upsertDoc(call, 'calendarEvents', 'cal-sports-day', {
-    title: 'Annual Sports Day', date: isoToday(20), type: 'sports',
-    location: 'School Grounds', description: 'Track & field events and house competitions.',
-    createdBy: 'admin-001',
-  });
+  step('Creating calendar events');
+  const events = [
+    { id: 'cal-sports-day', title: 'Annual Sports Day', date: 20, type: 'sports', location: 'School Grounds', description: 'Track & field events and house competitions.' },
+    { id: 'cal-midterm', title: 'Mid Term Exams Begin', date: 10, type: 'exam', description: 'Mid-term examinations begin for all classes.' },
+    { id: 'cal-diwali', title: 'Diwali Break', date: 30, endDate: 34, type: 'holiday', description: 'School closed for Diwali.' },
+    { id: 'cal-staff-meeting', title: 'Staff Meeting', date: 3, type: 'meeting', location: 'Staff Room' },
+    { id: 'cal-science-fair', title: 'Inter-School Science Fair', date: 25, type: 'competition', location: 'Auditorium' },
+    { id: 'cal-annual-day', title: 'Annual Day Function', date: 45, type: 'function', location: 'School Auditorium' },
+  ];
+  for (const e of events) {
+    await upsertDoc(call, 'calendarEvents', e.id, {
+      title: e.title, date: isoDate(e.date), type: e.type,
+      ...(e.endDate ? { endDate: isoDate(e.endDate) } : {}),
+      ...(e.location ? { location: e.location } : {}),
+      ...(e.description ? { description: e.description } : {}),
+    });
+  }
 
-  step('Creating sample study material');
-  await upsertDoc(call, 'studyMaterials', 'mat-quadratic-notes', {
-    classId: CLASS_ID, title: 'Quadratic Equations — Complete Notes', subject: 'Mathematics',
-    type: 'note', uploadedBy: 'teacher-arvind', uploadedByName: 'Mr. Arvind Rao',
-    uploadedAt: new Date(), attachment: { name: 'quadratic-notes.pdf', type: 'pdf', url: '' },
-  });
+  step('Creating study materials');
+  const materials = [
+    { id: 'mat-quadratic-notes', classId: 'grade9-b', title: 'Quadratic Equations — Complete Notes', subject: 'Mathematics', type: 'note', uploadedBy: 'teacher-arvind', uploadedByName: 'Mr. Arvind Rao' },
+    { id: 'mat-grammar-worksheet', classId: 'grade8-a', title: 'Grammar Worksheet — Tenses', subject: 'English', type: 'worksheet', uploadedBy: 'teacher-priya', uploadedByName: 'Ms. Priya Nair' },
+    { id: 'mat-states-matter-ppt', classId: 'grade10-a', title: 'States of Matter — Presentation', subject: 'Science', type: 'presentation', uploadedBy: 'teacher-sunita', uploadedByName: 'Dr. Sunita Verma' },
+  ];
+  for (const m of materials) {
+    await upsertDoc(call, 'studyMaterials', m.id, {
+      classId: m.classId, title: m.title, subject: m.subject, type: m.type,
+      uploadedBy: m.uploadedBy, uploadedByName: m.uploadedByName,
+      uploadedAt: isoDateTime(-6),
+      attachment: { id: `${m.id}-file`, name: `${m.id}.pdf`, type: 'pdf', url: '', sizeLabel: '340 KB' },
+      sizeLabel: '340 KB',
+    });
+  }
+
+  step('Creating a few starter audit log entries');
+  const auditSeeds = [
+    { id: 'audit-seed-1', action: 'notice_posted', summary: 'Notice posted: Parent-Teacher Meeting Rescheduled', at: -2 },
+    { id: 'audit-seed-2', action: 'attendance_marked', summary: `Attendance marked for ${classes.reduce((n, c) => n + c.students.length, 0)} student(s)`, at: -1 },
+    { id: 'audit-seed-3', action: 'exam_scheduled', summary: 'Mid Term Examination scheduled', at: -7 },
+  ];
+  for (const a of auditSeeds) {
+    await upsertDoc(call, 'auditLogs', a.id, {
+      action: a.action, summary: a.summary, actorId: 'admin-001', actorName: 'School Admin', at: isoDateTime(a.at),
+    });
+  }
 
   console.log('\nSeeding complete.');
   console.log(`Default password for all seeded accounts: ${DEFAULT_PASSWORD}`);
-  console.log('Admin login: admin@misstudent.edu');
+  console.log('Admin logins:', admins.map((a) => a.email).join(', '));
   console.log('Teacher logins:', teachers.map((t) => t.email).join(', '));
-  console.log('Student logins:', students.map((s) => `${s.uid.replace('student-', '')}@misstudent.edu`).join(', '));
+  console.log(
+    'Student logins:',
+    classes.flatMap((c) => c.students.map((s) => `${s.uid.replace('student-', '')}@misstudent.edu`)).join(', '),
+  );
 }
 
 main().catch((err) => {
