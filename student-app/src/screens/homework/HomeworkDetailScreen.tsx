@@ -15,7 +15,7 @@ import {
 import { colors, spacing, radius } from '@theme';
 import { RootStackParamList } from '@navigation/types';
 import { useHomeworkStore } from '@store/useHomeworkStore';
-import { friendlyDate, dueInLabel } from '@utils/date';
+import { friendlyDate } from '@utils/date';
 
 export function HomeworkDetailScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'HomeworkDetail'>>();
@@ -37,17 +37,12 @@ export function HomeworkDetailScreen() {
     );
   }
 
-  const due = dueInLabel(homework.dueDate);
-
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <DetailHeader title="Homework" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.topRow}>
           <Badge label={homework.subject} tone="neutral" />
-          <AppText variant="caption" color={due.overdue ? colors.danger : colors.textSecondary} style={{ fontWeight: '700' }}>
-            {due.label}
-          </AppText>
         </View>
         <AppText variant="displayMd" style={{ marginTop: spacing.sm }}>
           {homework.title}
@@ -56,12 +51,6 @@ export function HomeworkDetailScreen() {
         <View style={styles.metaGrid}>
           <MetaItem icon="person-outline" label="Teacher" value={homework.teacher} />
           <MetaItem icon="calendar-outline" label="Assigned" value={friendlyDate(homework.assignedDate)} />
-          <MetaItem
-            icon="time-outline"
-            label="Due date"
-            value={friendlyDate(homework.dueDate)}
-            valueColor={due.overdue ? colors.danger : undefined}
-          />
         </View>
 
         <Card style={{ marginTop: spacing.lg }}>

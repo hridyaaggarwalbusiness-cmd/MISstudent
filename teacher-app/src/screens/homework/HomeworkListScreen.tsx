@@ -56,7 +56,7 @@ export function HomeworkListScreen() {
                     {item.title}
                   </AppText>
                   <AppText variant="tiny" color={colors.textTertiary} style={{ marginTop: 3 }}>
-                    Due {friendlyDate(item.dueDate)}
+                    Assigned {friendlyDate(item.assignedDate)}
                   </AppText>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />

@@ -16,7 +16,6 @@ import {
   ClipboardList,
   Megaphone,
   CalendarDays,
-  NotebookPen,
   AlertTriangle,
   FlaskConical,
 } from 'lucide-react';
@@ -32,7 +31,6 @@ import { repo } from '@/data/repositories';
 import type {
   Teacher,
   Student,
-  Homework,
   Notice,
   CalendarEvent,
   AttendanceRecord,
@@ -70,7 +68,6 @@ export function DashboardPage() {
 
   const { data: teachers } = useCollection<Teacher>((cb) => repo.teachers.subscribeAll(cb));
   const { data: students } = useCollection<Student>((cb) => repo.students.subscribeAll(cb));
-  const { data: homework, loading: homeworkLoading } = useCollection<Homework>((cb) => repo.homework.subscribeAll(cb));
   const { data: notices, loading: noticesLoading } = useCollection<Notice>((cb) => repo.notices.subscribeAll(cb));
   const { data: events, loading: eventsLoading } = useCollection<CalendarEvent>((cb) => repo.calendar.subscribeAll(cb));
   const { data: attendance } = useCollection<AttendanceRecord>((cb) => repo.attendance.subscribeAll(cb));
@@ -148,20 +145,7 @@ export function DashboardPage() {
     [exams],
   );
 
-  const homeworkDueThisWeek = useMemo(
-    () =>
-      homework.filter((h) => {
-        try {
-          const days = (parseISO(h.dueDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000);
-          return days >= 0 && days <= 7;
-        } catch {
-          return false;
-        }
-      }).length,
-    [homework],
-  );
-
-  const pendingTasksCount = atRiskStudents + upcomingExamsCount + homeworkDueThisWeek;
+  const pendingTasksCount = atRiskStudents + upcomingExamsCount;
 
   const upcomingEvents = useMemo(
     () =>
@@ -231,16 +215,9 @@ export function DashboardPage() {
       badge: 'Exams',
       onClick: () => navigate('/exams'),
     },
-    homeworkDueThisWeek > 0 && {
-      key: 'homework',
-      icon: <NotebookPen size={16} />,
-      label: `${homeworkDueThisWeek} homework assignment${homeworkDueThisWeek === 1 ? '' : 's'} due this week`,
-      badge: 'Homework',
-      onClick: () => navigate('/homework'),
-    },
   ].filter(Boolean) as { key: string; icon: React.ReactNode; label: string; badge: string; onClick: () => void }[];
 
-  const loading = homeworkLoading || noticesLoading || eventsLoading;
+  const loading = noticesLoading || eventsLoading;
 
   return (
     <div>

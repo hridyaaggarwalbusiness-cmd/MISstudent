@@ -121,7 +121,7 @@ export function HomeworkDetailScreen() {
           </>
         )}
         <AppText variant="caption" color={colors.textTertiary} style={{ marginTop: spacing.sm }}>
-          Due {friendlyDate(homework.dueDate)}
+          Assigned {friendlyDate(homework.assignedDate)}
         </AppText>
 
         <AppText variant="h3" style={{ marginTop: spacing.xl, marginBottom: spacing.sm }}>

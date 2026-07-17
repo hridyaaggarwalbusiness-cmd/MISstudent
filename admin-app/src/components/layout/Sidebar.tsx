@@ -9,7 +9,6 @@ import {
   ShieldCheck,
   CalendarClock,
   CheckCircle2,
-  NotebookPen,
   FlaskConical,
   BarChart3,
   Megaphone,
@@ -46,7 +45,6 @@ const sections: { label: string; links: { to: string; icon: ComponentType<{ size
   {
     label: 'Communication',
     links: [
-      { to: '/homework', icon: NotebookPen, label: 'Homework' },
       { to: '/notices', icon: Megaphone, label: 'Notices' },
       { to: '/materials', icon: BookOpen, label: 'Study Materials' },
       { to: '/calendar', icon: CalendarDays, label: 'Academic Calendar' },

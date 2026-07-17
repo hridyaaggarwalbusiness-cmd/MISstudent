@@ -85,9 +85,8 @@ export function HomeworkCreateScreen() {
         teacherId: teacher.id,
         teacherName: teacher.name,
         assignedDate: formatISO(new Date(), { representation: 'date' }),
-        // No due-date input on this form — default to a week out so
-        // sorting/overdue tracking elsewhere in the app still has a value
-        // to work with.
+        // Due dates aren't shown anywhere in the UI, but the field is still
+        // part of the Homework schema, so keep writing a placeholder value.
         dueDate: formatISO(addDays(new Date(), 7), { representation: 'date' }),
         attachments,
       };

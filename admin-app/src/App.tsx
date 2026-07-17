@@ -13,7 +13,6 @@ import { StudentsPage } from '@/pages/StudentsPage';
 import { AdminsPage } from '@/pages/AdminsPage';
 import { TimetablePage } from '@/pages/TimetablePage';
 import { AttendancePage } from '@/pages/AttendancePage';
-import { HomeworkPage } from '@/pages/HomeworkPage';
 import { ExamsPage } from '@/pages/ExamsPage';
 import { ResultsPage } from '@/pages/ResultsPage';
 import { NoticesPage } from '@/pages/NoticesPage';
@@ -32,7 +31,6 @@ const routeTitles: { path: string; title: string; element: ReactElement }[] = [
   { path: '/admins', title: 'Admins', element: <AdminsPage /> },
   { path: '/timetable', title: 'Timetable', element: <TimetablePage /> },
   { path: '/attendance', title: 'Attendance', element: <AttendancePage /> },
-  { path: '/homework', title: 'Homework', element: <HomeworkPage /> },
   { path: '/exams', title: 'Exams', element: <ExamsPage /> },
   { path: '/results', title: 'Results', element: <ResultsPage /> },
   { path: '/notices', title: 'Notices', element: <NoticesPage /> },
