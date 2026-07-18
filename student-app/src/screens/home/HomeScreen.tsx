@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '@navigation/types';
 import { AppText, IconButton, Avatar, SectionHeader, Skeleton, EmptyState, ErrorState, AnimatedPressable } from '@components/ui';
 import { TodaysOverviewCard } from '@components/dashboard/TodaysOverviewCard';
+import { AIPracticeTestBanner } from '@components/dashboard/AIPracticeTestBanner';
 import { UpdateFeedItem, UpdateFeedItemData } from '@components/dashboard/UpdateFeedItem';
 import { QuickAccessGrid, QuickAccessItem } from '@components/dashboard/QuickAccessGrid';
 import { MoreMenuModal } from '@components/dashboard/MoreMenuModal';
@@ -286,6 +287,10 @@ export function HomeScreen() {
           ) : (
             <TodaysOverviewCard stats={overviewStats} attendancePct={attendancePct} />
           )}
+        </View>
+
+        <View style={[styles.section, { marginTop: spacing.lg }]}>
+          <AIPracticeTestBanner onPress={() => navigation.navigate('PracticeTestGenerator')} />
         </View>
 
         <View style={styles.section}>

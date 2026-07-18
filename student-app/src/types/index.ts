@@ -231,3 +231,92 @@ export interface FeePayment {
   paymentRef: string;
   createdAt: string;
 }
+
+// ---- AI Practice Test Generator ----
+
+export type PaperType =
+  | 'practice_test'
+  | 'unit_test'
+  | 'half_yearly'
+  | 'annual_exam'
+  | 'mcq_practice'
+  | 'revision_test';
+
+export type Difficulty = 'easy' | 'medium' | 'hard' | 'mixed';
+
+export type PaperLanguage = 'english' | 'hindi';
+
+export type QuestionType =
+  | 'mcq'
+  | 'fill_blank'
+  | 'true_false'
+  | 'match_following'
+  | 'very_short'
+  | 'short'
+  | 'long'
+  | 'case_study'
+  | 'assertion_reason'
+  | 'numerical';
+
+export interface PracticeTestRequest {
+  classLabel: string;
+  subject: string;
+  chapterTopic: string;
+  paperType: PaperType;
+  totalMarks: number;
+  difficulty: Difficulty;
+  language: PaperLanguage;
+  durationMinutes?: number;
+}
+
+// A left/right pair for "Match the Following" questions.
+export interface MatchPair {
+  left: string;
+  right: string;
+}
+
+export interface PaperQuestion {
+  id: string;
+  number: number;
+  type: QuestionType;
+  text: string;
+  marks: number;
+  options?: string[];
+  matchPairs?: MatchPair[];
+  caseText?: string;
+  answer: string;
+  explanation?: string;
+}
+
+export interface PaperSection {
+  id: string;
+  title: string;
+  instructions?: string;
+  questions: PaperQuestion[];
+}
+
+// Every generated paper is a purely derived artifact of one AI call - it's
+// never partially persisted, so the whole thing is one self-contained value
+// the result screen and PDF exporter both render from directly.
+export interface GeneratedPaper {
+  title: string;
+  classLabel: string;
+  subject: string;
+  chapterTopic: string;
+  paperType: PaperType;
+  totalMarks: number;
+  difficulty: Difficulty;
+  language: PaperLanguage;
+  durationMinutes?: number;
+  generalInstructions: string[];
+  sections: PaperSection[];
+  generatedAt: string;
+}
+
+export interface RegenerateQuestionRequest {
+  request: PracticeTestRequest;
+  existingQuestionTexts: string[];
+  sectionTitle: string;
+  questionType: QuestionType;
+  marks: number;
+}

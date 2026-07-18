@@ -13,6 +13,8 @@ import { getFirestore } from 'firebase-admin/firestore';
 
 initializeApp();
 
+export { generatePracticeTestPaper, regeneratePracticeTestQuestion } from './practiceTest';
+
 async function assertIsAdmin(uid: string | undefined) {
   if (!uid) throw new HttpsError('unauthenticated', 'You must be signed in.');
   const snap = await getFirestore().collection('users').doc(uid).get();

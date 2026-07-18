@@ -3,6 +3,7 @@ import { initializeAuth, getAuth, type Auth } from 'firebase/auth';
 // @ts-expect-error - getReactNativePersistence exists in the RN runtime bundle but isn't in firebase's published browser typings
 import { getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getFunctions } from 'firebase/functions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { firebaseConfig } from './firebaseConfig';
 
@@ -20,3 +21,4 @@ try {
 
 export const auth = authInstance;
 export const db = getFirestore(app);
+export const functions = getFunctions(app);
