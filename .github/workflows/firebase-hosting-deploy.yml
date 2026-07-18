@@ -34,6 +34,14 @@ jobs:
 
       - name: Build admin-app
         working-directory: admin-app
+        env:
+          # Baked into the static web bundle at build time - the AI Notice
+          # Writer calls Gemini directly from the browser (see
+          # admin-app/src/services/ai/geminiProvider.ts), same reasoning as
+          # student-app's EXPO_PUBLIC_GEMINI_API_KEY above. Reuses the same
+          # key; make sure this app's Hosting domain is also on the key's
+          # HTTP-referrer allowlist in Google Cloud Console.
+          VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: npm run build
 
       - name: Install teacher-app dependencies

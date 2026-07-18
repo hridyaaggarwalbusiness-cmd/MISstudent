@@ -1,5 +1,13 @@
 export type Role = 'admin' | 'teacher' | 'student';
 
+export interface SchoolProfile {
+  name: string;
+  address: string;
+  phone: string;
+  principalName?: string;
+  affiliation?: string;
+}
+
 export interface AppUser {
   id: string;
   role: Role;
@@ -97,6 +105,13 @@ export interface Exam {
 
 export type NoticeCategory = 'general' | 'academic' | 'event' | 'holiday';
 
+// Present only on notices authored via the Admin App's AI Notice Writer -
+// these render through the official school template instead of a plain
+// text card. Older notices simply omit these fields.
+export type NoticeType = 'holiday' | 'examination' | 'ptm' | 'event' | 'circular' | 'urgent' | 'general';
+export type NoticeAudience = 'all' | 'classes' | 'teachers' | 'parents';
+export type NoticePriority = 'normal' | 'important' | 'urgent';
+
 export interface Notice {
   id: string;
   title: string;
@@ -107,6 +122,11 @@ export interface Notice {
   isRead: boolean;
   attachments?: Attachment[];
   pinned?: boolean;
+  noticeType?: NoticeType;
+  audience?: NoticeAudience;
+  priority?: NoticePriority;
+  noticeDate?: string;
+  effectiveDate?: string;
 }
 
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'leave' | 'holiday' | 'weekend' | 'future';

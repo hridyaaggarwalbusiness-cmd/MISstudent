@@ -16,6 +16,7 @@ import { AttendancePage } from '@/pages/AttendancePage';
 import { ExamsPage } from '@/pages/ExamsPage';
 import { ResultsPage } from '@/pages/ResultsPage';
 import { NoticesPage } from '@/pages/NoticesPage';
+import { AiNoticeWriterPage } from '@/pages/AiNoticeWriterPage';
 import { MaterialsPage } from '@/pages/MaterialsPage';
 import { CalendarPage } from '@/pages/CalendarPage';
 import { FeesPage } from '@/pages/FeesPage';
@@ -36,6 +37,7 @@ const routeTitles: { path: string; title: string; element: ReactElement }[] = [
   { path: '/exams', title: 'Exams', element: <ExamsPage /> },
   { path: '/results', title: 'Results', element: <ResultsPage /> },
   { path: '/notices', title: 'Notices', element: <NoticesPage /> },
+  { path: '/notice-writer', title: 'AI Notice Writer', element: <AiNoticeWriterPage /> },
   { path: '/materials', title: 'Study Materials', element: <MaterialsPage /> },
   { path: '/calendar', title: 'Academic Calendar', element: <CalendarPage /> },
   { path: '/fees', title: 'Fees', element: <FeesPage /> },

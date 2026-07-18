@@ -1,5 +1,16 @@
 export type Role = 'admin' | 'teacher' | 'student';
 
+// principalName/affiliation are optional so schools that haven't filled
+// them in yet don't break existing consumers (receipts, practice-test PDFs)
+// that only ever read name/address/phone.
+export interface SchoolProfile {
+  name: string;
+  address: string;
+  phone: string;
+  principalName?: string;
+  affiliation?: string;
+}
+
 export interface AppUser {
   id: string;
   role: Role;
@@ -111,6 +122,14 @@ export interface Exam {
 
 export type NoticeCategory = 'general' | 'academic' | 'event' | 'holiday';
 
+// The official-template fields below are optional so existing plain notices
+// (posted before the AI Notice Writer existed) keep working unchanged - a
+// notice only renders through the official school template when noticeType
+// is present.
+export type NoticeType = 'holiday' | 'examination' | 'ptm' | 'event' | 'circular' | 'urgent' | 'general';
+export type NoticeAudience = 'all' | 'classes' | 'teachers' | 'parents';
+export type NoticePriority = 'normal' | 'important' | 'urgent';
+
 export interface Notice {
   id: string;
   title: string;
@@ -122,6 +141,12 @@ export interface Notice {
   targetClassIds: string[];
   attachments?: Attachment[];
   pinned?: boolean;
+  noticeType?: NoticeType;
+  audience?: NoticeAudience;
+  priority?: NoticePriority;
+  noticeDate?: string;
+  effectiveDate?: string;
+  aiGenerated?: boolean;
 }
 
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'leave' | 'holiday' | 'weekend' | 'future';

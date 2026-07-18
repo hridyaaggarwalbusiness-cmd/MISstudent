@@ -43,6 +43,10 @@ import {
   CalendarEvent,
   Attachment,
   FeePayment,
+  SchoolProfile,
+  NoticeType,
+  NoticeAudience,
+  NoticePriority,
 } from '@/types';
 
 // ---- backend document shapes (mirror teacher-app/admin-app's real schema) ----
@@ -94,6 +98,11 @@ interface BackendNotice {
   targetClassIds: string[];
   attachments?: Attachment[];
   pinned?: boolean;
+  noticeType?: NoticeType;
+  audience?: NoticeAudience;
+  priority?: NoticePriority;
+  noticeDate?: string;
+  effectiveDate?: string;
 }
 
 interface BackendAttendanceRecord {
@@ -326,7 +335,9 @@ export const repo = {
       const q = query(collection(db, 'notices'), orderBy('postedAt', 'desc'));
       return onSnapshot(q, (snap) => {
         const all = snap.docs.map((d) => withId<BackendNotice>(d));
-        const mine = all.filter((n) => !n.targetClassIds?.length || n.targetClassIds.includes(classId));
+        const mine = all.filter(
+          (n) => n.audience !== 'teachers' && (!n.targetClassIds?.length || n.targetClassIds.includes(classId)),
+        );
         cb(
           mine.map((n) => ({
             id: n.id,
@@ -338,6 +349,11 @@ export const repo = {
             isRead: false,
             attachments: n.attachments,
             pinned: n.pinned,
+            noticeType: n.noticeType,
+            audience: n.audience,
+            priority: n.priority,
+            noticeDate: n.noticeDate,
+            effectiveDate: n.effectiveDate,
           })),
         );
       });
@@ -487,10 +503,8 @@ export const repo = {
   },
 
   school: {
-    subscribe: (cb: (school: { name: string; address: string; phone: string } | null) => void): Unsubscribe =>
-      onSnapshot(doc(db, 'settings', 'school'), (snap) =>
-        cb(snap.exists() ? (snap.data() as { name: string; address: string; phone: string }) : null),
-      ),
+    subscribe: (cb: (school: SchoolProfile | null) => void): Unsubscribe =>
+      onSnapshot(doc(db, 'settings', 'school'), (snap) => cb(snap.exists() ? (snap.data() as SchoolProfile) : null)),
   },
 };
 

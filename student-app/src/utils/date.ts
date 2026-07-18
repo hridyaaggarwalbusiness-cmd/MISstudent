@@ -28,6 +28,11 @@ export function friendlyDateShort(iso: string): string {
   return format(d, 'd MMM');
 }
 
+// "14th July, 2026" - the date format used on the official notice template.
+export function officialNoticeDate(iso: string): string {
+  return format(parseDate(iso), 'do MMMM, yyyy');
+}
+
 export function dueInLabel(iso: string): { label: string; overdue: boolean; urgent: boolean } {
   const d = parseDate(iso);
   const diff = differenceInCalendarDays(d, new Date());

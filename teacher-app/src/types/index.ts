@@ -112,6 +112,11 @@ export interface Exam {
 
 export type NoticeCategory = 'general' | 'academic' | 'event' | 'holiday';
 
+// Present only on notices authored via the Admin App's AI Notice Writer.
+export type NoticeType = 'holiday' | 'examination' | 'ptm' | 'event' | 'circular' | 'urgent' | 'general';
+export type NoticeAudience = 'all' | 'classes' | 'teachers' | 'parents';
+export type NoticePriority = 'normal' | 'important' | 'urgent';
+
 export interface Notice {
   id: string;
   title: string;
@@ -123,6 +128,11 @@ export interface Notice {
   targetClassIds: string[];
   attachments?: Attachment[];
   pinned?: boolean;
+  noticeType?: NoticeType;
+  audience?: NoticeAudience;
+  priority?: NoticePriority;
+  noticeDate?: string;
+  effectiveDate?: string;
 }
 
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'leave' | 'holiday' | 'weekend' | 'future';

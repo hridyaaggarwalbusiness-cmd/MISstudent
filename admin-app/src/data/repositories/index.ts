@@ -54,6 +54,7 @@ import type {
   TransportType,
   FeePaymentMethod,
   FeeStatus,
+  SchoolProfile,
 } from '@/types';
 
 function withId<T>(d: { id: string; data: () => unknown }): T {
@@ -277,6 +278,19 @@ export const repo = {
     remove: (id: string) => deleteDoc(doc(db, 'notices', id)),
   },
 
+  // Drafts from the AI Notice Writer - kept in a separate admin/teacher-only
+  // collection so an unfinished notice never becomes visible to students
+  // through the public `notices` collection.
+  noticeDrafts: {
+    subscribeAll: (cb: (items: Notice[]) => void): Unsubscribe => {
+      const q = query(collection(db, 'noticeDrafts'), orderBy('postedAt', 'desc'));
+      return onSnapshot(q, (snap) => cb(snap.docs.map((d) => withId<Notice>(d))));
+    },
+    upsert: (notice: Notice) =>
+      setDoc(doc(db, 'noticeDrafts', notice.id || cryptoId()), { ...notice, postedAt: serverTimestamp() }, { merge: true }),
+    remove: (id: string) => deleteDoc(doc(db, 'noticeDrafts', id)),
+  },
+
   materials: {
     subscribeAll: (cb: (items: StudyMaterial[]) => void): Unsubscribe => {
       const q = query(collection(db, 'studyMaterials'), orderBy('uploadedAt', 'desc'));
@@ -337,13 +351,12 @@ export const repo = {
   },
 
   school: {
-    subscribe: (cb: (school: { name: string; address: string; phone: string } | null) => void): Unsubscribe => {
+    subscribe: (cb: (school: SchoolProfile | null) => void): Unsubscribe => {
       return onSnapshot(doc(db, 'settings', 'school'), (snap) =>
-        cb(snap.exists() ? (snap.data() as { name: string; address: string; phone: string }) : null),
+        cb(snap.exists() ? (snap.data() as SchoolProfile) : null),
       );
     },
-    update: (changes: { name: string; address: string; phone: string }) =>
-      setDoc(doc(db, 'settings', 'school'), changes, { merge: true }),
+    update: (changes: SchoolProfile) => setDoc(doc(db, 'settings', 'school'), changes, { merge: true }),
   },
 
   auditLogs: {

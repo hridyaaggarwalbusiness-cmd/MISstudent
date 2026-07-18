@@ -12,6 +12,7 @@ import {
   FlaskConical,
   BarChart3,
   Megaphone,
+  Sparkles,
   BookOpen,
   CalendarDays,
   Wallet,
@@ -51,6 +52,7 @@ const sections: { label: string; links: { to: string; icon: ComponentType<{ size
     label: 'Communication',
     links: [
       { to: '/notices', icon: Megaphone, label: 'Notices' },
+      { to: '/notice-writer', icon: Sparkles, label: 'AI Notice Writer' },
       { to: '/materials', icon: BookOpen, label: 'Study Materials' },
       { to: '/calendar', icon: CalendarDays, label: 'Academic Calendar' },
     ],

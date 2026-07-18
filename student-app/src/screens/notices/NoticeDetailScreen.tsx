@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp } from '@react-navigation/native';
@@ -6,14 +6,20 @@ import { AppText, Card, DetailHeader, ErrorState } from '@components/ui';
 import { colors, spacing, radius } from '@theme';
 import { RootStackParamList } from '@navigation/types';
 import { useNoticesStore } from '@store/useNoticesStore';
-import { friendlyDate } from '@utils/date';
+import { friendlyDate, officialNoticeDate } from '@utils/date';
 import { noticeCategoryMeta } from '@data/noticeCategoryMeta';
 import { NoticeAttachmentChip } from '@components/notices/NoticeAttachmentChip';
+import { OfficialNoticeView } from '@components/notices/OfficialNoticeView';
+import { repo } from '@data/repositories';
+import { SchoolProfile } from '@/types';
 
 export function NoticeDetailScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'NoticeDetail'>>();
   const { items, markRead } = useNoticesStore();
   const notice = items.find((n) => n.id === route.params.id);
+  const [school, setSchool] = useState<SchoolProfile>({ name: 'School', address: '', phone: '' });
+
+  useEffect(() => repo.school.subscribe((s) => s && setSchool(s)), []);
 
   useEffect(() => {
     if (notice && !notice.isRead) {
@@ -52,11 +58,26 @@ export function NoticeDetailScreen() {
           {friendlyDate(notice.postedAt)} · By {notice.postedBy}
         </AppText>
 
-        <Card style={{ marginTop: spacing.lg }}>
-          <AppText variant="body" style={{ lineHeight: 23 }}>
-            {notice.body}
-          </AppText>
-        </Card>
+        {notice.noticeType ? (
+          <View style={{ marginTop: spacing.lg }}>
+            <OfficialNoticeView
+              data={{
+                schoolName: school.name,
+                affiliation: school.affiliation,
+                principalName: school.principalName,
+                date: officialNoticeDate(notice.noticeDate ?? notice.postedAt),
+                body: notice.body,
+              }}
+              fileBaseName={notice.title}
+            />
+          </View>
+        ) : (
+          <Card style={{ marginTop: spacing.lg }}>
+            <AppText variant="body" style={{ lineHeight: 23 }}>
+              {notice.body}
+            </AppText>
+          </Card>
+        )}
 
         {notice.attachments && notice.attachments.length > 0 && (
           <View style={{ marginTop: spacing.lg }}>

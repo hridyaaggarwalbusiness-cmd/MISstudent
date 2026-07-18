@@ -120,6 +120,12 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin() || isTeacher();
     }
 
+    // ---- noticeDrafts (AI Notice Writer "Save Draft" - never shown to
+    // students/parents, so it's kept out of the public notices collection) ----
+    match /noticeDrafts/{draftId} {
+      allow read, write: if isAdmin() || isTeacher();
+    }
+
     // ---- studyMaterials ----
     match /studyMaterials/{materialId} {
       allow read: if isAdmin() ||
