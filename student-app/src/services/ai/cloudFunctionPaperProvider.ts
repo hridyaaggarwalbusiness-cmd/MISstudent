@@ -1,6 +1,13 @@
 import { httpsCallable, FunctionsError } from 'firebase/functions';
 import { functions } from '@services/firebase';
-import { GeneratedPaper, PaperQuestion, PracticeTestRequest, RegenerateQuestionRequest } from '@/types';
+import {
+  GeneratedPaper,
+  GradeAnswersRequest,
+  PaperQuestion,
+  PracticeTestRequest,
+  RegenerateQuestionRequest,
+  SubjectiveGrade,
+} from '@/types';
 import { PaperGenerationError, PaperProvider } from './paperProvider';
 
 // The actual LLM call (and its API key) lives entirely server-side in a
@@ -12,6 +19,7 @@ const regeneratePracticeTestQuestion = httpsCallable<RegenerateQuestionRequest, 
   functions,
   'regeneratePracticeTestQuestion',
 );
+const gradePracticeTestAnswers = httpsCallable<GradeAnswersRequest, SubjectiveGrade[]>(functions, 'gradePracticeTestAnswers');
 
 function toFriendlyError(err: unknown): PaperGenerationError {
   if (err instanceof FunctionsError) {
@@ -45,6 +53,16 @@ export const cloudFunctionPaperProvider: PaperProvider = {
   async regenerateQuestion(request) {
     try {
       const result = await regeneratePracticeTestQuestion(request);
+      return result.data;
+    } catch (err) {
+      throw toFriendlyError(err);
+    }
+  },
+
+  async gradeSubjectiveAnswers(request) {
+    if (request.answers.length === 0) return [];
+    try {
+      const result = await gradePracticeTestAnswers(request);
       return result.data;
     } catch (err) {
       throw toFriendlyError(err);

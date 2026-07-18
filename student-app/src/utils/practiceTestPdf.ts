@@ -79,7 +79,7 @@ export function generatePracticeTestPdf(paper: GeneratedPaper, school: School): 
   const metaItems: [string, string][] = [
     ['Class', paper.classLabel],
     ['Subject', paper.subject],
-    ['Chapter / Topic', paper.chapterTopic],
+    [paper.topics.length > 1 ? 'Chapters / Topics' : 'Chapter / Topic', paper.topics.join(', ')],
     ['Paper Type', PAPER_TYPE_LABEL[paper.paperType]],
     ['Difficulty', DIFFICULTY_LABEL[paper.difficulty]],
     ['Language', LANGUAGE_LABEL[paper.language]],

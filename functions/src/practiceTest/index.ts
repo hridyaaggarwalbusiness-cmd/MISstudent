@@ -1,9 +1,18 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
 import { llmProvider, ANTHROPIC_API_KEY } from '../ai';
-import { buildGeneratePrompt, buildRegenerateQuestionPrompt } from './prompt';
-import { extractJson, normalizePaper, normalizeRegeneratedQuestion, PaperValidationError } from './schema';
-import { GeneratedPaper, PaperQuestion, PracticeTestRequest, QuestionType, RegenerateQuestionRequest } from './types';
+import { buildGeneratePrompt, buildGradeAnswersPrompt, buildRegenerateQuestionPrompt } from './prompt';
+import { extractJson, normalizeGrades, normalizePaper, normalizeRegeneratedQuestion, PaperValidationError } from './schema';
+import {
+  GeneratedPaper,
+  GradeAnswersRequest,
+  PaperQuestion,
+  PracticeTestRequest,
+  QuestionType,
+  RegenerateQuestionRequest,
+  SubjectiveAnswerToGrade,
+  SubjectiveGrade,
+} from './types';
 
 async function assertIsStudent(uid: string | undefined) {
   if (!uid) throw new HttpsError('unauthenticated', 'You must be signed in.');
@@ -25,7 +34,9 @@ function validateRequest(data: unknown): PracticeTestRequest {
   const errors: string[] = [];
   if (typeof d.classLabel !== 'string' || !d.classLabel.trim()) errors.push('classLabel');
   if (typeof d.subject !== 'string' || !d.subject.trim()) errors.push('subject');
-  if (typeof d.chapterTopic !== 'string' || !d.chapterTopic.trim()) errors.push('chapterTopic');
+  if (!Array.isArray(d.topics) || d.topics.length === 0 || !d.topics.every((t) => typeof t === 'string' && t.trim())) {
+    errors.push('topics');
+  }
   if (typeof d.totalMarks !== 'number' || d.totalMarks <= 0 || d.totalMarks > 200) errors.push('totalMarks');
   if (typeof d.paperType !== 'string' || !PAPER_TYPES.has(d.paperType)) errors.push('paperType');
   if (typeof d.difficulty !== 'string' || !DIFFICULTIES.has(d.difficulty)) errors.push('difficulty');
@@ -36,7 +47,7 @@ function validateRequest(data: unknown): PracticeTestRequest {
   return {
     classLabel: (d.classLabel as string).trim(),
     subject: (d.subject as string).trim(),
-    chapterTopic: (d.chapterTopic as string).trim().slice(0, 200),
+    topics: (d.topics as string[]).map((t) => t.trim().slice(0, 200)),
     paperType: d.paperType as PracticeTestRequest['paperType'],
     totalMarks: d.totalMarks as number,
     difficulty: d.difficulty as PracticeTestRequest['difficulty'],
@@ -107,6 +118,51 @@ export const regeneratePracticeTestQuestion = onCall(
     } catch (err) {
       if (err instanceof PaperValidationError) throw new HttpsError('internal', err.message);
       throw new HttpsError('internal', err instanceof Error ? err.message : 'Failed to regenerate question.');
+    }
+  },
+);
+
+function validateGradeRequest(data: unknown): GradeAnswersRequest {
+  const d = (data ?? {}) as Record<string, unknown>;
+  if (!d.request || typeof d.request !== 'object') throw new HttpsError('invalid-argument', 'Missing "request".');
+  if (!Array.isArray(d.answers) || d.answers.length === 0) throw new HttpsError('invalid-argument', 'Missing "answers".');
+
+  const answers: SubjectiveAnswerToGrade[] = d.answers.map((raw, i) => {
+    const a = raw as Record<string, unknown>;
+    if (typeof a.questionId !== 'string' || !a.questionId.trim()) {
+      throw new HttpsError('invalid-argument', `answers[${i}] is missing "questionId".`);
+    }
+    if (typeof a.maxMarks !== 'number' || a.maxMarks <= 0) {
+      throw new HttpsError('invalid-argument', `answers[${i}] has invalid "maxMarks".`);
+    }
+    return {
+      questionId: a.questionId,
+      questionText: typeof a.questionText === 'string' ? a.questionText : '',
+      maxMarks: a.maxMarks,
+      modelAnswer: typeof a.modelAnswer === 'string' ? a.modelAnswer : '',
+      studentAnswer: typeof a.studentAnswer === 'string' ? a.studentAnswer : '',
+    };
+  });
+
+  return { request: validateRequest(d.request), answers };
+}
+
+// Batches every subjective question in one submission into a single AI call
+// rather than one request per question, to keep quota usage low.
+export const gradePracticeTestAnswers = onCall(
+  { secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 90 },
+  async (req): Promise<SubjectiveGrade[]> => {
+    await assertIsStudent(req.auth?.uid);
+    const { request, answers } = validateGradeRequest(req.data);
+
+    const prompt = buildGradeAnswersPrompt({ request, answers });
+    try {
+      const raw = await llmProvider.complete(prompt, { maxTokens: 4000 });
+      const parsed = extractJson(raw);
+      return normalizeGrades(parsed, answers);
+    } catch (err) {
+      if (err instanceof PaperValidationError) throw new HttpsError('internal', err.message);
+      throw new HttpsError('internal', err instanceof Error ? err.message : 'Failed to grade answers.');
     }
   },
 );

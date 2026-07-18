@@ -261,7 +261,7 @@ export type QuestionType =
 export interface PracticeTestRequest {
   classLabel: string;
   subject: string;
-  chapterTopic: string;
+  topics: string[];
   paperType: PaperType;
   totalMarks: number;
   difficulty: Difficulty;
@@ -302,7 +302,7 @@ export interface GeneratedPaper {
   title: string;
   classLabel: string;
   subject: string;
-  chapterTopic: string;
+  topics: string[];
   paperType: PaperType;
   totalMarks: number;
   difficulty: Difficulty;
@@ -319,4 +319,59 @@ export interface RegenerateQuestionRequest {
   sectionTitle: string;
   questionType: QuestionType;
   marks: number;
+}
+
+// ---- AI Practice Test: attempting + grading ----
+
+// One student response per question. `response` is the raw text/selection
+// (option text for mcq/assertion_reason, "True"/"False", typed text for
+// everything else). `matchSelections` is match_following-only: parallel to
+// the question's matchPairs, matchSelections[i] is the index into
+// matchPairs the student picked as the right-hand match for left item i
+// (or -1 if left unmatched).
+export interface AttemptAnswer {
+  questionId: string;
+  response: string;
+  matchSelections?: number[];
+}
+
+export type GradingMethod = 'objective' | 'ai' | 'unanswered';
+
+export interface QuestionResult {
+  questionId: string;
+  marksAwarded: number;
+  maxMarks: number;
+  method: GradingMethod;
+  correct: boolean;
+  studentAnswerText: string;
+  correctAnswerText: string;
+  feedback?: string;
+}
+
+export interface PaperAttemptResult {
+  totalMarksAwarded: number;
+  totalMaxMarks: number;
+  percentage: number;
+  grade: string;
+  questionResults: QuestionResult[];
+  gradedAt: string;
+}
+
+export interface SubjectiveAnswerToGrade {
+  questionId: string;
+  questionText: string;
+  maxMarks: number;
+  modelAnswer: string;
+  studentAnswer: string;
+}
+
+export interface GradeAnswersRequest {
+  request: PracticeTestRequest;
+  answers: SubjectiveAnswerToGrade[];
+}
+
+export interface SubjectiveGrade {
+  questionId: string;
+  marksAwarded: number;
+  feedback: string;
 }

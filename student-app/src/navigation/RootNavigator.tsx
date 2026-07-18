@@ -14,6 +14,8 @@ import { SearchScreen } from '@screens/search/SearchScreen';
 import { FeeReceiptsScreen } from '@screens/fees/FeeReceiptsScreen';
 import { PracticeTestGeneratorScreen } from '@screens/practiceTest/PracticeTestGeneratorScreen';
 import { PracticeTestResultScreen } from '@screens/practiceTest/PracticeTestResultScreen';
+import { PracticeTestAttemptScreen } from '@screens/practiceTest/PracticeTestAttemptScreen';
+import { PracticeTestScoreScreen } from '@screens/practiceTest/PracticeTestScoreScreen';
 import { colors } from '@theme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -45,6 +47,8 @@ export function RootNavigator() {
         <Stack.Screen name="FeeReceipts" component={FeeReceiptsScreen} />
         <Stack.Screen name="PracticeTestGenerator" component={PracticeTestGeneratorScreen} />
         <Stack.Screen name="PracticeTestResult" component={PracticeTestResultScreen} />
+        <Stack.Screen name="PracticeTestAttempt" component={PracticeTestAttemptScreen} />
+        <Stack.Screen name="PracticeTestScore" component={PracticeTestScoreScreen} />
         <Stack.Screen name="Search" component={SearchScreen} options={{ animation: 'fade' }} />
       </Stack.Navigator>
     </NavigationContainer>

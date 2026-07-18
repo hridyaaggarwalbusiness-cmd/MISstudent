@@ -21,7 +21,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 
 initializeApp();
 
-export { generatePracticeTestPaper, regeneratePracticeTestQuestion } from './practiceTest';
+export { generatePracticeTestPaper, regeneratePracticeTestQuestion, gradePracticeTestAnswers } from './practiceTest';
 
 async function assertIsAdmin(uid: string | undefined) {
   if (!uid) throw new HttpsError('unauthenticated', 'You must be signed in.');

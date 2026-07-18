@@ -1,6 +1,6 @@
-import { GeneratedPaper, PaperQuestion, PracticeTestRequest, RegenerateQuestionRequest } from '@/types';
-import { buildGeneratePrompt, buildRegenerateQuestionPrompt } from './promptBuilder';
-import { extractJson, normalizePaper, normalizeRegeneratedQuestion, PaperValidationError } from './paperSchema';
+import { GeneratedPaper, GradeAnswersRequest, PaperQuestion, PracticeTestRequest, RegenerateQuestionRequest, SubjectiveGrade } from '@/types';
+import { buildGeneratePrompt, buildGradeAnswersPrompt, buildRegenerateQuestionPrompt } from './promptBuilder';
+import { extractJson, normalizeGrades, normalizePaper, normalizeRegeneratedQuestion, PaperValidationError } from './paperSchema';
 import { PaperGenerationError, PaperProvider } from './paperProvider';
 
 // This is the ONLY provider that can run on Firebase's free Spark plan: no
@@ -126,6 +126,20 @@ export const geminiProvider: PaperProvider = {
       if (err instanceof PaperGenerationError) throw err;
       const message = err instanceof PaperValidationError ? err.message : 'Could not regenerate that question. Please try again.';
       throw new PaperGenerationError(message, 'regenerate-failed');
+    }
+  },
+
+  async gradeSubjectiveAnswers(request: GradeAnswersRequest): Promise<SubjectiveGrade[]> {
+    if (request.answers.length === 0) return [];
+    const prompt = buildGradeAnswersPrompt(request);
+    try {
+      const raw = await callGemini(prompt, 4000);
+      const parsed = extractJson(raw);
+      return normalizeGrades(parsed, request.answers);
+    } catch (err) {
+      if (err instanceof PaperGenerationError) throw err;
+      const message = err instanceof PaperValidationError ? err.message : 'Could not grade your answers. Please try again.';
+      throw new PaperGenerationError(message, 'grading-failed');
     }
   },
 };

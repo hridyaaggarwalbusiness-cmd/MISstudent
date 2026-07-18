@@ -1,4 +1,11 @@
-import { GeneratedPaper, PaperQuestion, PracticeTestRequest, RegenerateQuestionRequest } from '@/types';
+import {
+  GeneratedPaper,
+  GradeAnswersRequest,
+  PaperQuestion,
+  PracticeTestRequest,
+  RegenerateQuestionRequest,
+  SubjectiveGrade,
+} from '@/types';
 
 // The one contract every concrete AI backend must satisfy. Screens and the
 // prompt/business logic only ever depend on this interface - swapping the
@@ -8,6 +15,7 @@ import { GeneratedPaper, PaperQuestion, PracticeTestRequest, RegenerateQuestionR
 export interface PaperProvider {
   generatePaper(request: PracticeTestRequest): Promise<GeneratedPaper>;
   regenerateQuestion(request: RegenerateQuestionRequest): Promise<PaperQuestion>;
+  gradeSubjectiveAnswers(request: GradeAnswersRequest): Promise<SubjectiveGrade[]>;
 }
 
 export class PaperGenerationError extends Error {

@@ -1,4 +1,12 @@
-import { GeneratedPaper, PaperQuestion, PaperSection, PracticeTestRequest, QuestionType } from '@/types';
+import {
+  GeneratedPaper,
+  PaperQuestion,
+  PaperSection,
+  PracticeTestRequest,
+  QuestionType,
+  SubjectiveAnswerToGrade,
+  SubjectiveGrade,
+} from '@/types';
 
 export class PaperValidationError extends Error {}
 
@@ -101,7 +109,7 @@ export function normalizePaper(raw: unknown, request: PracticeTestRequest): Gene
     title: obj.title.trim(),
     classLabel: request.classLabel,
     subject: request.subject,
-    chapterTopic: request.chapterTopic,
+    topics: request.topics,
     paperType: request.paperType,
     totalMarks: request.totalMarks,
     difficulty: request.difficulty,
@@ -136,4 +144,26 @@ export function normalizeRegeneratedQuestion(
     answer: q.answer.trim(),
     explanation: isNonEmptyString(q.explanation) ? q.explanation : undefined,
   };
+}
+
+// Grading is intentionally more forgiving than paper generation: a missing
+// or out-of-range mark for one question shouldn't fail the whole batch when
+// the other 9 graded fine, so out-of-range values are clamped rather than
+// thrown, and any question the model dropped just falls back to 0.
+export function normalizeGrades(raw: unknown, expected: SubjectiveAnswerToGrade[]): SubjectiveGrade[] {
+  if (!Array.isArray(raw)) throw new PaperValidationError('AI grading response is not a JSON array.');
+
+  const byId = new Map<string, Record<string, unknown>>();
+  raw.forEach((item) => {
+    const g = item as Record<string, unknown>;
+    if (g && isNonEmptyString(g.questionId)) byId.set(g.questionId, g);
+  });
+
+  return expected.map((exp) => {
+    const g = byId.get(exp.questionId);
+    const rawMarks = typeof g?.marksAwarded === 'number' ? g.marksAwarded : 0;
+    const marksAwarded = Math.max(0, Math.min(exp.maxMarks, rawMarks));
+    const feedback = isNonEmptyString(g?.feedback) ? (g!.feedback as string).trim() : 'Graded by AI.';
+    return { questionId: exp.questionId, marksAwarded, feedback };
+  });
 }

@@ -8,6 +8,7 @@ import { AppText, Button, Card, Chip, DetailHeader, SegmentedControl, Divider } 
 import { StepIndicator } from '@components/practiceTest/StepIndicator';
 import { OptionCard } from '@components/practiceTest/OptionCard';
 import { FormField } from '@components/practiceTest/FormField';
+import { TopicTagInput } from '@components/practiceTest/TopicTagInput';
 import { colors, radius, spacing } from '@theme';
 import { useAuthStore } from '@store/useAuthStore';
 import { paperProvider, PaperGenerationError } from '@services/ai';
@@ -38,7 +39,7 @@ export function PracticeTestGeneratorScreen() {
   const [step, setStep] = useState(0);
   const [classLabel, setClassLabel] = useState(() => defaultClassLabel(student?.className));
   const [subject, setSubject] = useState('');
-  const [chapterTopic, setChapterTopic] = useState('');
+  const [topics, setTopics] = useState<string[]>([]);
   const [paperType, setPaperType] = useState<PaperType>('practice_test');
   const [totalMarks, setTotalMarks] = useState<number>(20);
   const [customMarks, setCustomMarks] = useState('');
@@ -63,7 +64,7 @@ export function PracticeTestGeneratorScreen() {
     if (!availableLanguages.includes(language)) setLanguage(availableLanguages[0]);
   }, [availableLanguages, language]);
 
-  const step0Valid = classLabel.length > 0 && subject.length > 0 && chapterTopic.trim().length > 0;
+  const step0Valid = classLabel.length > 0 && subject.length > 0 && topics.length > 0;
   const step1Valid = totalMarks > 0 && totalMarks <= 200;
 
   function goNext() {
@@ -84,7 +85,7 @@ export function PracticeTestGeneratorScreen() {
     const request: PracticeTestRequest = {
       classLabel,
       subject,
-      chapterTopic: chapterTopic.trim(),
+      topics,
       paperType,
       totalMarks,
       difficulty,
@@ -113,8 +114,8 @@ export function PracticeTestGeneratorScreen() {
           Crafting your CBSE paper...
         </AppText>
         <AppText variant="body" color={colors.textSecondary} align="center" style={{ marginTop: 6, maxWidth: 280 }}>
-          Our AI is writing {totalMarks} marks of {subject || 'your subject'} questions on “{chapterTopic}”. This usually takes under a
-          minute.
+          Our AI is writing {totalMarks} marks of {subject || 'your subject'} questions on {topics.map((t) => `“${t}”`).join(', ')}.
+          This usually takes under a minute.
         </AppText>
       </View>
     );
@@ -134,14 +135,8 @@ export function PracticeTestGeneratorScreen() {
             <SectionLabel text="Subject" />
             <ChipRow options={subjectOptions} value={subject} onChange={setSubject} />
 
-            <SectionLabel text="Chapter / Topic" />
-            <FormField
-              placeholder="e.g. Photosynthesis, Fractions, The French Revolution..."
-              value={chapterTopic}
-              onChangeText={setChapterTopic}
-              multiline
-              style={{ height: 72, paddingTop: 12, textAlignVertical: 'top' }}
-            />
+            <SectionLabel text="Chapters / Topics" />
+            <TopicTagInput topics={topics} onChange={setTopics} placeholder="e.g. Photosynthesis, Fractions..." />
           </>
         )}
 
@@ -261,7 +256,7 @@ export function PracticeTestGeneratorScreen() {
           <ReviewStep
             classLabel={classLabel}
             subject={subject}
-            chapterTopic={chapterTopic}
+            topics={topics}
             paperType={paperType}
             totalMarks={totalMarks}
             difficulty={difficulty}
@@ -347,7 +342,7 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
 function ReviewStep(props: {
   classLabel: string;
   subject: string;
-  chapterTopic: string;
+  topics: string[];
   paperType: PaperType;
   totalMarks: number;
   difficulty: Difficulty;
@@ -365,7 +360,7 @@ function ReviewStep(props: {
         <Divider style={{ marginVertical: spacing.sm }} />
         <ReviewRow label="Subject" value={props.subject} />
         <Divider style={{ marginVertical: spacing.sm }} />
-        <ReviewRow label="Chapter / Topic" value={props.chapterTopic} />
+        <ReviewRow label={props.topics.length > 1 ? 'Chapters / Topics' : 'Chapter / Topic'} value={props.topics.join(', ')} />
         <Divider style={{ marginVertical: spacing.sm }} />
         <ReviewRow label="Paper Type" value={paperTypeLabel} />
         <Divider style={{ marginVertical: spacing.sm }} />

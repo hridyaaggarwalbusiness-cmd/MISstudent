@@ -20,7 +20,7 @@ export type QuestionType =
 export interface PracticeTestRequest {
   classLabel: string;
   subject: string;
-  chapterTopic: string;
+  topics: string[];
   paperType: PaperType;
   totalMarks: number;
   difficulty: Difficulty;
@@ -57,7 +57,7 @@ export interface GeneratedPaper {
   title: string;
   classLabel: string;
   subject: string;
-  chapterTopic: string;
+  topics: string[];
   paperType: PaperType;
   totalMarks: number;
   difficulty: Difficulty;
@@ -74,4 +74,23 @@ export interface RegenerateQuestionRequest {
   sectionTitle: string;
   questionType: QuestionType;
   marks: number;
+}
+
+export interface SubjectiveAnswerToGrade {
+  questionId: string;
+  questionText: string;
+  maxMarks: number;
+  modelAnswer: string;
+  studentAnswer: string;
+}
+
+export interface GradeAnswersRequest {
+  request: PracticeTestRequest;
+  answers: SubjectiveAnswerToGrade[];
+}
+
+export interface SubjectiveGrade {
+  questionId: string;
+  marksAwarded: number;
+  feedback: string;
 }

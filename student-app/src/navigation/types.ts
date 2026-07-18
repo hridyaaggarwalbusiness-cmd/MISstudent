@@ -1,5 +1,5 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
-import { GeneratedPaper } from '@/types';
+import { GeneratedPaper, PaperAttemptResult } from '@/types';
 
 export type MainTabParamList = {
   HomeTab: undefined;
@@ -23,6 +23,8 @@ export type RootStackParamList = {
   FeeReceipts: undefined;
   PracticeTestGenerator: undefined;
   PracticeTestResult: { paper: GeneratedPaper };
+  PracticeTestAttempt: { paper: GeneratedPaper };
+  PracticeTestScore: { paper: GeneratedPaper; result: PaperAttemptResult };
 };
 
 declare global {

@@ -41,7 +41,7 @@ export function PracticeTestResultScreen() {
         request: {
           classLabel: paper.classLabel,
           subject: paper.subject,
-          chapterTopic: paper.chapterTopic,
+          topics: paper.topics,
           paperType: paper.paperType,
           totalMarks: paper.totalMarks,
           difficulty: paper.difficulty,
@@ -103,6 +103,7 @@ export function PracticeTestResultScreen() {
           <View style={styles.metaGrid}>
             <MetaItem label="Class" value={paper.classLabel} />
             <MetaItem label="Subject" value={paper.subject} />
+            <MetaItem label={paper.topics.length > 1 ? 'Topics' : 'Topic'} value={paper.topics.join(', ')} />
             <MetaItem label="Paper Type" value={PAPER_TYPE_LABEL[paper.paperType]} />
             <MetaItem label="Total Marks" value={String(paper.totalMarks)} />
             <MetaItem label="Difficulty" value={DIFFICULTY_LABEL[paper.difficulty]} />
@@ -123,6 +124,14 @@ export function PracticeTestResultScreen() {
             </View>
           )}
         </Card>
+
+        <Button
+          label="Attempt This Test"
+          icon="create"
+          fullWidth
+          onPress={() => navigation.navigate('PracticeTestAttempt', { paper })}
+          style={{ marginBottom: spacing.md }}
+        />
 
         {actionError && (
           <View style={styles.errorBox}>
