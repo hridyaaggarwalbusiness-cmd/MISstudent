@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Clock,
   Download,
+  Eye,
   FileSpreadsheet,
   History,
   PercentCircle,
@@ -34,7 +35,9 @@ import { useCollection } from '@/hooks/useCollection';
 import { useToast } from '@/components/ui/Toast';
 import { repo } from '@/data/repositories';
 import { downloadCsv } from '@/utils/csv';
-import { downloadReceiptPdf } from '@/utils/receiptPdf';
+import { downloadReceiptPdf, viewReceiptPdf } from '@/utils/receiptPdf';
+import { buildCombinedReceipt } from '@/utils/combinedReceipt';
+import type { CombinedReceipt } from '@/utils/combinedReceipt';
 import { splitFeeLines } from '@/utils/feeSplit';
 import { FEE_STATUS_LABEL, FEE_STATUS_TONE, INSTALLMENT_LABEL, PAYMENT_METHOD_LABEL } from '@/utils/feeLabels';
 import type {
@@ -112,6 +115,18 @@ export function FeesPage() {
     }
     return repo.fees.subscribePaymentsForStudent(historyStudent.id, setHistoryPayments);
   }, [historyStudent]);
+
+  const historyByInstallment = useMemo(() => {
+    const groups = new Map<InstallmentId, FeePayment[]>();
+    historyPayments.forEach((p) => {
+      const list = groups.get(p.installmentId) ?? [];
+      list.push(p);
+      groups.set(p.installmentId, list);
+    });
+    return (['1', '2'] as InstallmentId[])
+      .map((id) => ({ id, receipt: buildCombinedReceipt(groups.get(id) ?? []) }))
+      .filter((g): g is { id: InstallmentId; receipt: CombinedReceipt } => g.receipt !== null);
+  }, [historyPayments]);
 
   const structuresByClass = useMemo(() => new Map(structures.map((s) => [s.classId, s])), [structures]);
   const recordsByKey = useMemo(() => new Map(records.map((r) => [`${r.studentId}_${r.installmentId}`, r])), [records]);
@@ -233,8 +248,8 @@ export function FeesPage() {
     setSelected((prev) => (prev.size === filteredRows.length && filteredRows.length > 0 ? new Set() : new Set(filteredRows.map(rowKey))));
   }
 
-  function latestPaymentFor(studentId: string, installmentId: InstallmentId): FeePayment | undefined {
-    return payments.find((p) => p.studentId === studentId && p.installmentId === installmentId);
+  function paymentsFor(studentId: string, installmentId: InstallmentId): FeePayment[] {
+    return payments.filter((p) => p.studentId === studentId && p.installmentId === installmentId);
   }
 
   function goToDetail(row: FeeRow) {
@@ -242,21 +257,21 @@ export function FeesPage() {
   }
 
   function handleDownloadReceipt(row: FeeRow) {
-    const payment = latestPaymentFor(row.student.id, row.installmentId);
-    if (!payment) {
+    const receipt = buildCombinedReceipt(paymentsFor(row.student.id, row.installmentId));
+    if (!receipt) {
       show('No payment recorded yet for this installment', 'info');
       return;
     }
-    downloadReceiptPdf(payment, school);
+    downloadReceiptPdf(receipt, school);
   }
 
   function handleBulkGenerateReceipts() {
     const rows = filteredRows.filter((r) => selected.has(rowKey(r)));
     let generated = 0;
     rows.forEach((row) => {
-      const payment = latestPaymentFor(row.student.id, row.installmentId);
-      if (payment) {
-        downloadReceiptPdf(payment, school);
+      const receipt = buildCombinedReceipt(paymentsFor(row.student.id, row.installmentId));
+      if (receipt) {
+        downloadReceiptPdf(receipt, school);
         generated++;
       }
     });
@@ -415,9 +430,8 @@ export function FeesPage() {
         </Card>
       )}
 
-      <div className={styles.layout}>
-        <div className={styles.main}>
-          <Card padded={false}>
+      <div className={styles.main}>
+        <Card padded={false}>
             {loading ? (
               <div style={{ padding: 20 }}>
                 <SkeletonRows count={6} />
@@ -532,61 +546,60 @@ export function FeesPage() {
               </div>
             )}
           </Card>
-        </div>
+      </div>
 
-        <div className={styles.sidebar}>
-          <Card>
-            <div className={styles.sectionTitle}>
-              <Receipt size={16} /> Today's Activity
+      <div className={styles.summaryRow}>
+        <Card>
+          <div className={styles.sectionTitle}>
+            <Receipt size={16} /> Today's Activity
+          </div>
+          <div className={styles.todayTotal}>₹{todaysCollection.toLocaleString('en-IN')} collected today</div>
+          {todaysActivity.length === 0 ? (
+            <EmptyState icon={<Receipt size={24} />} title="No payments yet" compact />
+          ) : (
+            <div className={styles.activityList}>
+              {todaysActivity.map((p) => (
+                <button key={p.id} className={styles.activityItem} onClick={() => navigate(`/fees/${p.studentId}?installment=${p.installmentId}`)}>
+                  <Avatar name={p.studentName} size={30} />
+                  <div className={styles.activityBody}>
+                    <span className={styles.activityName}>{p.studentName}</span>
+                    <span className={styles.activityMeta}>
+                      {INSTALLMENT_LABEL[p.installmentId]} · {PAYMENT_METHOD_LABEL[p.paymentMethod]}
+                    </span>
+                  </div>
+                  <span className={styles.activityAmount}>₹{p.amount.toLocaleString('en-IN')}</span>
+                </button>
+              ))}
             </div>
-            <div className={styles.todayTotal}>₹{todaysCollection.toLocaleString('en-IN')} collected today</div>
-            {todaysActivity.length === 0 ? (
-              <EmptyState icon={<Receipt size={24} />} title="No payments yet" compact />
-            ) : (
-              <div className={styles.activityList}>
-                {todaysActivity.map((p) => (
-                  <button key={p.id} className={styles.activityRow} onClick={() => navigate(`/fees/${p.studentId}?installment=${p.installmentId}`)}>
-                    <Avatar name={p.studentName} size={30} />
-                    <div className={styles.activityBody}>
-                      <span className={styles.activityName}>{p.studentName}</span>
-                      <span className={styles.activityMeta}>
-                        {INSTALLMENT_LABEL[p.installmentId]} · {PAYMENT_METHOD_LABEL[p.paymentMethod]}
-                      </span>
-                    </div>
-                    <span className={styles.activityAmount}>₹{p.amount.toLocaleString('en-IN')}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </Card>
+          )}
+        </Card>
 
-          <Card>
-            <div className={styles.sectionTitle}>
-              <Wallet size={16} /> Installment Summary
-            </div>
-            {installmentSummary.map((s) => (
-              <div key={s.id} className={styles.installmentSummaryRow}>
-                <div className={styles.installmentSummaryHead}>
-                  <span className={styles.installmentSummaryLabel}>{s.label}</span>
-                  <span className={styles.installmentSummaryPct}>{s.pct}%</span>
-                </div>
-                <ProgressBar value={s.pct} color={s.pct >= 100 ? 'var(--color-success)' : 'var(--color-primary)'} />
-                <div className={styles.installmentSummaryBreakdown}>
-                  <Badge label={`${s.paid} Paid`} tone="success" />
-                  <Badge label={`${s.partial} Partial`} tone="warning" />
-                  <Badge label={`${s.unpaid} Unpaid`} tone="danger" />
-                </div>
+        <Card>
+          <div className={styles.sectionTitle}>
+            <Wallet size={16} /> Installment Summary
+          </div>
+          {installmentSummary.map((s) => (
+            <div key={s.id} className={styles.installmentSummaryRow}>
+              <div className={styles.installmentSummaryHead}>
+                <span className={styles.installmentSummaryLabel}>{s.label}</span>
+                <span className={styles.installmentSummaryPct}>{s.pct}%</span>
               </div>
-            ))}
-            <div className={styles.installmentSummaryTotal}>
-              <span>Total (Both Installments)</span>
-              <div className={styles.installmentSummaryTotalRow}>
-                <span>₹{installmentSummary.reduce((s, i) => s + i.expected, 0).toLocaleString('en-IN')} Total Due</span>
-                <span>₹{installmentSummary.reduce((s, i) => s + i.collected, 0).toLocaleString('en-IN')} Collected</span>
+              <ProgressBar value={s.pct} color={s.pct >= 100 ? 'var(--color-success)' : 'var(--color-primary)'} />
+              <div className={styles.installmentSummaryBreakdown}>
+                <Badge label={`${s.paid} Paid`} tone="success" />
+                <Badge label={`${s.partial} Partial`} tone="warning" />
+                <Badge label={`${s.unpaid} Unpaid`} tone="danger" />
               </div>
             </div>
-          </Card>
-        </div>
+          ))}
+          <div className={styles.installmentSummaryTotal}>
+            <span>Total (Both Installments)</span>
+            <div className={styles.installmentSummaryTotalRow}>
+              <span>₹{installmentSummary.reduce((s, i) => s + i.expected, 0).toLocaleString('en-IN')} Total Due</span>
+              <span>₹{installmentSummary.reduce((s, i) => s + i.collected, 0).toLocaleString('en-IN')} Collected</span>
+            </div>
+          </div>
+        </Card>
       </div>
 
       {selected.size > 0 && (
@@ -608,32 +621,42 @@ export function FeesPage() {
         open={!!historyStudent}
         title={`Payment History${historyStudent ? ` · ${historyStudent.name}` : ''}`}
         onClose={() => setHistoryStudent(null)}
-        width={720}
+        width={760}
       >
-        {historyPayments.length === 0 ? (
+        {historyByInstallment.length === 0 ? (
           <EmptyState icon={<History size={28} />} title="No payments yet" compact />
         ) : (
-          <Table
-            rowKey={(p) => p.id}
-            rows={historyPayments}
-            columns={[
-              { key: 'date', header: 'Date', render: (p) => formatDate(p.paymentDate) },
-              { key: 'receipt', header: 'Receipt No.', render: (p) => p.receiptNo },
-              { key: 'method', header: 'Payment Mode', render: (p) => PAYMENT_METHOD_LABEL[p.paymentMethod] },
-              { key: 'amount', header: 'Amount Paid', render: (p) => `₹${p.amount.toLocaleString('en-IN')}` },
-              { key: 'remarks', header: 'Remarks', render: (p) => p.remarks || '—' },
-              {
-                key: 'actions',
-                header: '',
-                align: 'right',
-                render: (p) => (
-                  <div className={tableStyles.actions}>
-                    <IconButton icon={Download} onClick={() => downloadReceiptPdf(p, school)} aria-label="Download receipt" />
+          <div className={styles.historyGroups}>
+            {historyByInstallment.map(({ id, receipt }) => (
+              <div key={id} className={styles.historyGroup}>
+                <div className={styles.historyGroupHead}>
+                  <div>
+                    <span className={styles.historyGroupTitle}>{INSTALLMENT_LABEL[id]}</span>
+                    <Badge label={FEE_STATUS_LABEL[receipt.status]} tone={FEE_STATUS_TONE[receipt.status]} />
                   </div>
-                ),
-              },
-            ]}
-          />
+                  <div className={tableStyles.actions}>
+                    <IconButton icon={Eye} onClick={() => viewReceiptPdf(receipt, school)} aria-label="View receipt" />
+                    <IconButton icon={Download} onClick={() => downloadReceiptPdf(receipt, school)} aria-label="Download receipt" />
+                  </div>
+                </div>
+                <Table
+                  rowKey={(p) => p.receiptNo}
+                  rows={receipt.parts}
+                  columns={[
+                    { key: 'seq', header: 'Part', render: (p) => `Part ${p.seq}` },
+                    { key: 'date', header: 'Date', render: (p) => formatDate(p.paymentDate) },
+                    { key: 'method', header: 'Payment Mode', render: (p) => PAYMENT_METHOD_LABEL[p.paymentMethod] },
+                    { key: 'receipt', header: 'Receipt No.', render: (p) => p.receiptNo },
+                    { key: 'amount', header: 'Amount Paid', render: (p) => `₹${p.amount.toLocaleString('en-IN')}` },
+                  ]}
+                />
+                <div className={styles.historyGroupTotal}>
+                  <span>Total Paid: ₹{receipt.totalPaid.toLocaleString('en-IN')}</span>
+                  <span>Balance: ₹{receipt.balance.toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </Modal>
 

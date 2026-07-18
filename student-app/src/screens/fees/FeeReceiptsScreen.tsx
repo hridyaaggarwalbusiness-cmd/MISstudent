@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,12 +7,14 @@ import { colors, spacing, radius } from '@theme';
 import { repo } from '@data/repositories';
 import { useAuthStore } from '@store/useAuthStore';
 import { downloadReceiptPdf, viewReceiptPdf } from '@utils/receiptPdf';
-import { INSTALLMENT_LABEL, PAYMENT_METHOD_LABEL, FEE_STATUS_LABEL, FEE_STATUS_TONE, safeDate } from '@utils/feeLabels';
-import { FeePayment } from '@/types';
+import { buildCombinedReceipt, CombinedReceipt } from '@utils/combinedReceipt';
+import { INSTALLMENT_LABEL, FEE_STATUS_LABEL, FEE_STATUS_TONE, safeDate } from '@utils/feeLabels';
+import { FeePayment, InstallmentId } from '@/types';
 
 type School = { name: string; address: string; phone: string };
 
-function ReceiptCard({ payment, school }: { payment: FeePayment; school: School }) {
+function ReceiptCard({ receipt, school }: { receipt: CombinedReceipt; school: School }) {
+  const lastPart = receipt.parts[receipt.parts.length - 1];
   return (
     <Card style={styles.card}>
       <View style={styles.cardHeader}>
@@ -20,29 +22,30 @@ function ReceiptCard({ payment, school }: { payment: FeePayment; school: School 
           <Ionicons name="receipt-outline" size={18} color={colors.primary} />
         </View>
         <View style={{ flex: 1, marginLeft: spacing.sm }}>
-          <AppText variant="bodySemibold">{INSTALLMENT_LABEL[payment.installmentId]}</AppText>
+          <AppText variant="bodySemibold">{INSTALLMENT_LABEL[receipt.installmentId]}</AppText>
           <AppText variant="tiny" color={colors.textTertiary}>
-            {safeDate(payment.paymentDate, 'd MMM yyyy')} · {payment.receiptNo}
+            Last payment {safeDate(lastPart.paymentDate, 'd MMM yyyy')} · {receipt.parts.length}{' '}
+            {receipt.parts.length === 1 ? 'payment' : 'payments'}
           </AppText>
         </View>
-        <Badge label={FEE_STATUS_LABEL[payment.statusAfter]} tone={FEE_STATUS_TONE[payment.statusAfter]} size="sm" />
+        <Badge label={FEE_STATUS_LABEL[receipt.status]} tone={FEE_STATUS_TONE[receipt.status]} size="sm" />
       </View>
 
       <View style={styles.cardBody}>
         <View>
           <AppText variant="tiny" color={colors.textTertiary}>
-            Amount Paid
+            Total Paid
           </AppText>
           <AppText variant="h3" color={colors.successStrong}>
-            ₹{payment.amount.toLocaleString('en-IN')}
+            ₹{receipt.totalPaid.toLocaleString('en-IN')}
           </AppText>
         </View>
         <View>
           <AppText variant="tiny" color={colors.textTertiary} align="right">
-            Payment Mode
+            Balance
           </AppText>
-          <AppText variant="bodyMedium" align="right">
-            {PAYMENT_METHOD_LABEL[payment.paymentMethod]}
+          <AppText variant="bodyMedium" align="right" color={receipt.balance > 0 ? colors.danger : colors.successStrong}>
+            ₹{receipt.balance.toLocaleString('en-IN')}
           </AppText>
         </View>
       </View>
@@ -53,14 +56,14 @@ function ReceiptCard({ payment, school }: { payment: FeePayment; school: School 
           icon="eye-outline"
           variant="outline"
           size="sm"
-          onPress={() => viewReceiptPdf(payment, school)}
+          onPress={() => viewReceiptPdf(receipt, school)}
           style={{ flex: 1 }}
         />
         <Button
           label="Download PDF"
           icon="download-outline"
           size="sm"
-          onPress={() => downloadReceiptPdf(payment, school)}
+          onPress={() => downloadReceiptPdf(receipt, school)}
           style={{ flex: 1, marginLeft: spacing.sm }}
         />
       </View>
@@ -82,8 +85,24 @@ export function FeeReceiptsScreen() {
 
   useEffect(() => repo.school.subscribe((s) => s && setSchool(s)), []);
 
+  // Every payment folds into one consolidated receipt per installment - a
+  // student who paid an installment in three parts sees one receipt with
+  // all three parts listed, not three separate receipts.
+  const receipts = useMemo(() => {
+    if (!payments) return [];
+    const groups = new Map<InstallmentId, FeePayment[]>();
+    payments.forEach((p) => {
+      const list = groups.get(p.installmentId) ?? [];
+      list.push(p);
+      groups.set(p.installmentId, list);
+    });
+    return (['1', '2'] as InstallmentId[])
+      .map((id) => buildCombinedReceipt(groups.get(id) ?? []))
+      .filter((r): r is CombinedReceipt => r !== null);
+  }, [payments]);
+
   const loading = payments === null;
-  const totalPaid = (payments ?? []).reduce((sum, p) => sum + p.amount, 0);
+  const totalPaid = receipts.reduce((sum, r) => sum + r.totalPaid, 0);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -93,7 +112,7 @@ export function FeeReceiptsScreen() {
         <View style={styles.list}>
           <SkeletonCard lines={2} />
         </View>
-      ) : payments!.length === 0 ? (
+      ) : receipts.length === 0 ? (
         <EmptyState
           icon="receipt-outline"
           title="No receipts yet"
@@ -101,8 +120,8 @@ export function FeeReceiptsScreen() {
         />
       ) : (
         <FlatList
-          data={payments!}
-          keyExtractor={(p) => p.id}
+          data={receipts}
+          keyExtractor={(r) => r.installmentId}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
@@ -115,7 +134,7 @@ export function FeeReceiptsScreen() {
               </AppText>
             </View>
           }
-          renderItem={({ item }) => <ReceiptCard payment={item} school={school} />}
+          renderItem={({ item }) => <ReceiptCard receipt={item} school={school} />}
         />
       )}
     </SafeAreaView>

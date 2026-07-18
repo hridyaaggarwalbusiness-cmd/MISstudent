@@ -1,18 +1,19 @@
 import { QrCode } from 'lucide-react';
 import { amountInWords } from '@/utils/receiptPdf';
 import { INSTALLMENT_LABEL, PAYMENT_METHOD_LABEL, safeDate } from '@/utils/feeLabels';
-import type { FeePayment } from '@/types';
+import type { CombinedReceipt } from '@/utils/combinedReceipt';
 import styles from './ReceiptView.module.css';
 
 export function ReceiptView({
-  payment,
+  receipt,
   school,
 }: {
-  payment: FeePayment;
+  receipt: CombinedReceipt;
   school: { name: string; address: string; phone: string };
 }) {
-  const installmentLabel = INSTALLMENT_LABEL[payment.installmentId] ?? `Installment ${payment.installmentId}`;
-  const isPaidOff = payment.balanceAfter <= 0;
+  const installmentLabel = INSTALLMENT_LABEL[receipt.installmentId] ?? `Installment ${receipt.installmentId}`;
+  const isPaidOff = receipt.balance <= 0;
+  const lastPart = receipt.parts[receipt.parts.length - 1];
 
   return (
     <div className={styles.receipt} id="receipt-print-area">
@@ -25,20 +26,19 @@ export function ReceiptView({
             {school.phone && <div className={styles.schoolMeta}>Phone: {school.phone}</div>}
           </div>
         </div>
-        <span className={styles.originalBadge}>ORIGINAL RECEIPT</span>
+        <span className={styles.originalBadge}>CONSOLIDATED RECEIPT</span>
       </div>
 
       <div className={styles.metaGrid}>
         <div>
-          <MetaRow label="Student Name" value={payment.studentName} />
-          <MetaRow label="Admission No." value={payment.admissionNumber} />
-          <MetaRow label="Class & Section" value={`${payment.className} - ${payment.section}`} />
+          <MetaRow label="Student Name" value={receipt.studentName} />
+          <MetaRow label="Admission No." value={receipt.admissionNumber} />
+          <MetaRow label="Class & Section" value={`${receipt.className} - ${receipt.section}`} />
         </div>
         <div className={styles.metaRight}>
-          <MetaRow label="Receipt No." value={payment.receiptNo} />
-          <MetaRow label="Payment ID" value={payment.paymentRef} />
-          <MetaRow label="Date & Time" value={safeDate(payment.createdAt, 'd MMM yyyy, h:mm a')} />
-          <MetaRow label="Payment Mode" value={PAYMENT_METHOD_LABEL[payment.paymentMethod] ?? payment.paymentMethod} />
+          <MetaRow label="Receipt No. (Latest)" value={receipt.receiptNo} />
+          <MetaRow label="Installment" value={installmentLabel} />
+          <MetaRow label="Last Payment On" value={safeDate(lastPart.paymentDate, 'd MMM yyyy')} />
         </div>
       </div>
 
@@ -56,35 +56,49 @@ export function ReceiptView({
               <div className={styles.feeName}>Academics Fee</div>
               <div className={styles.feeSub}>Tuition, Development, Library, Lab, etc.</div>
             </td>
-            <td className={styles.amountCol}>{payment.academicFee.toLocaleString('en-IN')}</td>
+            <td className={styles.amountCol}>{receipt.academicFee.toLocaleString('en-IN')}</td>
           </tr>
           <tr>
             <td>
               <div className={styles.feeName}>Transport Fee</div>
-              <div className={styles.feeSub}>{payment.transportFee > 0 ? 'School Bus Charges' : 'Self Transport — not applicable'}</div>
+              <div className={styles.feeSub}>{receipt.transportFee > 0 ? 'School Bus Charges' : 'Self Transport — not applicable'}</div>
             </td>
-            <td className={styles.amountCol}>{payment.transportFee.toLocaleString('en-IN')}</td>
+            <td className={styles.amountCol}>{receipt.transportFee.toLocaleString('en-IN')}</td>
           </tr>
         </tbody>
       </table>
 
       <div className={styles.totals}>
-        <TotalRow label={`Total Amount (${installmentLabel})`} value={payment.totalFee} />
-        <TotalRow label="Amount Paid (this payment)" value={payment.amount} tone="success" />
-        <TotalRow label="Total Paid Till Date" value={payment.totalPaidAfter} />
-        <TotalRow label="Balance Amount" value={payment.balanceAfter} tone={payment.balanceAfter > 0 ? 'danger' : 'success'} emphasis />
+        <TotalRow label={`Total Amount (${installmentLabel})`} value={receipt.totalFee} />
+        <TotalRow label="Total Paid Till Date" value={receipt.totalPaid} tone="success" />
+        <TotalRow label="Balance Amount" value={receipt.balance} tone={receipt.balance > 0 ? 'danger' : 'success'} emphasis />
       </div>
 
-      <div className={styles.wordsRow}>Amount in Words: {amountInWords(payment.amount)}</div>
+      <div className={styles.sectionTitle}>Payment Breakdown ({receipt.parts.length} {receipt.parts.length === 1 ? 'Payment' : 'Payments'})</div>
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th>Part</th>
+            <th>Date</th>
+            <th>Mode</th>
+            <th>Receipt No.</th>
+            <th className={styles.amountCol}>Amount (₹)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {receipt.parts.map((part) => (
+            <tr key={part.receiptNo}>
+              <td>Part {part.seq}</td>
+              <td>{safeDate(part.paymentDate, 'd MMM yyyy')}</td>
+              <td>{PAYMENT_METHOD_LABEL[part.paymentMethod] ?? part.paymentMethod}</td>
+              <td>{part.receiptNo}</td>
+              <td className={styles.amountCol}>{part.amount.toLocaleString('en-IN')}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
-      <div className={styles.detailsRow}>
-        <span>Payment Method: <strong>{PAYMENT_METHOD_LABEL[payment.paymentMethod] ?? payment.paymentMethod}</strong></span>
-        {payment.transactionRef && <span>Reference No.: <strong>{payment.transactionRef}</strong></span>}
-      </div>
-      <div className={styles.detailsRow}>
-        <span>Collected By: <strong>{payment.collectedByName}</strong></span>
-        {payment.remarks && <span>Remarks: <strong>{payment.remarks}</strong></span>}
-      </div>
+      <div className={styles.wordsRow}>Amount in Words (Total Paid): {amountInWords(receipt.totalPaid)}</div>
 
       <div className={styles.footer}>
         <div className={styles.signatureBlock}>

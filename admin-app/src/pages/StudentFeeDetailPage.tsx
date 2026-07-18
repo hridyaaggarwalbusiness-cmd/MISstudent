@@ -19,8 +19,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
-import { IconButton } from '@/components/ui/IconButton';
-import { Table, tableStyles } from '@/components/ui/Table';
+import { Table } from '@/components/ui/Table';
 import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -33,6 +32,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { repo } from '@/data/repositories';
 import { getErrorMessage } from '@/utils/errors';
 import { downloadReceiptPdf, printReceiptPdf } from '@/utils/receiptPdf';
+import { buildCombinedReceipt } from '@/utils/combinedReceipt';
 import { CURRENT_ACADEMIC_SESSION } from '@/utils/academicSession';
 import { splitFeeLines } from '@/utils/feeSplit';
 import { FEE_STATUS_LABEL, FEE_STATUS_TONE, INSTALLMENT_LABEL, PAYMENT_METHOD_LABEL } from '@/utils/feeLabels';
@@ -75,7 +75,6 @@ export function StudentFeeDetailPage() {
   const [remarks, setRemarks] = useState('');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
-  const [lastPayment, setLastPayment] = useState<FeePayment | null>(null);
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
 
   useEffect(() => repo.students.subscribeOne(studentId, setStudent), [studentId]);
@@ -105,7 +104,6 @@ export function StudentFeeDetailPage() {
   }, [record]);
 
   useEffect(() => {
-    setLastPayment(null);
     setFormError('');
   }, [installmentId]);
 
@@ -128,7 +126,7 @@ export function StudentFeeDetailPage() {
     () => payments.filter((p) => p.installmentId === installmentId),
     [payments, installmentId],
   );
-  const previewPayment = lastPayment ?? paymentsForInstallment[0] ?? null;
+  const combinedReceipt = useMemo(() => buildCombinedReceipt(paymentsForInstallment), [paymentsForInstallment]);
   const feeSplit = useMemo(() => splitFeeLines(academicFee, transportFee, amountPaid), [academicFee, transportFee, amountPaid]);
 
   const loading = student === undefined || record === undefined;
@@ -170,7 +168,7 @@ export function StudentFeeDetailPage() {
     setFormError('');
     setSaving(true);
     try {
-      const payment = await repo.fees.recordPayment({
+      await repo.fees.recordPayment({
         studentId: student.id,
         classId: student.classId,
         academicSession,
@@ -191,7 +189,6 @@ export function StudentFeeDetailPage() {
         remarks: remarks.trim() || undefined,
         dueDate,
       });
-      setLastPayment(payment);
       setAmount('');
       setTransactionRef('');
       setRemarks('');
@@ -464,21 +461,16 @@ export function StudentFeeDetailPage() {
               ) : (
                 <Table
                   columns={[
+                    {
+                      key: 'seq',
+                      header: 'Part',
+                      render: (p: FeePayment) => `Part ${combinedReceipt?.parts.find((part) => part.receiptNo === p.receiptNo)?.seq ?? ''}`,
+                    },
                     { key: 'date', header: 'Date', render: (p: FeePayment) => p.paymentDate },
                     { key: 'receipt', header: 'Receipt No.', render: (p: FeePayment) => p.receiptNo },
                     { key: 'method', header: 'Payment Mode', render: (p: FeePayment) => PAYMENT_METHOD_LABEL[p.paymentMethod] },
                     { key: 'amount', header: 'Amount Paid', render: (p: FeePayment) => `₹${p.amount.toLocaleString('en-IN')}` },
                     { key: 'remarks', header: 'Remarks', render: (p: FeePayment) => p.remarks || '—' },
-                    {
-                      key: 'actions',
-                      header: '',
-                      align: 'right',
-                      render: (p: FeePayment) => (
-                        <div className={tableStyles.actions}>
-                          <IconButton icon={Download} onClick={() => downloadReceiptPdf(p, school)} aria-label="Download receipt" />
-                        </div>
-                      ),
-                    },
                   ]}
                   rows={paymentsForInstallment}
                   rowKey={(p) => p.id}
@@ -526,20 +518,24 @@ export function StudentFeeDetailPage() {
               <div className={styles.sectionTitle}>
                 <Receipt size={16} /> Receipt Preview
               </div>
-              {previewPayment ? (
+              {combinedReceipt ? (
                 <>
                   <div className={styles.receiptSummary}>
                     <div className={styles.receiptSummaryRow}>
-                      <span className={styles.feeLabel}>Receipt No.</span>
-                      <span className={styles.studentMeta}>{previewPayment.receiptNo}</span>
+                      <span className={styles.feeLabel}>Receipt No. (Latest)</span>
+                      <span className={styles.studentMeta}>{combinedReceipt.receiptNo}</span>
                     </div>
                     <div className={styles.receiptSummaryRow}>
-                      <span className={styles.feeLabel}>Amount Paid</span>
-                      <span className={styles.studentMeta}>₹{previewPayment.amount.toLocaleString('en-IN')}</span>
+                      <span className={styles.feeLabel}>Total Paid</span>
+                      <span className={styles.studentMeta}>₹{combinedReceipt.totalPaid.toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className={styles.receiptSummaryRow}>
+                      <span className={styles.feeLabel}>Payments</span>
+                      <span className={styles.studentMeta}>{combinedReceipt.parts.length}</span>
                     </div>
                     <div className={styles.receiptSummaryRow}>
                       <span className={styles.feeLabel}>Status</span>
-                      <Badge label={FEE_STATUS_LABEL[previewPayment.statusAfter]} tone={FEE_STATUS_TONE[previewPayment.statusAfter]} />
+                      <Badge label={FEE_STATUS_LABEL[combinedReceipt.status]} tone={FEE_STATUS_TONE[combinedReceipt.status]} />
                     </div>
                   </div>
                   <Button icon={<Eye size={14} />} onClick={() => setReceiptModalOpen(true)} className={styles.recordBtn}>
@@ -550,11 +546,11 @@ export function StudentFeeDetailPage() {
                       variant="outline"
                       size="sm"
                       icon={<Download size={14} />}
-                      onClick={() => downloadReceiptPdf(previewPayment, school)}
+                      onClick={() => downloadReceiptPdf(combinedReceipt, school)}
                     >
                       Download
                     </Button>
-                    <Button variant="outline" size="sm" icon={<Printer size={14} />} onClick={() => printReceiptPdf(previewPayment, school)}>
+                    <Button variant="outline" size="sm" icon={<Printer size={14} />} onClick={() => printReceiptPdf(combinedReceipt, school)}>
                       Print
                     </Button>
                   </div>
@@ -568,24 +564,24 @@ export function StudentFeeDetailPage() {
       )}
 
       <Modal
-        open={receiptModalOpen && !!previewPayment}
-        title={`Receipt Preview${previewPayment ? ` · ${previewPayment.receiptNo}` : ''}`}
+        open={receiptModalOpen && !!combinedReceipt}
+        title={`Receipt Preview${combinedReceipt ? ` · ${combinedReceipt.receiptNo}` : ''}`}
         onClose={() => setReceiptModalOpen(false)}
         width={680}
         footer={
-          previewPayment && (
+          combinedReceipt && (
             <>
-              <Button variant="outline" icon={<Printer size={16} />} onClick={() => printReceiptPdf(previewPayment, school)}>
+              <Button variant="outline" icon={<Printer size={16} />} onClick={() => printReceiptPdf(combinedReceipt, school)}>
                 Print Receipt
               </Button>
-              <Button icon={<Download size={16} />} onClick={() => downloadReceiptPdf(previewPayment, school)}>
+              <Button icon={<Download size={16} />} onClick={() => downloadReceiptPdf(combinedReceipt, school)}>
                 Download PDF
               </Button>
             </>
           )
         }
       >
-        {previewPayment && <ReceiptView payment={previewPayment} school={school} />}
+        {combinedReceipt && <ReceiptView receipt={combinedReceipt} school={school} />}
       </Modal>
     </div>
   );

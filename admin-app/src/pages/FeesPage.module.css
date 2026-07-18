@@ -30,22 +30,16 @@
   margin-left: auto;
 }
 
-.layout {
-  display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: var(--space-5);
-  align-items: start;
+.main {
+  min-width: 0;
   margin-top: var(--space-5);
 }
 
-.main {
-  min-width: 0;
-}
-
-.sidebar {
-  display: flex;
-  flex-direction: column;
+.summaryRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: var(--space-5);
+  margin-top: var(--space-5);
 }
 
 .studentCell {
@@ -98,7 +92,7 @@
   gap: 4px;
 }
 
-.activityRow {
+.activityItem {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -112,7 +106,7 @@
   font-family: inherit;
 }
 
-.activityRow:hover {
+.activityItem:hover {
   background: var(--color-surface-alt);
 }
 
@@ -336,8 +330,53 @@
   background: var(--color-surface-alt);
 }
 
-@media (max-width: 1200px) {
-  .layout {
+.historyGroups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.historyGroup {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.historyGroupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-alt);
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.historyGroupHead > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.historyGroupTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.historyGroupTotal {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  background: var(--color-surface-alt);
+  border-top: 1px solid var(--color-border-soft);
+}
+
+@media (max-width: 900px) {
+  .summaryRow {
     grid-template-columns: 1fr;
   }
 }
