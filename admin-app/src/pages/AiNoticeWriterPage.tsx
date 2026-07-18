@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Sparkles, Wand2, RotateCcw, Pencil, FileDown, ImageDown, Save, Send, Eraser } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -14,7 +14,7 @@ import { getErrorMessage } from '@/utils/errors';
 import { noticeProvider, NoticeGenerationError } from '@/services/ai';
 import { downloadNoticeImage, downloadNoticePdf } from '@/utils/noticeTemplate';
 import type { NoticeTemplateData } from '@/utils/noticeTemplate';
-import type { Notice, NoticeAudience, NoticeCategory, NoticePriority, NoticeType, SchoolClass, SchoolProfile } from '@/types';
+import type { Notice, NoticeAudience, NoticeCategory, NoticePriority, NoticeType, SchoolClass } from '@/types';
 import styles from './AiNoticeWriterPage.module.css';
 
 const NOTICE_TYPE_OPTIONS: { value: NoticeType; label: string }[] = [
@@ -86,9 +86,6 @@ export function AiNoticeWriterPage() {
   const { data: classes } = useCollection<SchoolClass>((cb) => repo.classes.subscribeAll(cb));
   const profile = useAuthStore((s) => s.profile);
   const { show } = useToast();
-
-  const [school, setSchool] = useState<SchoolProfile>({ name: 'MIS School', address: '', phone: '' });
-  useEffect(() => repo.school.subscribe((s) => s && setSchool(s)), []);
 
   const [noticeType, setNoticeType] = useState<NoticeType>('general');
   const [audience, setAudience] = useState<NoticeAudience>('all');
@@ -212,9 +209,6 @@ export function AiNoticeWriterPage() {
   }
 
   const previewData: NoticeTemplateData = {
-    schoolName: school.name || 'School Name',
-    affiliation: school.affiliation,
-    principalName: school.principalName,
     date: formatDisplayDate(noticeDate),
     body: generatedBody || PLACEHOLDER_BODY,
   };

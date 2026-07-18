@@ -4,8 +4,6 @@ export interface SchoolProfile {
   name: string;
   address: string;
   phone: string;
-  principalName?: string;
-  affiliation?: string;
 }
 
 export interface AppUser {

@@ -47,6 +47,8 @@ export function buildGenerateNoticePrompt(request: NoticeGenerateRequest): strin
 
   return `${SYSTEM_PROMPT}
 
+Formatting note: wrap important terms the reader must not miss — specific dates, deadlines, times, and named organizations — in **double asterisks** so they render in bold on the printed notice, the same way the original letterhead emphasizes key details. Use this sparingly, only for genuinely important terms.
+
 Notice type: ${NOTICE_TYPE_LABEL[noticeType] ?? noticeType}
 Audience: ${AUDIENCE_LABEL[audience] ?? audience}${classLabels.length ? ` (${classLabels.join(', ')})` : ''}
 Priority: ${PRIORITY_LABEL[priority] ?? priority}

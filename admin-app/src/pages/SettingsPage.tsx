@@ -31,7 +31,7 @@ export function SettingsPage() {
   const [displayName, setDisplayName] = useState(profile?.displayName ?? '');
   const [savingProfile, setSavingProfile] = useState(false);
 
-  const [school, setSchool] = useState<SchoolProfile>({ name: '', address: '', phone: '', principalName: '', affiliation: '' });
+  const [school, setSchool] = useState<SchoolProfile>({ name: '', address: '', phone: '' });
   const [savingSchool, setSavingSchool] = useState(false);
 
   const [prefs, setPrefs] = useState(loadPrefs);
@@ -96,20 +96,6 @@ export function SettingsPage() {
             <TextField label="School Name" value={school.name} onChange={(e) => setSchool((s) => ({ ...s, name: e.target.value }))} />
             <TextField label="Address" value={school.address} onChange={(e) => setSchool((s) => ({ ...s, address: e.target.value }))} />
             <TextField label="Contact Phone" value={school.phone} onChange={(e) => setSchool((s) => ({ ...s, phone: e.target.value }))} />
-            <TextField
-              label="Affiliation Line"
-              placeholder="e.g. Affiliated to CBSE, New Delhi (Nursery to XII)"
-              hint="Shown under the school name on official notices"
-              value={school.affiliation ?? ''}
-              onChange={(e) => setSchool((s) => ({ ...s, affiliation: e.target.value }))}
-            />
-            <TextField
-              label="Principal's Name"
-              placeholder="e.g. Bhavna Mittal"
-              hint="Shown in the signature block on official notices"
-              value={school.principalName ?? ''}
-              onChange={(e) => setSchool((s) => ({ ...s, principalName: e.target.value }))}
-            />
             <Button onClick={saveSchool} loading={savingSchool} className={styles.saveBtn}>
               Save School Profile
             </Button>

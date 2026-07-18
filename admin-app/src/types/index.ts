@@ -1,14 +1,9 @@
 export type Role = 'admin' | 'teacher' | 'student';
 
-// principalName/affiliation are optional so schools that haven't filled
-// them in yet don't break existing consumers (receipts, practice-test PDFs)
-// that only ever read name/address/phone.
 export interface SchoolProfile {
   name: string;
   address: string;
   phone: string;
-  principalName?: string;
-  affiliation?: string;
 }
 
 export interface AppUser {
