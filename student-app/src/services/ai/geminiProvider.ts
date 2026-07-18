@@ -42,6 +42,16 @@ const MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
   'gemini-flash-latest': 8000,
 };
 
+// The 2.5-generation models "think" before answering by default, and those
+// invisible reasoning tokens are deducted from the SAME maxOutputTokens
+// budget as the visible JSON - on a model that reasons a lot, thinking
+// alone can consume the entire budget and leave nothing for the actual
+// paper, which is why even a small 20-mark request can hit MAX_TOKENS.
+// Setting thinkingBudget: 0 turns thinking off so the full budget goes to
+// the response. Only send this to models that actually understand it -
+// older models reject unrecognized generationConfig fields outright.
+const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-2.5-flash', 'gemini-flash-latest']);
+
 function getApiKey(): string {
   const key = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
   if (!key) {
@@ -55,16 +65,20 @@ function getApiKey(): string {
 
 async function callGeminiModel(model: string, apiKey: string, prompt: string, requestedMaxOutputTokens: number): Promise<string> {
   const maxOutputTokens = Math.min(requestedMaxOutputTokens, MODEL_MAX_OUTPUT_TOKENS[model] ?? requestedMaxOutputTokens);
+  const generationConfig: Record<string, unknown> = {
+    responseMimeType: 'application/json',
+    maxOutputTokens,
+    temperature: 0.8,
+  };
+  if (MODELS_WITH_THINKING_CONFIG.has(model)) {
+    generationConfig.thinkingConfig = { thinkingBudget: 0 };
+  }
   const res = await fetch(`${API_BASE}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        maxOutputTokens,
-        temperature: 0.8,
-      },
+      generationConfig,
     }),
   });
 
