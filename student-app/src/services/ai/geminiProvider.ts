@@ -179,17 +179,26 @@ export const geminiProvider: PaperProvider = {
     }
   },
 
+  // Same retry-with-correction pattern as paper generation: a malformed or
+  // truncated grading response is worth one automatic retry before giving
+  // up, since a student is waiting on their score, not just browsing.
   async gradeSubjectiveAnswers(request: GradeAnswersRequest): Promise<SubjectiveGrade[]> {
     if (request.answers.length === 0) return [];
     const prompt = buildGradeAnswersPrompt(request);
-    try {
-      const raw = await callGemini(prompt, 4000);
-      const parsed = extractJson(raw);
-      return normalizeGrades(parsed, request.answers);
-    } catch (err) {
-      if (err instanceof PaperGenerationError) throw err;
-      const message = err instanceof PaperValidationError ? err.message : 'Could not grade your answers. Please try again.';
-      throw new PaperGenerationError(message, 'grading-failed');
+    let lastError: Error | undefined;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const correction = lastError
+        ? `\n\nYour previous attempt was invalid: ${lastError.message}\nFix this and respond again with ONLY the corrected JSON array, one object per question.`
+        : '';
+      try {
+        const raw = await callGemini(prompt + correction, 4000);
+        const parsed = extractJson(raw);
+        return normalizeGrades(parsed, request.answers);
+      } catch (err) {
+        if (err instanceof PaperGenerationError) throw err;
+        lastError = err instanceof PaperValidationError ? err : new Error(err instanceof Error ? err.message : String(err));
+      }
     }
+    throw new PaperGenerationError(lastError?.message ?? 'Could not grade your answers. Please try again.', 'grading-failed');
   },
 };

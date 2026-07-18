@@ -138,25 +138,45 @@ export async function gradeAttempt(paper: GeneratedPaper, answers: AttemptAnswer
 
   let subjectiveGrades: SubjectiveGrade[] = [];
   if (subjectiveQuestions.length > 0) {
-    subjectiveGrades = await paperProvider.gradeSubjectiveAnswers({
-      request: {
-        classLabel: paper.classLabel,
-        subject: paper.subject,
-        topics: paper.topics,
-        paperType: paper.paperType,
-        totalMarks: paper.totalMarks,
-        difficulty: paper.difficulty,
-        language: paper.language,
-        durationMinutes: paper.durationMinutes,
-      },
-      answers: subjectiveQuestions.map((q) => ({
-        questionId: q.id,
-        questionText: q.text,
-        maxMarks: q.marks,
-        modelAnswer: q.answer,
-        studentAnswer: answerById.get(q.id)?.response ?? '',
-      })),
-    });
+    const subjectiveAnswers = subjectiveQuestions.map((q) => ({
+      questionId: q.id,
+      questionText: q.text,
+      maxMarks: q.marks,
+      modelAnswer: q.answer,
+      studentAnswer: answerById.get(q.id)?.response ?? '',
+    }));
+    try {
+      subjectiveGrades = await paperProvider.gradeSubjectiveAnswers({
+        request: {
+          classLabel: paper.classLabel,
+          subject: paper.subject,
+          topics: paper.topics,
+          paperType: paper.paperType,
+          totalMarks: paper.totalMarks,
+          difficulty: paper.difficulty,
+          language: paper.language,
+          durationMinutes: paper.durationMinutes,
+        },
+        answers: subjectiveAnswers,
+      });
+    } catch {
+      // A student waiting on their score should never be blocked by an AI
+      // hiccup - fall back to a conservative provisional estimate (half
+      // marks for a substantive attempt, 0 for blank/trivial ones) rather
+      // than surfacing an error. This is clearly labeled in the feedback
+      // so it reads as provisional, not a final AI-reviewed grade.
+      subjectiveGrades = subjectiveAnswers.map((a) => {
+        const wordCount = a.studentAnswer.trim().split(/\s+/).filter(Boolean).length;
+        const marksAwarded = wordCount >= 3 ? Math.round((a.maxMarks / 2) * 100) / 100 : 0;
+        return {
+          questionId: a.questionId,
+          marksAwarded,
+          feedback: wordCount >= 3
+            ? 'Provisional score - AI grading was unavailable, so this is an estimate. Ask your teacher to review this answer.'
+            : 'No answer provided.',
+        };
+      });
+    }
   }
 
   const gradeById = new Map(subjectiveGrades.map((g) => [g.questionId, g]));
