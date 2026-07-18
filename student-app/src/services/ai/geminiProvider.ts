@@ -24,7 +24,23 @@ const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 // older ones). Rather than depend on one model working, try a prioritized
 // list and fall through to the next on any failure - this self-heals
 // without needing per-account diagnosis.
-const MODEL_CANDIDATES = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-flash-latest'];
+// gemini-2.5-flash goes first: it has a far higher output-token ceiling
+// than the older flash models, which matters because a full CBSE paper
+// (up to 100 marks, 30+ questions with model answers) can run long enough
+// to hit the older models' ~8k-token cap mid-JSON. The older models stay
+// as fallbacks for accounts where 2.5 isn't available or is over quota.
+const MODEL_CANDIDATES = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-flash-latest'];
+
+// Each model's real output-token ceiling - requests above this are just
+// wasted budget (or rejected outright by some models), so the requested
+// amount is clamped per-model rather than sent as one flat number.
+const MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
+  'gemini-2.5-flash': 24000,
+  'gemini-2.0-flash': 8000,
+  'gemini-1.5-flash': 8000,
+  'gemini-1.5-flash-8b': 8000,
+  'gemini-flash-latest': 8000,
+};
 
 function getApiKey(): string {
   const key = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
@@ -37,7 +53,8 @@ function getApiKey(): string {
   return key;
 }
 
-async function callGeminiModel(model: string, apiKey: string, prompt: string, maxOutputTokens: number): Promise<string> {
+async function callGeminiModel(model: string, apiKey: string, prompt: string, requestedMaxOutputTokens: number): Promise<string> {
+  const maxOutputTokens = Math.min(requestedMaxOutputTokens, MODEL_MAX_OUTPUT_TOKENS[model] ?? requestedMaxOutputTokens);
   const res = await fetch(`${API_BASE}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -59,12 +76,21 @@ async function callGeminiModel(model: string, apiKey: string, prompt: string, ma
   const data = (await res.json()) as {
     candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[];
   };
+  const reason = data.candidates?.[0]?.finishReason;
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (reason === 'SAFETY') {
+    throw new PaperGenerationError('The AI declined to generate this paper. Try rephrasing the chapter/topic.', 'gemini-safety');
+  }
+  // A truncated response is not usable even when non-empty - the JSON is cut
+  // mid-object - so this must be treated as a hard failure. Throwing here
+  // (rather than returning the partial text) is what lets callGemini's loop
+  // move on to a model with more output headroom instead of trying to parse
+  // broken JSON.
+  if (reason === 'MAX_TOKENS') {
+    throw new Error(`${model} hit its output token limit before finishing the paper (requested ${maxOutputTokens} tokens).`);
+  }
   if (!text) {
-    const reason = data.candidates?.[0]?.finishReason;
-    if (reason === 'SAFETY') {
-      throw new PaperGenerationError('The AI declined to generate this paper. Try rephrasing the chapter/topic.', 'gemini-safety');
-    }
     throw new Error(`${model} returned an empty response (finishReason: ${reason ?? 'unknown'})`);
   }
   return text;
@@ -86,18 +112,28 @@ async function callGemini(prompt: string, maxOutputTokens: number): Promise<stri
   throw new PaperGenerationError(`AI provider request failed on every available model. ${lastMessage}`, 'gemini-all-models-failed');
 }
 
+// A bigger paper needs proportionally more room to write out every
+// question, option set, and model answer - a flat budget that's fine for a
+// 20-mark unit test runs out mid-JSON on an 80-100 mark annual-exam paper.
+// This is a request, not a guarantee: callGeminiModel clamps it to whatever
+// the chosen model can actually output.
+function requestedTokenBudget(totalMarks: number): number {
+  return Math.min(24000, Math.max(8000, totalMarks * 220));
+}
+
 // Retries once with the validation failure fed back to the model - marks
 // mismatches and malformed JSON are the two failure modes worth a second
 // try; anything else (network, missing key) is a hard failure.
 async function generateValidatedPaper(request: PracticeTestRequest): Promise<GeneratedPaper> {
   const prompt = buildGeneratePrompt(request);
+  const maxOutputTokens = requestedTokenBudget(request.totalMarks);
   let lastError: Error | undefined;
   for (let attempt = 0; attempt < 2; attempt++) {
     const correction = lastError
-      ? `\n\nYour previous attempt was invalid: ${lastError.message}\nFix this and respond again with ONLY the corrected JSON.`
+      ? `\n\nYour previous attempt was invalid: ${lastError.message}\nFix this and respond again with ONLY the corrected JSON. If your previous response was cut off, keep each question's "answer" and "explanation" more concise so the whole paper fits.`
       : '';
     try {
-      const raw = await callGemini(prompt + correction, 8000);
+      const raw = await callGemini(prompt + correction, maxOutputTokens);
       const parsed = extractJson(raw);
       return normalizePaper(parsed, request);
     } catch (err) {
