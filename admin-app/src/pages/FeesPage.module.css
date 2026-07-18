@@ -226,14 +226,14 @@
 
 .feeTable {
   width: 100%;
-  min-width: 1400px;
+  min-width: 1240px;
   border-collapse: collapse;
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
 }
 
 .feeTable th,
 .feeTable td {
-  padding: 10px 14px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--color-border-soft);
   text-align: left;
   white-space: nowrap;

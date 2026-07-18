@@ -356,6 +356,60 @@ export function FeesPage() {
 
       <StatStrip items={stats} />
 
+      <div className={styles.summaryRow}>
+        <Card>
+          <div className={styles.sectionTitle}>
+            <Receipt size={16} /> Today's Activity
+          </div>
+          <div className={styles.todayTotal}>₹{todaysCollection.toLocaleString('en-IN')} collected today</div>
+          {todaysActivity.length === 0 ? (
+            <EmptyState icon={<Receipt size={24} />} title="No payments yet" compact />
+          ) : (
+            <div className={styles.activityList}>
+              {todaysActivity.map((p) => (
+                <button key={p.id} className={styles.activityItem} onClick={() => navigate(`/fees/${p.studentId}?installment=${p.installmentId}`)}>
+                  <Avatar name={p.studentName} size={30} />
+                  <div className={styles.activityBody}>
+                    <span className={styles.activityName}>{p.studentName}</span>
+                    <span className={styles.activityMeta}>
+                      {INSTALLMENT_LABEL[p.installmentId]} · {PAYMENT_METHOD_LABEL[p.paymentMethod]}
+                    </span>
+                  </div>
+                  <span className={styles.activityAmount}>₹{p.amount.toLocaleString('en-IN')}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <Card>
+          <div className={styles.sectionTitle}>
+            <Wallet size={16} /> Installment Summary
+          </div>
+          {installmentSummary.map((s) => (
+            <div key={s.id} className={styles.installmentSummaryRow}>
+              <div className={styles.installmentSummaryHead}>
+                <span className={styles.installmentSummaryLabel}>{s.label}</span>
+                <span className={styles.installmentSummaryPct}>{s.pct}%</span>
+              </div>
+              <ProgressBar value={s.pct} color={s.pct >= 100 ? 'var(--color-success)' : 'var(--color-primary)'} />
+              <div className={styles.installmentSummaryBreakdown}>
+                <Badge label={`${s.paid} Paid`} tone="success" />
+                <Badge label={`${s.partial} Partial`} tone="warning" />
+                <Badge label={`${s.unpaid} Unpaid`} tone="danger" />
+              </div>
+            </div>
+          ))}
+          <div className={styles.installmentSummaryTotal}>
+            <span>Total (Both Installments)</span>
+            <div className={styles.installmentSummaryTotalRow}>
+              <span>₹{installmentSummary.reduce((s, i) => s + i.expected, 0).toLocaleString('en-IN')} Total Due</span>
+              <span>₹{installmentSummary.reduce((s, i) => s + i.collected, 0).toLocaleString('en-IN')} Collected</span>
+            </div>
+          </div>
+        </Card>
+      </div>
+
       <Card>
         <div className={styles.filterRow}>
           <input
@@ -546,60 +600,6 @@ export function FeesPage() {
               </div>
             )}
           </Card>
-      </div>
-
-      <div className={styles.summaryRow}>
-        <Card>
-          <div className={styles.sectionTitle}>
-            <Receipt size={16} /> Today's Activity
-          </div>
-          <div className={styles.todayTotal}>₹{todaysCollection.toLocaleString('en-IN')} collected today</div>
-          {todaysActivity.length === 0 ? (
-            <EmptyState icon={<Receipt size={24} />} title="No payments yet" compact />
-          ) : (
-            <div className={styles.activityList}>
-              {todaysActivity.map((p) => (
-                <button key={p.id} className={styles.activityItem} onClick={() => navigate(`/fees/${p.studentId}?installment=${p.installmentId}`)}>
-                  <Avatar name={p.studentName} size={30} />
-                  <div className={styles.activityBody}>
-                    <span className={styles.activityName}>{p.studentName}</span>
-                    <span className={styles.activityMeta}>
-                      {INSTALLMENT_LABEL[p.installmentId]} · {PAYMENT_METHOD_LABEL[p.paymentMethod]}
-                    </span>
-                  </div>
-                  <span className={styles.activityAmount}>₹{p.amount.toLocaleString('en-IN')}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card>
-          <div className={styles.sectionTitle}>
-            <Wallet size={16} /> Installment Summary
-          </div>
-          {installmentSummary.map((s) => (
-            <div key={s.id} className={styles.installmentSummaryRow}>
-              <div className={styles.installmentSummaryHead}>
-                <span className={styles.installmentSummaryLabel}>{s.label}</span>
-                <span className={styles.installmentSummaryPct}>{s.pct}%</span>
-              </div>
-              <ProgressBar value={s.pct} color={s.pct >= 100 ? 'var(--color-success)' : 'var(--color-primary)'} />
-              <div className={styles.installmentSummaryBreakdown}>
-                <Badge label={`${s.paid} Paid`} tone="success" />
-                <Badge label={`${s.partial} Partial`} tone="warning" />
-                <Badge label={`${s.unpaid} Unpaid`} tone="danger" />
-              </div>
-            </div>
-          ))}
-          <div className={styles.installmentSummaryTotal}>
-            <span>Total (Both Installments)</span>
-            <div className={styles.installmentSummaryTotalRow}>
-              <span>₹{installmentSummary.reduce((s, i) => s + i.expected, 0).toLocaleString('en-IN')} Total Due</span>
-              <span>₹{installmentSummary.reduce((s, i) => s + i.collected, 0).toLocaleString('en-IN')} Collected</span>
-            </div>
-          </div>
-        </Card>
       </div>
 
       {selected.size > 0 && (

@@ -20,9 +20,12 @@ import {
   History,
   Plus,
   LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useUIStore } from '@/store/useUIStore';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import styles from './AppLayout.module.css';
 
@@ -66,6 +69,8 @@ const sections: { label: string; links: { to: string; icon: ComponentType<{ size
 export function Sidebar() {
   const profile = useAuthStore((s) => s.profile);
   const signOut = useAuthStore((s) => s.signOut);
+  const collapsed = useUIStore((s) => s.sidebarCollapsed);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const confirm = useConfirm();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -77,23 +82,26 @@ export function Sidebar() {
   }
 
   return (
-    <aside className={styles.sidebar}>
+    <aside className={[styles.sidebar, collapsed && styles.sidebarCollapsed].filter(Boolean).join(' ')}>
       <div className={styles.brand}>
         <div className={styles.brandMark}>MS</div>
-        <div className={styles.brandText}>
-          <span className={styles.brandTitle}>MIS School</span>
-          <span className={styles.brandSubtitle}>Admin Panel</span>
-        </div>
+        {!collapsed && (
+          <div className={styles.brandText}>
+            <span className={styles.brandTitle}>MIS School</span>
+            <span className={styles.brandSubtitle}>Admin Panel</span>
+          </div>
+        )}
       </div>
       <nav className={styles.nav}>
         {sections.map((section) => (
           <div key={section.label}>
-            <div className={styles.navSection}>{section.label}</div>
+            {!collapsed && <div className={styles.navSection}>{section.label}</div>}
             {section.links.map((link) => (
               <NavLink
                 key={link.to}
                 to={link.to}
                 end={link.to === '/'}
+                title={collapsed ? link.label : undefined}
                 className={({ isActive }) =>
                   [styles.navLink, isActive && styles.navLinkActive].filter(Boolean).join(' ')
                 }
@@ -101,22 +109,39 @@ export function Sidebar() {
                 <span className={styles.navIcon}>
                   <link.icon size={18} />
                 </span>
-                {link.label}
+                {!collapsed && link.label}
               </NavLink>
             ))}
           </div>
         ))}
       </nav>
+      <button
+        className={styles.collapseToggle}
+        onClick={toggleSidebar}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+        {!collapsed && <span>Collapse</span>}
+      </button>
       <div className={styles.sidebarFooter}>
-        <div className={styles.userChip}>
+        <div
+          className={styles.userChip}
+          onClick={collapsed ? () => setMenuOpen((v) => !v) : undefined}
+          style={collapsed ? { cursor: 'pointer', justifyContent: 'center' } : undefined}
+        >
           <Avatar name={profile?.displayName ?? 'Admin'} size={36} />
-          <div className={styles.userMeta}>
-            <span className={styles.userName}>{profile?.displayName ?? 'Admin'}</span>
-            <span className={styles.userRole}>Administrator</span>
-          </div>
-          <button className={styles.userMenuBtn} onClick={() => setMenuOpen((v) => !v)} aria-label="Account menu">
-            <Plus size={14} />
-          </button>
+          {!collapsed && (
+            <div className={styles.userMeta}>
+              <span className={styles.userName}>{profile?.displayName ?? 'Admin'}</span>
+              <span className={styles.userRole}>Administrator</span>
+            </div>
+          )}
+          {!collapsed && (
+            <button className={styles.userMenuBtn} onClick={() => setMenuOpen((v) => !v)} aria-label="Account menu">
+              <Plus size={14} />
+            </button>
+          )}
         </div>
         {menuOpen && (
           <>
