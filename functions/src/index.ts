@@ -6,6 +6,14 @@
 // client-side path can only revoke Firestore access, not the credential
 // itself) via `firebase deploy --only functions` or the functions-deploy.yml
 // workflow.
+//
+// generatePracticeTestPaper/regeneratePracticeTestQuestion below are the
+// same story: a fully-working, more secure alternative to student-app's
+// current Gemini-from-the-browser path (services/ai/geminiProvider.ts),
+// kept ready for when Blaze is enabled. To switch the app to it, deploy
+// this codebase and change the one export in
+// student-app/src/services/ai/index.ts back to `cloudFunctionPaperProvider`
+// - no other code changes needed.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';

@@ -19,6 +19,13 @@ jobs:
 
       - name: Export student-app web build
         working-directory: student-app
+        env:
+          # Baked into the static web bundle at build time - the AI Practice
+          # Test Generator calls Gemini directly from the browser (see
+          # student-app/src/services/ai/geminiProvider.ts) since Cloud
+          # Functions need the Blaze plan. Restrict this key by HTTP
+          # referrer in Google Cloud Console to this app's real domains.
+          EXPO_PUBLIC_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: npx expo export --platform web --output-dir dist
 
       - name: Install admin-app dependencies
