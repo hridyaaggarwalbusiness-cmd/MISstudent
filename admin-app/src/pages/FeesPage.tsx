@@ -13,6 +13,7 @@ import {
   PercentCircle,
   Plus,
   Receipt,
+  TrendingUp,
   UserRound,
   Users,
   Wallet,
@@ -105,6 +106,7 @@ export function FeesPage() {
   const [historyPayments, setHistoryPayments] = useState<FeePayment[]>([]);
   const [addPaymentOpen, setAddPaymentOpen] = useState(false);
   const [addPaymentQuery, setAddPaymentQuery] = useState('');
+  const [activityOpen, setActivityOpen] = useState(false);
 
   useEffect(() => repo.school.subscribe((s) => s && setSchool(s)), []);
 
@@ -348,67 +350,18 @@ export function FeesPage() {
         title="Fees Overview"
         description="Track collections, dues and receipts across every student"
         toolbar={
-          <Button icon={<Plus size={16} />} onClick={() => setAddPaymentOpen(true)}>
-            Add Payment
-          </Button>
+          <>
+            <Button variant="outline" icon={<TrendingUp size={16} />} onClick={() => setActivityOpen(true)}>
+              Activity Summary
+            </Button>
+            <Button icon={<Plus size={16} />} onClick={() => setAddPaymentOpen(true)}>
+              Add Payment
+            </Button>
+          </>
         }
       />
 
       <StatStrip items={stats} />
-
-      <div className={styles.summaryRow}>
-        <Card>
-          <div className={styles.sectionTitle}>
-            <Receipt size={16} /> Today's Activity
-          </div>
-          <div className={styles.todayTotal}>₹{todaysCollection.toLocaleString('en-IN')} collected today</div>
-          {todaysActivity.length === 0 ? (
-            <EmptyState icon={<Receipt size={24} />} title="No payments yet" compact />
-          ) : (
-            <div className={styles.activityList}>
-              {todaysActivity.map((p) => (
-                <button key={p.id} className={styles.activityItem} onClick={() => navigate(`/fees/${p.studentId}?installment=${p.installmentId}`)}>
-                  <Avatar name={p.studentName} size={30} />
-                  <div className={styles.activityBody}>
-                    <span className={styles.activityName}>{p.studentName}</span>
-                    <span className={styles.activityMeta}>
-                      {INSTALLMENT_LABEL[p.installmentId]} · {PAYMENT_METHOD_LABEL[p.paymentMethod]}
-                    </span>
-                  </div>
-                  <span className={styles.activityAmount}>₹{p.amount.toLocaleString('en-IN')}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card>
-          <div className={styles.sectionTitle}>
-            <Wallet size={16} /> Installment Summary
-          </div>
-          {installmentSummary.map((s) => (
-            <div key={s.id} className={styles.installmentSummaryRow}>
-              <div className={styles.installmentSummaryHead}>
-                <span className={styles.installmentSummaryLabel}>{s.label}</span>
-                <span className={styles.installmentSummaryPct}>{s.pct}%</span>
-              </div>
-              <ProgressBar value={s.pct} color={s.pct >= 100 ? 'var(--color-success)' : 'var(--color-primary)'} />
-              <div className={styles.installmentSummaryBreakdown}>
-                <Badge label={`${s.paid} Paid`} tone="success" />
-                <Badge label={`${s.partial} Partial`} tone="warning" />
-                <Badge label={`${s.unpaid} Unpaid`} tone="danger" />
-              </div>
-            </div>
-          ))}
-          <div className={styles.installmentSummaryTotal}>
-            <span>Total (Both Installments)</span>
-            <div className={styles.installmentSummaryTotalRow}>
-              <span>₹{installmentSummary.reduce((s, i) => s + i.expected, 0).toLocaleString('en-IN')} Total Due</span>
-              <span>₹{installmentSummary.reduce((s, i) => s + i.collected, 0).toLocaleString('en-IN')} Collected</span>
-            </div>
-          </div>
-        </Card>
-      </div>
 
       <Card>
         <div className={styles.filterRow}>
@@ -539,8 +492,8 @@ export function FeesPage() {
                       const split = splitFeeLines(row.academicFee, row.transportFee, row.amountPaid);
                       const key = rowKey(row);
                       return (
-                        <tr key={key}>
-                          <td className={styles.checkboxCol}>
+                        <tr key={key} className={styles.dataRow} onClick={() => goToDetail(row)}>
+                          <td className={styles.checkboxCol} onClick={(e) => e.stopPropagation()}>
                             <input
                               type="checkbox"
                               checked={selected.has(key)}
@@ -584,7 +537,7 @@ export function FeesPage() {
                           <td>
                             <Badge label={INSTALLMENT_LABEL[row.installmentId]} tone="neutral" />
                           </td>
-                          <td className={styles.actionsCol}>
+                          <td className={styles.actionsCol} onClick={(e) => e.stopPropagation()}>
                             <RowActionMenu
                               onViewDetails={() => goToDetail(row)}
                               onUpdatePayment={() => goToDetail(row)}
@@ -616,6 +569,69 @@ export function FeesPage() {
           </Button>
         </div>
       )}
+
+      <Modal open={activityOpen} title="Activity Summary" onClose={() => setActivityOpen(false)} width={860}>
+        <div className={styles.summaryRow}>
+          <Card>
+            <div className={styles.sectionTitle}>
+              <Receipt size={16} /> Today's Activity
+            </div>
+            <div className={styles.todayTotal}>₹{todaysCollection.toLocaleString('en-IN')} collected today</div>
+            {todaysActivity.length === 0 ? (
+              <EmptyState icon={<Receipt size={24} />} title="No payments yet" compact />
+            ) : (
+              <div className={styles.activityList}>
+                {todaysActivity.map((p) => (
+                  <button
+                    key={p.id}
+                    className={styles.activityItem}
+                    onClick={() => {
+                      setActivityOpen(false);
+                      navigate(`/fees/${p.studentId}?installment=${p.installmentId}`);
+                    }}
+                  >
+                    <Avatar name={p.studentName} size={30} />
+                    <div className={styles.activityBody}>
+                      <span className={styles.activityName}>{p.studentName}</span>
+                      <span className={styles.activityMeta}>
+                        {INSTALLMENT_LABEL[p.installmentId]} · {PAYMENT_METHOD_LABEL[p.paymentMethod]}
+                      </span>
+                    </div>
+                    <span className={styles.activityAmount}>₹{p.amount.toLocaleString('en-IN')}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card>
+            <div className={styles.sectionTitle}>
+              <Wallet size={16} /> Installment Summary
+            </div>
+            {installmentSummary.map((s) => (
+              <div key={s.id} className={styles.installmentSummaryRow}>
+                <div className={styles.installmentSummaryHead}>
+                  <span className={styles.installmentSummaryLabel}>{s.label}</span>
+                  <span className={styles.installmentSummaryPct}>{s.pct}%</span>
+                </div>
+                <ProgressBar value={s.pct} color={s.pct >= 100 ? 'var(--color-success)' : 'var(--color-primary)'} />
+                <div className={styles.installmentSummaryBreakdown}>
+                  <Badge label={`${s.paid} Paid`} tone="success" />
+                  <Badge label={`${s.partial} Partial`} tone="warning" />
+                  <Badge label={`${s.unpaid} Unpaid`} tone="danger" />
+                </div>
+              </div>
+            ))}
+            <div className={styles.installmentSummaryTotal}>
+              <span>Total (Both Installments)</span>
+              <div className={styles.installmentSummaryTotalRow}>
+                <span>₹{installmentSummary.reduce((s, i) => s + i.expected, 0).toLocaleString('en-IN')} Total Due</span>
+                <span>₹{installmentSummary.reduce((s, i) => s + i.collected, 0).toLocaleString('en-IN')} Collected</span>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </Modal>
 
       <Modal
         open={!!historyStudent}

@@ -39,7 +39,6 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-5);
-  margin-top: var(--space-5);
 }
 
 .studentCell {
@@ -250,6 +249,10 @@
 
 .feeTable tbody tr:hover {
   background: var(--color-surface-alt);
+}
+
+.dataRow {
+  cursor: pointer;
 }
 
 .subHead {
