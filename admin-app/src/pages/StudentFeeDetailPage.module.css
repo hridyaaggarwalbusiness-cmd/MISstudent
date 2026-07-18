@@ -1,0 +1,345 @@
+.installmentTabs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.installmentTab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--text-md);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.installmentTab:hover {
+  background: var(--color-surface-alt);
+}
+
+.installmentTabActive {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.installmentPeriod {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-4);
+}
+
+.feeLabel {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.feeValue {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.feeDetailsTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--space-4);
+}
+
+.feeDetailsTable th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-tertiary);
+  background: var(--color-surface-alt);
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.feeDetailsTable td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--color-border-soft);
+  vertical-align: middle;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.feeDetailsTable tr:last-child td {
+  border-bottom: none;
+}
+
+.feeTypeCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.feeTypeIcon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.feeTypeName {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.feeTypeSub {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+}
+
+.totalForInstallment {
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  margin-bottom: var(--space-5);
+}
+
+.totalForInstallmentLabel {
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.totalForInstallmentRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.totalForInstallmentItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.transportRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-soft);
+  margin-bottom: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.transportLabel {
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.transportToggle {
+  display: flex;
+  gap: 6px;
+  background: var(--color-surface-alt);
+  padding: 4px;
+  border-radius: var(--radius-pill);
+}
+
+.transportOption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.transportOptionActive {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.autoNote {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  margin: 0 0 var(--space-5) 2px;
+}
+
+.balanceRow {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.balanceItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.balanceValue {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.tone_success {
+  color: var(--color-success-strong);
+}
+
+.tone_danger {
+  color: var(--color-danger-strong);
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.recordBtn {
+  width: 100%;
+}
+
+.historyHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  padding: var(--space-4) var(--space-5) var(--space-3);
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.studentCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+}
+
+.studentNameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.studentName {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.studentMeta {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.studentDetailGrid {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: var(--space-4);
+  text-align: left;
+}
+
+.studentDetailGrid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.receiptSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border-soft);
+  margin-bottom: var(--space-3);
+}
+
+.receiptSummaryRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.receiptActions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+@media (max-width: 1200px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}

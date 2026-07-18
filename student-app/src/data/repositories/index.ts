@@ -42,6 +42,7 @@ import {
   MaterialType,
   CalendarEvent,
   Attachment,
+  FeePayment,
 } from '@/types';
 
 // ---- backend document shapes (mirror teacher-app/admin-app's real schema) ----
@@ -471,6 +472,25 @@ export const repo = {
       return onSnapshot(q, (snap) => cb(snap.docs.map((d) => withId<CalendarEvent>(d))));
     },
     list: () => once<CalendarEvent[]>((cb) => repo.calendar.subscribeAll(cb)),
+  },
+
+  // Read-only for students - every receipt the admin generates shows up
+  // here live, the moment it's written, via the same onSnapshot listener
+  // (no polling, no manual sync step).
+  feePayments: {
+    subscribeForStudent: (studentId: string, cb: (items: FeePayment[]) => void): Unsubscribe => {
+      const q = query(collection(db, 'feePayments'), where('studentId', '==', studentId), orderBy('createdAt', 'desc'));
+      return onSnapshot(q, (snap) =>
+        cb(snap.docs.map((d) => ({ ...withId<FeePayment>(d), createdAt: toIso(d.data().createdAt) }))),
+      );
+    },
+  },
+
+  school: {
+    subscribe: (cb: (school: { name: string; address: string; phone: string } | null) => void): Unsubscribe =>
+      onSnapshot(doc(db, 'settings', 'school'), (snap) =>
+        cb(snap.exists() ? (snap.data() as { name: string; address: string; phone: string }) : null),
+      ),
   },
 };
 

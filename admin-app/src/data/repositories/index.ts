@@ -12,6 +12,7 @@ import {
   deleteDoc,
   getDoc,
   getDocs,
+  runTransaction,
   serverTimestamp,
 } from 'firebase/firestore';
 import type { Unsubscribe } from 'firebase/firestore';
@@ -46,6 +47,13 @@ import type {
   AppUser,
   AuditAction,
   AuditLog,
+  FeeStructure,
+  StudentFeeRecord,
+  FeePayment,
+  InstallmentId,
+  TransportType,
+  FeePaymentMethod,
+  FeeStatus,
 } from '@/types';
 
 function withId<T>(d: { id: string; data: () => unknown }): T {
@@ -199,6 +207,8 @@ export const repo = {
   students: {
     subscribeAll: (cb: (items: Student[]) => void): Unsubscribe =>
       onSnapshot(collection(db, 'students'), (snap) => cb(snap.docs.map((d) => withId<Student>(d)))),
+    subscribeOne: (id: string, cb: (item: Student | null) => void): Unsubscribe =>
+      onSnapshot(doc(db, 'students', id), (snap) => cb(snap.exists() ? withId<Student>(snap) : null)),
     subscribeForClass: (classId: string, cb: (items: Student[]) => void): Unsubscribe => {
       const q = query(collection(db, 'students'), where('classId', '==', classId));
       return onSnapshot(q, (snap) => cb(snap.docs.map((d) => withId<Student>(d))));
@@ -342,6 +352,178 @@ export const repo = {
       return onSnapshot(q, (snap) =>
         cb(snap.docs.map((d) => ({ ...withId<AuditLog>(d), at: toIso(d.data().at) }))),
       );
+    },
+  },
+
+  fees: {
+    subscribeStructure: (classId: string, cb: (structure: FeeStructure | null) => void): Unsubscribe =>
+      onSnapshot(doc(db, 'feeStructures', classId), (snap) => cb(snap.exists() ? (snap.data() as FeeStructure) : null)),
+
+    subscribeAllStructures: (cb: (items: FeeStructure[]) => void): Unsubscribe =>
+      onSnapshot(collection(db, 'feeStructures'), (snap) => cb(snap.docs.map((d) => d.data() as FeeStructure))),
+
+    upsertStructure: (structure: FeeStructure) => setDoc(doc(db, 'feeStructures', structure.classId), structure),
+
+    subscribeStudentRecord: (
+      studentId: string,
+      installmentId: InstallmentId,
+      cb: (record: StudentFeeRecord | null) => void,
+    ): Unsubscribe =>
+      onSnapshot(doc(db, 'studentFeeRecords', `${studentId}_${installmentId}`), (snap) =>
+        cb(snap.exists() ? withId<StudentFeeRecord>(snap) : null),
+      ),
+
+    // Whole-school records across every student/installment, for the Fees
+    // Overview table which needs to show everyone at a glance.
+    subscribeAllStudentRecords: (cb: (items: StudentFeeRecord[]) => void): Unsubscribe =>
+      onSnapshot(collection(db, 'studentFeeRecords'), (snap) => cb(snap.docs.map((d) => withId<StudentFeeRecord>(d)))),
+
+    // Recalculates and stores the fee record whenever the admin changes the
+    // transport type - before any payment exists yet, or to correct it
+    // later. Never overwrites amountPaid, only the fee breakdown/balance.
+    setTransportType: async (input: {
+      studentId: string;
+      classId: string;
+      academicSession: string;
+      installmentId: InstallmentId;
+      transportType: TransportType;
+      academicFee: number;
+      transportFeeAmount: number;
+      dueDate: string;
+      currentAmountPaid: number;
+    }): Promise<void> => {
+      const transportFee = input.transportType === 'bus' ? input.transportFeeAmount : 0;
+      const totalFee = input.academicFee + transportFee;
+      const balance = Math.max(0, totalFee - input.currentAmountPaid);
+      const status: FeeStatus = balance <= 0 ? 'paid' : input.currentAmountPaid > 0 ? 'partial' : 'unpaid';
+      await setDoc(
+        doc(db, 'studentFeeRecords', `${input.studentId}_${input.installmentId}`),
+        {
+          studentId: input.studentId,
+          classId: input.classId,
+          academicSession: input.academicSession,
+          installmentId: input.installmentId,
+          transportType: input.transportType,
+          academicFee: input.academicFee,
+          transportFee,
+          totalFee,
+          amountPaid: input.currentAmountPaid,
+          balance,
+          status,
+          dueDate: input.dueDate,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true },
+      );
+    },
+
+    subscribePaymentsForStudent: (studentId: string, cb: (items: FeePayment[]) => void): Unsubscribe => {
+      const q = query(collection(db, 'feePayments'), where('studentId', '==', studentId), orderBy('createdAt', 'desc'));
+      return onSnapshot(q, (snap) =>
+        cb(snap.docs.map((d) => ({ ...withId<FeePayment>(d), createdAt: toIso(d.data().createdAt) }))),
+      );
+    },
+
+    // Recent activity across the whole school, for the Fees Overview page.
+    subscribeAllPayments: (cb: (items: FeePayment[]) => void, max = 50): Unsubscribe => {
+      const q = query(collection(db, 'feePayments'), orderBy('createdAt', 'desc'), fsLimit(max));
+      return onSnapshot(q, (snap) =>
+        cb(snap.docs.map((d) => ({ ...withId<FeePayment>(d), createdAt: toIso(d.data().createdAt) }))),
+      );
+    },
+
+    // The one place every fee calculation happens - the admin only supplies
+    // the amount being collected right now; everything else (running total,
+    // balance, status, receipt number) is derived automatically and the
+    // resulting payment doc is never edited again.
+    recordPayment: async (input: {
+      studentId: string;
+      classId: string;
+      academicSession: string;
+      installmentId: InstallmentId;
+      studentName: string;
+      admissionNumber: string;
+      className: string;
+      section: string;
+      transportType: TransportType;
+      academicFee: number;
+      transportFee: number;
+      totalFee: number;
+      previousPaid: number;
+      amount: number;
+      paymentMethod: FeePaymentMethod;
+      transactionRef?: string;
+      paymentDate: string;
+      remarks?: string;
+      dueDate: string;
+    }): Promise<FeePayment> => {
+      const totalPaidAfter = Math.round((input.previousPaid + input.amount) * 100) / 100;
+      const balanceAfter = Math.max(0, Math.round((input.totalFee - totalPaidAfter) * 100) / 100);
+      const statusAfter: FeeStatus = balanceAfter <= 0 ? 'paid' : totalPaidAfter > 0 ? 'partial' : 'unpaid';
+
+      const counterRef = doc(db, 'counters', `feeReceipt_${input.academicSession}`);
+      const seq = await runTransaction(db, async (tx) => {
+        const snap = await tx.get(counterRef);
+        const current = snap.exists() ? ((snap.data().seq as number) ?? 0) : 0;
+        const next = current + 1;
+        tx.set(counterRef, { seq: next }, { merge: true });
+        return next;
+      });
+      const receiptNo = `RCP/${input.academicSession}/${String(seq).padStart(6, '0')}`;
+      const paymentRef = `PAY/${input.academicSession.split('-')[0]}/${Date.now().toString().slice(-5)}`;
+      const actor = currentActor();
+
+      const payload = {
+        studentId: input.studentId,
+        classId: input.classId,
+        academicSession: input.academicSession,
+        installmentId: input.installmentId,
+        studentName: input.studentName,
+        admissionNumber: input.admissionNumber,
+        className: input.className,
+        section: input.section,
+        academicFee: input.academicFee,
+        transportFee: input.transportFee,
+        totalFee: input.totalFee,
+        amount: input.amount,
+        totalPaidAfter,
+        balanceAfter,
+        statusAfter,
+        paymentMethod: input.paymentMethod,
+        transactionRef: input.transactionRef ?? '',
+        paymentDate: input.paymentDate,
+        collectedBy: actor.actorId,
+        collectedByName: actor.actorName,
+        remarks: input.remarks ?? '',
+        receiptNo,
+        paymentRef,
+        createdAt: serverTimestamp(),
+      };
+      const docRef = await addDoc(collection(db, 'feePayments'), payload);
+
+      await setDoc(
+        doc(db, 'studentFeeRecords', `${input.studentId}_${input.installmentId}`),
+        {
+          studentId: input.studentId,
+          classId: input.classId,
+          academicSession: input.academicSession,
+          installmentId: input.installmentId,
+          transportType: input.transportType,
+          academicFee: input.academicFee,
+          transportFee: input.transportFee,
+          totalFee: input.totalFee,
+          amountPaid: totalPaidAfter,
+          balance: balanceAfter,
+          status: statusAfter,
+          dueDate: input.dueDate,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true },
+      );
+
+      logAudit('fee_payment_recorded', `₹${input.amount.toLocaleString('en-IN')} collected from ${input.studentName} (Installment ${input.installmentId})`);
+
+      return { id: docRef.id, ...payload, createdAt: new Date().toISOString() } as FeePayment;
     },
   },
 

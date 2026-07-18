@@ -199,7 +199,8 @@ export type AuditAction =
   | 'notice_posted'
   | 'exam_scheduled'
   | 'homework_posted'
-  | 'class_created';
+  | 'class_created'
+  | 'fee_payment_recorded';
 
 export interface AuditLog {
   id: string;
@@ -208,4 +209,77 @@ export interface AuditLog {
   actorName: string;
   actorId: string;
   at: string;
+}
+
+export type InstallmentId = '1' | '2';
+export type TransportType = 'bus' | 'self';
+export type FeePaymentMethod = 'cash' | 'upi' | 'bank_transfer' | 'card' | 'cheque';
+export type FeeStatus = 'unpaid' | 'partial' | 'paid';
+
+export interface FeeInstallmentDef {
+  id: InstallmentId;
+  label: string;
+  period: string;
+  dueDate: string;
+  academicFee: number;
+}
+
+// One doc per class per academic session — the school-defined amounts that
+// drive every automatic calculation on the fee screens.
+export interface FeeStructure {
+  classId: string;
+  academicSession: string;
+  transportFeeAmount: number;
+  installments: FeeInstallmentDef[];
+}
+
+// One doc per (student, installment) — the student's current standing for
+// that installment. Lazily created: a student with no doc yet is treated as
+// unpaid, using the class FeeStructure's defaults (transport = bus).
+export interface StudentFeeRecord {
+  id: string;
+  studentId: string;
+  classId: string;
+  academicSession: string;
+  installmentId: InstallmentId;
+  transportType: TransportType;
+  academicFee: number;
+  transportFee: number;
+  totalFee: number;
+  amountPaid: number;
+  balance: number;
+  status: FeeStatus;
+  dueDate: string;
+  updatedAt: string;
+}
+
+// One immutable doc per payment transaction. Snapshots the student/fee
+// details as they were at the moment of payment, so a previously issued
+// receipt never changes even if the student's fee record changes later.
+export interface FeePayment {
+  id: string;
+  studentId: string;
+  classId: string;
+  academicSession: string;
+  installmentId: InstallmentId;
+  studentName: string;
+  admissionNumber: string;
+  className: string;
+  section: string;
+  academicFee: number;
+  transportFee: number;
+  totalFee: number;
+  amount: number;
+  totalPaidAfter: number;
+  balanceAfter: number;
+  statusAfter: FeeStatus;
+  paymentMethod: FeePaymentMethod;
+  transactionRef?: string;
+  paymentDate: string;
+  collectedBy: string;
+  collectedByName: string;
+  remarks?: string;
+  receiptNo: string;
+  paymentRef: string;
+  createdAt: string;
 }

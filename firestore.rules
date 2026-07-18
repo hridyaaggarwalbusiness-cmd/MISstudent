@@ -159,5 +159,32 @@ service cloud.firestore {
       allow read: if signedIn();
       allow write: if isAdmin();
     }
+
+    // ---- fee structure per class (school-defined amounts) ----
+    match /feeStructures/{classId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // ---- per (student, installment) current fee standing ----
+    match /studentFeeRecords/{recordId} {
+      allow read: if isAdmin() || isMe(resource.data.studentId) ||
+        (isTeacher() && teachesClass(resource.data.classId));
+      allow write: if isAdmin();
+    }
+
+    // ---- immutable payment transactions / receipts - never updated or
+    // deleted once created, so admins and the paying student can always
+    // trust a receipt they've already seen ----
+    match /feePayments/{paymentId} {
+      allow read: if isAdmin() || isMe(resource.data.studentId) ||
+        (isTeacher() && teachesClass(resource.data.classId));
+      allow create: if isAdmin();
+    }
+
+    // ---- sequential receipt-number counters, one per academic session ----
+    match /counters/{counterId} {
+      allow read, write: if isAdmin();
+    }
   }
 }

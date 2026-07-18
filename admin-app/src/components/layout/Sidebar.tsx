@@ -14,6 +14,7 @@ import {
   Megaphone,
   BookOpen,
   CalendarDays,
+  Wallet,
   FileBarChart,
   Settings,
   History,
@@ -40,6 +41,7 @@ const sections: { label: string; links: { to: string; icon: ComponentType<{ size
       { to: '/attendance', icon: CheckCircle2, label: 'Attendance' },
       { to: '/exams', icon: FlaskConical, label: 'Exams' },
       { to: '/results', icon: BarChart3, label: 'Results' },
+      { to: '/fees', icon: Wallet, label: 'Fees' },
     ],
   },
   {

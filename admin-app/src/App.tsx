@@ -18,6 +18,8 @@ import { ResultsPage } from '@/pages/ResultsPage';
 import { NoticesPage } from '@/pages/NoticesPage';
 import { MaterialsPage } from '@/pages/MaterialsPage';
 import { CalendarPage } from '@/pages/CalendarPage';
+import { FeesPage } from '@/pages/FeesPage';
+import { StudentFeeDetailPage } from '@/pages/StudentFeeDetailPage';
 import { ReportsPage } from '@/pages/ReportsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { SystemLogsPage } from '@/pages/SystemLogsPage';
@@ -36,6 +38,8 @@ const routeTitles: { path: string; title: string; element: ReactElement }[] = [
   { path: '/notices', title: 'Notices', element: <NoticesPage /> },
   { path: '/materials', title: 'Study Materials', element: <MaterialsPage /> },
   { path: '/calendar', title: 'Academic Calendar', element: <CalendarPage /> },
+  { path: '/fees', title: 'Fees', element: <FeesPage /> },
+  { path: '/fees/:studentId', title: 'Student Fee Details', element: <StudentFeeDetailPage /> },
   { path: '/reports', title: 'Reports', element: <ReportsPage /> },
   { path: '/settings', title: 'Settings', element: <SettingsPage /> },
   { path: '/logs', title: 'System Logs', element: <SystemLogsPage /> },

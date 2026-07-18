@@ -10,6 +10,7 @@ import { PageHeader } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
 import { repo } from '@/data/repositories';
 import { useToast } from '@/components/ui/Toast';
+import { downloadCsv } from '@/utils/csv';
 import type { AttendanceRecord, CalendarEvent, Exam, ExamResult, Homework, SchoolClass, Student } from '@/types';
 import styles from './ReportsPage.module.css';
 
@@ -21,18 +22,6 @@ function schoolDaysInMonth(monthDate: Date, holidayDates: Set<string>): string[]
     .filter((d) => !isWeekend(d) && !isAfter(d, today))
     .map((d) => format(d, 'yyyy-MM-dd'))
     .filter((iso) => !holidayDates.has(iso));
-}
-
-function downloadCsv(filename: string, header: string[], rows: (string | number)[][]) {
-  const escape = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
-  const csv = [header, ...rows].map((row) => row.map(escape).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
 }
 
 export function ReportsPage() {

@@ -421,6 +421,111 @@ async function main() {
     });
   }
 
+  step('Creating fee structures, payment history and receipts');
+  const ACADEMIC_SESSION = '2026-27';
+  const feeConfigByClass = {
+    'grade8-a': { academicFee: 20000, transportFeeAmount: 6000 },
+    'grade9-b': { academicFee: 23000, transportFeeAmount: 7000 },
+    'grade10-a': { academicFee: 25000, transportFeeAmount: 8000 },
+  };
+  const FEE_INSTALLMENTS = [
+    { id: '1', label: '1st Installment', period: 'April - September 2026', dueDate: '2026-06-15' },
+    { id: '2', label: '2nd Installment', period: 'October 2026 - March 2027', dueDate: '2026-12-15' },
+  ];
+
+  for (const c of classes) {
+    const cfg = feeConfigByClass[c.id];
+    await upsertDoc(call, 'feeStructures', c.id, {
+      classId: c.id,
+      academicSession: ACADEMIC_SESSION,
+      transportFeeAmount: cfg.transportFeeAmount,
+      installments: FEE_INSTALLMENTS.map((inst) => ({ ...inst, academicFee: cfg.academicFee })),
+    });
+  }
+
+  // Deterministic per-student scenario: a realistic spread of paid/partial/
+  // unpaid for the (already-due) 1st installment, a few early payers on the
+  // (not-yet-due) 2nd, one self-transport student per class, and one
+  // multi-payment history for the very first seeded student.
+  let receiptSeq = 0;
+  let feeSeed = 0;
+  for (const c of classes) {
+    const cfg = feeConfigByClass[c.id];
+    for (let si = 0; si < c.students.length; si++) {
+      const s = c.students[si];
+      const isAtRisk = si === c.students.length - 1;
+      const transportType = si % 5 === 4 ? 'self' : 'bus';
+      const transportFee = transportType === 'bus' ? cfg.transportFeeAmount : 0;
+      const seed = feeSeed;
+
+      for (const inst of FEE_INSTALLMENTS) {
+        const totalFee = cfg.academicFee + transportFee;
+        const r = pseudoRandom(seed * 13 + inst.id.charCodeAt(0) * 41);
+        let scenario;
+        if (inst.id === '1') {
+          if (isAtRisk) scenario = 'unpaid';
+          else if (r < 0.5) scenario = 'paid';
+          else if (r < 0.8) scenario = 'partial';
+          else scenario = 'unpaid';
+        } else {
+          scenario = r < 0.15 ? 'partial' : 'unpaid';
+        }
+
+        // A student who owes nothing yet and rides the default School Bus
+        // needs no document at all - the app's lazy-materialization
+        // defaults already describe them correctly.
+        if (scenario === 'unpaid' && transportType === 'bus') continue;
+
+        let paidSoFar = 0;
+        if (scenario !== 'unpaid') {
+          const isTwoPayments = scenario === 'partial' && seed === 0 && inst.id === '1';
+          const targetPaid =
+            scenario === 'paid' ? totalFee : Math.round(totalFee * (0.35 + pseudoRandom(seed * 7 + 3) * 0.3));
+          const paymentAmounts = isTwoPayments
+            ? [Math.round(targetPaid * 0.5), targetPaid - Math.round(targetPaid * 0.5)]
+            : [targetPaid];
+          const paymentMethods = ['cash', 'upi', 'bank_transfer', 'card'];
+
+          for (let pi = 0; pi < paymentAmounts.length; pi++) {
+            const amount = paymentAmounts[pi];
+            paidSoFar += amount;
+            const balanceAfter = Math.max(0, totalFee - paidSoFar);
+            const statusAfter = balanceAfter <= 0 ? 'paid' : 'partial';
+            receiptSeq++;
+            const receiptNo = `RCP/${ACADEMIC_SESSION}/${String(receiptSeq).padStart(6, '0')}`;
+            const paymentRef = `PAY/2026/${10000 + receiptSeq}`;
+            const daysAgo = 10 + Math.round(pseudoRandom(seed * 19 + pi * 5 + inst.id.charCodeAt(0)) * 40);
+            const paymentMethod = paymentMethods[(seed + pi) % paymentMethods.length];
+
+            await upsertDoc(call, 'feePayments', `seed-${s.uid}-inst${inst.id}-pay${pi + 1}`, {
+              studentId: s.uid, classId: c.id, academicSession: ACADEMIC_SESSION, installmentId: inst.id,
+              studentName: s.name, admissionNumber: s.admissionNumber, className: c.name, section: c.section,
+              academicFee: cfg.academicFee, transportFee, totalFee,
+              amount, totalPaidAfter: paidSoFar, balanceAfter, statusAfter,
+              paymentMethod, transactionRef: paymentMethod === 'cash' ? '' : `TXN${1000000 + receiptSeq}`,
+              paymentDate: isoDate(-daysAgo),
+              collectedBy: 'admin-001', collectedByName: 'School Admin',
+              remarks: isTwoPayments && pi === 0 ? 'Partial payment' : '',
+              receiptNo, paymentRef, createdAt: isoDateTime(-daysAgo),
+            });
+          }
+        }
+
+        await upsertDoc(call, 'studentFeeRecords', `${s.uid}_${inst.id}`, {
+          studentId: s.uid, classId: c.id, academicSession: ACADEMIC_SESSION, installmentId: inst.id,
+          transportType, academicFee: cfg.academicFee, transportFee, totalFee,
+          amountPaid: paidSoFar, balance: Math.max(0, totalFee - paidSoFar),
+          status: paidSoFar >= totalFee ? 'paid' : paidSoFar > 0 ? 'partial' : 'unpaid',
+          dueDate: inst.dueDate, updatedAt: isoDateTime(-1),
+        });
+      }
+      feeSeed++;
+    }
+  }
+  // So the live app's transactional receipt counter continues right after
+  // the last seeded receipt number instead of colliding with it.
+  await upsertDoc(call, 'counters', `feeReceipt_${ACADEMIC_SESSION}`, { seq: receiptSeq });
+
   step('Creating a few starter audit log entries');
   const auditSeeds = [
     { id: 'audit-seed-1', action: 'notice_posted', summary: 'Notice posted: Parent-Teacher Meeting Rescheduled', at: -2 },

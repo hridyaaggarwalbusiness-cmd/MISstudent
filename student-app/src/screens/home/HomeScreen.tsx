@@ -218,6 +218,13 @@ export function HomeScreen() {
       onPress: () => navigation.navigate('StudyMaterials'),
     },
     {
+      key: 'fees',
+      label: 'Fee Receipts',
+      icon: 'receipt-outline',
+      color: colors.tileYellow,
+      onPress: () => navigation.navigate('FeeReceipts'),
+    },
+    {
       key: 'calendar',
       label: 'Calendar',
       icon: 'today-outline',

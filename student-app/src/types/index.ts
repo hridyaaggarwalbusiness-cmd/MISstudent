@@ -196,3 +196,38 @@ export interface AppNotification {
   isRead: boolean;
   refId?: string;
 }
+
+export type InstallmentId = '1' | '2';
+export type FeePaymentMethod = 'cash' | 'upi' | 'bank_transfer' | 'card' | 'cheque';
+export type FeeStatus = 'unpaid' | 'partial' | 'paid';
+
+// Read-only mirror of admin-app's FeePayment - the receipt shown here is
+// regenerated client-side from this same record, so it always matches the
+// one the admin produced.
+export interface FeePayment {
+  id: string;
+  studentId: string;
+  classId: string;
+  academicSession: string;
+  installmentId: InstallmentId;
+  studentName: string;
+  admissionNumber: string;
+  className: string;
+  section: string;
+  academicFee: number;
+  transportFee: number;
+  totalFee: number;
+  amount: number;
+  totalPaidAfter: number;
+  balanceAfter: number;
+  statusAfter: FeeStatus;
+  paymentMethod: FeePaymentMethod;
+  transactionRef?: string;
+  paymentDate: string;
+  collectedBy: string;
+  collectedByName: string;
+  remarks?: string;
+  receiptNo: string;
+  paymentRef: string;
+  createdAt: string;
+}
