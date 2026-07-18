@@ -16,8 +16,15 @@ import { PaperGenerationError, PaperProvider } from './paperProvider';
 // NOT reuse an unrestricted key here. If you later enable the Blaze plan,
 // switch `paperProvider` in index.ts back to `cloudFunctionPaperProvider`
 // for a key that never leaves the server at all.
-const MODEL = 'gemini-2.0-flash';
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+
+// Free-tier quota/billing eligibility for a given model varies by Google
+// account and can differ even between models on the exact same key (some
+// accounts get a 429 "exceeded quota" on the newest flash model but not on
+// older ones). Rather than depend on one model working, try a prioritized
+// list and fall through to the next on any failure - this self-heals
+// without needing per-account diagnosis.
+const MODEL_CANDIDATES = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-flash-latest'];
 
 function getApiKey(): string {
   const key = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
@@ -30,9 +37,8 @@ function getApiKey(): string {
   return key;
 }
 
-async function callGemini(prompt: string, maxOutputTokens: number): Promise<string> {
-  const apiKey = getApiKey();
-  const res = await fetch(`${API_URL}?key=${encodeURIComponent(apiKey)}`, {
+async function callGeminiModel(model: string, apiKey: string, prompt: string, maxOutputTokens: number): Promise<string> {
+  const res = await fetch(`${API_BASE}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -47,7 +53,7 @@ async function callGemini(prompt: string, maxOutputTokens: number): Promise<stri
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new PaperGenerationError(`AI provider request failed (${res.status}). ${body.slice(0, 200)}`, 'gemini-http-error');
+    throw new Error(`${model} failed (${res.status}): ${body.slice(0, 200)}`);
   }
 
   const data = (await res.json()) as {
@@ -56,14 +62,28 @@ async function callGemini(prompt: string, maxOutputTokens: number): Promise<stri
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) {
     const reason = data.candidates?.[0]?.finishReason;
-    throw new PaperGenerationError(
-      reason === 'SAFETY'
-        ? 'The AI declined to generate this paper. Try rephrasing the chapter/topic.'
-        : 'The AI returned an empty response. Please try again.',
-      'gemini-empty-response',
-    );
+    if (reason === 'SAFETY') {
+      throw new PaperGenerationError('The AI declined to generate this paper. Try rephrasing the chapter/topic.', 'gemini-safety');
+    }
+    throw new Error(`${model} returned an empty response (finishReason: ${reason ?? 'unknown'})`);
   }
   return text;
+}
+
+async function callGemini(prompt: string, maxOutputTokens: number): Promise<string> {
+  const apiKey = getApiKey();
+  let lastMessage = 'The AI provider is currently unavailable.';
+
+  for (const model of MODEL_CANDIDATES) {
+    try {
+      return await callGeminiModel(model, apiKey, prompt, maxOutputTokens);
+    } catch (err) {
+      if (err instanceof PaperGenerationError) throw err;
+      lastMessage = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  throw new PaperGenerationError(`AI provider request failed on every available model. ${lastMessage}`, 'gemini-all-models-failed');
 }
 
 // Retries once with the validation failure fed back to the model - marks
