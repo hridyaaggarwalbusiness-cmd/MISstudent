@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Sparkles, Wand2, RotateCcw, Pencil, FileDown, ImageDown, Save, Send, Eraser, Files } from 'lucide-react';
+import { useState } from 'react';
+import { Sparkles, Wand2, RotateCcw, Pencil, FileDown, ImageDown, Save, Send, Eraser } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { TextField, TextAreaField, SelectField } from '@/components/ui/FormField';
@@ -12,7 +12,7 @@ import { repo } from '@/data/repositories';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getErrorMessage } from '@/utils/errors';
 import { noticeProvider, NoticeGenerationError } from '@/services/ai';
-import { downloadNoticeImage, downloadNoticePdf, renderNoticePages } from '@/utils/noticeTemplate';
+import { downloadNoticeImage, downloadNoticePdf } from '@/utils/noticeTemplate';
 import type { NoticeTemplateData } from '@/utils/noticeTemplate';
 import type { Notice, NoticeAudience, NoticeCategory, NoticePriority, NoticeTone, NoticeType, SchoolClass } from '@/types';
 import styles from './AiNoticeWriterPage.module.css';
@@ -230,25 +230,6 @@ export function AiNoticeWriterPage() {
   const hasContent = generatedBody.trim().length > 0;
   const downloadName = generatedTitle || instruction.slice(0, 40) || 'notice';
 
-  const [pageCount, setPageCount] = useState(1);
-  useEffect(() => {
-    if (!hasContent) {
-      setPageCount(1);
-      return;
-    }
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      renderNoticePages(previewData).then((pages) => {
-        if (!cancelled) setPageCount(pages.length);
-      });
-    }, 500);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [generatedTitle, generatedBody, noticeDate, hasContent]);
-
   async function handleDownloadPdf() {
     setExportingPdf(true);
     try {
@@ -385,14 +366,6 @@ export function AiNoticeWriterPage() {
           <div className={styles.previewFrame}>
             <NoticePreview data={previewData} />
           </div>
-
-          {hasContent && pageCount > 1 && (
-            <div className={styles.pageCountNote}>
-              <Files size={14} />
-              This notice spans {pageCount} pages — the header and signature repeat on every page in the downloaded PDF and
-              in the Student/Teacher app.
-            </div>
-          )}
 
           {editing && (
             <div className={styles.editBox}>
