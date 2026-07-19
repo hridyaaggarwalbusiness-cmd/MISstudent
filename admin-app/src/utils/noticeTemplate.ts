@@ -79,12 +79,13 @@ export function bodyToHtml(body: string): string {
     .join('\n');
 }
 
-// The fixed template, as a literal HTML string with {{DATE}}, {{TITLE}} and
-// {{BODY}} placeholders - the header, border, background, footer, logo and
-// signature markup here must never change.
-const NOTICE_TEMPLATE_HTML = `
-<div class="notice-page">
-  <div class="notice-border">
+// Fixed header block (crests, school name, affiliation, NOTICE/date row) -
+// appears once, on the first page only. Fixed footer block (signature
+// block) - appears once, on whichever page the body text ends on. Neither
+// repeats across pages: a real multi-page letter states its letterhead
+// once and signs once, not on every page.
+function headerBlockHtml(date: string): string {
+  return `
     <header class="notice-header">
       <img class="notice-logo" src="${madaanLogoUrl}" alt="" />
       <div class="notice-header-text">
@@ -93,27 +94,22 @@ const NOTICE_TEMPLATE_HTML = `
       </div>
       <img class="notice-logo" src="${madaanLogoUrl}" alt="" />
     </header>
-
     <div class="notice-heading-row">
       <span class="notice-heading-spacer"></span>
       <span class="notice-heading">NOTICE</span>
-      <span class="notice-date">{{DATE}}</span>
+      <span class="notice-date">${escapeHtml(date)}</span>
     </div>
+  `;
+}
 
-    <main class="notice-body">
-      {{TITLE}}
-      {{BODY}}
-    </main>
-
+const FOOTER_BLOCK_HTML = `
     <footer class="notice-footer">
       <p class="notice-thanks">Thanks &amp; Regards</p>
       <img class="notice-signature" src="${principalSignatureUrl}" alt="" />
       <p class="notice-principal-name">Bhavna Mittal</p>
       <p class="notice-principal-title">(Principal)</p>
     </footer>
-  </div>
-</div>
-`;
+  `;
 
 const NOTICE_STYLE = `
   * { box-sizing: border-box; }
@@ -133,8 +129,6 @@ const NOTICE_STYLE = `
     border: 2.2pt solid #000;
     margin: 0;
     padding: 4pt 11pt 14pt;
-    display: flex;
-    flex-direction: column;
     overflow: hidden;
   }
   .notice-header {
@@ -184,7 +178,6 @@ const NOTICE_STYLE = `
     margin-top: 18pt;
     font-size: 23pt;
     line-height: 1.72;
-    flex: 1;
   }
   .notice-title {
     margin: 0 0 10pt;
@@ -196,8 +189,7 @@ const NOTICE_STYLE = `
     overflow-wrap: break-word;
   }
   .notice-footer {
-    margin-top: auto;
-    padding-top: 20pt;
+    margin-top: 20pt;
   }
   .notice-thanks {
     margin: 0 0 10pt;
@@ -223,75 +215,31 @@ function wrapDocument(bodyHtml: string): string {
   return `<!doctype html><html><head><meta charset="utf-8"><style>${NOTICE_STYLE}</style></head><body>${bodyHtml}</body></html>`;
 }
 
-function fillPage(date: string, titleHtml: string, bodyHtml: string): string {
-  const page = NOTICE_TEMPLATE_HTML.replace('{{DATE}}', escapeHtml(date))
-    .replace('{{TITLE}}', titleHtml)
-    .replace('{{BODY}}', bodyHtml);
+// Builds one physical page. includeHeader/includeFooter control whether the
+// letterhead / signature block render on this particular page - callers
+// (fillNoticeTemplate for the single-page case, renderNoticePages for
+// multi-page) decide which page gets which, but the header always renders
+// at most once and the footer always renders at most once across a notice.
+function buildPageHtml(date: string, bodyInnerHtml: string, includeHeader: boolean, includeFooter: boolean): string {
+  const page = `
+<div class="notice-page">
+  <div class="notice-border">
+    ${includeHeader ? headerBlockHtml(date) : ''}
+    <main class="notice-body">${bodyInnerHtml}</main>
+    ${includeFooter ? FOOTER_BLOCK_HTML : ''}
+  </div>
+</div>`;
   return wrapDocument(page);
 }
 
 // Accepts { date, title, body } and fills the fixed HTML template - the
 // literal templating function the notice-writer feature is built around.
 // Covers the common single-page case; for bodies too long to fit one page,
-// use renderNoticePages() instead, which paginates while repeating this
-// same header/footer on every page.
+// use renderNoticePages() instead, which paginates while showing the
+// header only on page 1 and the footer only on the final page.
 export function fillNoticeTemplate(data: NoticeTemplateData): string {
   const titleHtml = data.title?.trim() ? `<p class="notice-title">${escapeHtml(data.title.trim())}</p>` : '';
-  return fillPage(data.date, titleHtml, bodyToHtml(data.body));
-}
-
-const CONTENT_AREA_SELECTOR = '.notice-body';
-
-// Measures whether the body content overflows a single page and, if so,
-// splits it into per-paragraph groups that each fit one page - each
-// resulting page reuses the identical fixed header/footer markup above, per
-// the requirement that header and footer repeat on every page.
-export async function renderNoticePages(data: NoticeTemplateData): Promise<string[]> {
-  const probeFrame = document.createElement('iframe');
-  probeFrame.style.position = 'fixed';
-  probeFrame.style.left = '-99999px';
-  probeFrame.style.top = '0';
-  probeFrame.style.width = `${PAGE_WIDTH_PT}pt`;
-  probeFrame.style.height = `${PAGE_HEIGHT_PT}pt`;
-  probeFrame.style.border = 'none';
-  document.body.appendChild(probeFrame);
-
-  try {
-    const titleHtml = data.title?.trim() ? `<p class="notice-title">${escapeHtml(data.title.trim())}</p>` : '';
-    const paragraphs = bodyToHtml(data.body).split('\n').filter(Boolean);
-    const fullHtml = fillPage(data.date, titleHtml, paragraphs.join('\n'));
-
-    await loadIntoFrame(probeFrame, fullHtml);
-    const doc = probeFrame.contentDocument!;
-    const bodyEl = doc.querySelector(CONTENT_AREA_SELECTOR) as HTMLElement;
-    const borderEl = doc.querySelector('.notice-border') as HTMLElement;
-    const footerEl = doc.querySelector('.notice-footer') as HTMLElement;
-    // Reserve the footer's real rendered height (not a guess) plus a small
-    // buffer, so the signature block never gets pushed past the page edge.
-    const availableHeight = borderEl.clientHeight - (bodyEl.offsetTop - borderEl.offsetTop) - footerEl.offsetHeight - 16;
-
-    if (bodyEl.scrollHeight <= availableHeight) {
-      return [fullHtml];
-    }
-
-    // Overflow: greedily group paragraphs so each page's body fits.
-    const paraNodes = Array.from(bodyEl.querySelectorAll('.notice-paragraph, .notice-title')) as HTMLElement[];
-    const pages: string[][] = [[]];
-    let currentHeight = 0;
-    for (const node of paraNodes) {
-      const h = node.offsetHeight;
-      if (currentHeight + h > availableHeight && pages[pages.length - 1].length > 0) {
-        pages.push([]);
-        currentHeight = 0;
-      }
-      pages[pages.length - 1].push(node.outerHTML);
-      currentHeight += h;
-    }
-
-    return pages.map((paras, i) => fillPage(data.date, i === 0 ? titleHtml : '', paras.filter((p) => !p.startsWith('<p class="notice-title')).join('\n')));
-  } finally {
-    document.body.removeChild(probeFrame);
-  }
+  return buildPageHtml(data.date, titleHtml + bodyToHtml(data.body), true, true);
 }
 
 function loadIntoFrame(iframe: HTMLIFrameElement, html: string): Promise<void> {
@@ -299,6 +247,98 @@ function loadIntoFrame(iframe: HTMLIFrameElement, html: string): Promise<void> {
     iframe.onload = () => resolve();
     iframe.srcdoc = html;
   });
+}
+
+function createProbeFrame(): HTMLIFrameElement {
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.left = '-99999px';
+  iframe.style.top = '0';
+  iframe.style.width = `${PAGE_WIDTH_PT}pt`;
+  iframe.style.height = `${PAGE_HEIGHT_PT}pt`;
+  iframe.style.border = 'none';
+  document.body.appendChild(iframe);
+  return iframe;
+}
+
+// Measures whether the body content overflows a single page and, if so,
+// splits it into per-paragraph groups across multiple pages - the header
+// (letterhead + NOTICE/date row) renders only on page 1, and the footer
+// (signature block) renders only on whichever page the body text ends on,
+// exactly like a real multi-page letter rather than a repeated template.
+export async function renderNoticePages(data: NoticeTemplateData): Promise<string[]> {
+  const titleHtml = data.title?.trim() ? `<p class="notice-title">${escapeHtml(data.title.trim())}</p>` : '';
+  const bodyHtml = titleHtml + bodyToHtml(data.body);
+
+  const headerProbe = createProbeFrame();
+  const noHeaderProbe = createProbeFrame();
+  try {
+    // Probe A: page WITH header, full body, no footer - gives the page
+    // content box height, where the body starts under the header, and
+    // every paragraph's real rendered height (unaffected by which page it
+    // ends up on, since the content width never changes).
+    await loadIntoFrame(headerProbe, buildPageHtml(data.date, bodyHtml, true, false));
+    const docA = headerProbe.contentDocument!;
+    const borderElA = docA.querySelector('.notice-border') as HTMLElement;
+    const bodyElA = docA.querySelector('.notice-body') as HTMLElement;
+    const pageContentHeight = borderElA.clientHeight;
+    const firstPageAvailable = pageContentHeight - (bodyElA.offsetTop - borderElA.offsetTop);
+    const paraNodes = Array.from(bodyElA.querySelectorAll('.notice-paragraph, .notice-title')) as HTMLElement[];
+    const paraHeights = paraNodes.map((n) => n.offsetHeight);
+    const paraHtml = paraNodes.map((n) => n.outerHTML);
+
+    // Probe B: page with NO header, empty body, WITH footer - gives where
+    // the body starts on a header-less continuation page, and the
+    // footer's own real rendered height.
+    await loadIntoFrame(noHeaderProbe, buildPageHtml(data.date, '', false, true));
+    const docB = noHeaderProbe.contentDocument!;
+    const borderElB = docB.querySelector('.notice-border') as HTMLElement;
+    const bodyElB = docB.querySelector('.notice-body') as HTMLElement;
+    const footerElB = docB.querySelector('.notice-footer') as HTMLElement;
+    const continuationPageAvailable = pageContentHeight - (bodyElB.offsetTop - borderElB.offsetTop);
+    const footerHeight = footerElB.offsetHeight;
+
+    if (bodyElA.scrollHeight <= firstPageAvailable - footerHeight) {
+      // Everything - body and footer - fits on one page.
+      return [buildPageHtml(data.date, bodyHtml, true, true)];
+    }
+
+    // Greedily pack paragraphs: page 0 gets the header's reduced budget,
+    // every later page gets the full (no-header) budget.
+    const pages: string[][] = [[]];
+    let currentHeight = 0;
+    for (let i = 0; i < paraNodes.length; i++) {
+      const budget = pages.length === 1 ? firstPageAvailable : continuationPageAvailable;
+      const h = paraHeights[i];
+      if (currentHeight + h > budget && pages[pages.length - 1].length > 0) {
+        pages.push([]);
+        currentHeight = 0;
+      }
+      pages[pages.length - 1].push(paraHtml[i]);
+      currentHeight += h;
+    }
+
+    const lastPageBudget = pages.length === 1 ? firstPageAvailable : continuationPageAvailable;
+    const footerFitsOnLastPage = currentHeight + footerHeight <= lastPageBudget;
+
+    const htmlPages = pages.map((paras, i) => {
+      const includeHeader = i === 0;
+      const isLastPage = i === pages.length - 1;
+      const includeFooter = isLastPage && footerFitsOnLastPage;
+      return buildPageHtml(data.date, paras.join('\n'), includeHeader, includeFooter);
+    });
+
+    if (!footerFitsOnLastPage) {
+      // The last page's body filled it right up to the edge - give the
+      // signature block a page of its own rather than crowding/overflowing.
+      htmlPages.push(buildPageHtml(data.date, '', false, true));
+    }
+
+    return htmlPages;
+  } finally {
+    document.body.removeChild(headerProbe);
+    document.body.removeChild(noHeaderProbe);
+  }
 }
 
 async function waitForImages(doc: Document): Promise<void> {
@@ -316,14 +356,7 @@ async function waitForImages(doc: Document): Promise<void> {
 }
 
 async function renderPageToCanvas(html: string): Promise<HTMLCanvasElement> {
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.left = '-99999px';
-  iframe.style.top = '0';
-  iframe.style.width = `${PAGE_WIDTH_PT}pt`;
-  iframe.style.height = `${PAGE_HEIGHT_PT}pt`;
-  iframe.style.border = 'none';
-  document.body.appendChild(iframe);
+  const iframe = createProbeFrame();
 
   try {
     await loadIntoFrame(iframe, html);
