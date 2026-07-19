@@ -7,25 +7,32 @@ import { colors, spacing, radius } from '@theme';
 export interface UpdateFeedItemData {
   key: string;
   icon: keyof typeof Ionicons.glyphMap;
-  color: string;
+  iconColor: string;
+  iconBg: string;
+  accentColor: string;
+  cardBg: string;
   categoryLabel: string;
   categoryColor: string;
   title: string;
-  subtitle?: string;
-  badge?: { label: string; color: string; bg: string };
-  timestamp: string;
+  badge?: { label: string; icon?: keyof typeof Ionicons.glyphMap; color: string; bg: string };
+  subtitle: string;
   onPress?: () => void;
 }
 
 export function UpdateFeedItem({ item }: { item: UpdateFeedItemData }) {
   return (
-    <Card onPress={item.onPress} elevation="xs" style={styles.card}>
+    <Card
+      onPress={item.onPress}
+      elevation="none"
+      bordered={false}
+      style={[styles.card, { backgroundColor: item.cardBg, borderLeftColor: item.accentColor }]}
+    >
       <View style={styles.row}>
-        <View style={[styles.iconWrap, { backgroundColor: item.color }]}>
-          <Ionicons name={item.icon} size={20} color="#fff" />
+        <View style={[styles.iconCircle, { backgroundColor: item.iconBg }]}>
+          <Ionicons name={item.icon} size={17} color={item.iconColor} />
         </View>
         <View style={{ flex: 1, marginLeft: spacing.sm }}>
-          <AppText variant="tiny" color={item.categoryColor} style={styles.categoryLabel}>
+          <AppText variant="tiny" color={item.categoryColor} style={{ fontWeight: '700' }}>
             {item.categoryLabel}
           </AppText>
           <View style={styles.titleRow}>
@@ -34,61 +41,50 @@ export function UpdateFeedItem({ item }: { item: UpdateFeedItemData }) {
             </AppText>
             {item.badge && (
               <View style={[styles.badge, { backgroundColor: item.badge.bg }]}>
+                {item.badge.icon && <Ionicons name={item.badge.icon} size={10} color={item.badge.color} style={{ marginRight: 3 }} />}
                 <AppText variant="tiny" color={item.badge.color} style={{ fontWeight: '700' }}>
                   {item.badge.label}
                 </AppText>
               </View>
             )}
           </View>
-          {item.subtitle && (
-            <AppText variant="caption" color={colors.textSecondary} style={styles.subtitle}>
-              {item.subtitle}
-            </AppText>
-          )}
-        </View>
-        <View style={styles.right}>
-          <AppText variant="tiny" color={colors.textTertiary}>
-            {item.timestamp}
+          <AppText variant="caption" color={colors.textSecondary} style={styles.subtitle}>
+            {item.subtitle}
           </AppText>
-          <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} style={{ marginTop: 6 }} />
         </View>
+        <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
       </View>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { marginBottom: spacing.sm },
-  row: { flexDirection: 'row', alignItems: 'flex-start' },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
+  card: {
+    marginBottom: spacing.sm,
+    borderLeftWidth: 4,
+  },
+  row: { flexDirection: 'row', alignItems: 'center' },
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  categoryLabel: {
-    fontWeight: '800',
-    fontSize: 10.5,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    marginBottom: 2,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 6,
+    marginTop: 1,
   },
   title: { fontSize: 15, flexShrink: 1 },
   badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: radius.pill,
   },
   subtitle: { marginTop: 2 },
-  right: {
-    alignItems: 'flex-end',
-    marginLeft: spacing.xs,
-  },
 });

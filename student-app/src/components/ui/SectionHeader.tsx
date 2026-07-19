@@ -8,6 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 interface SectionHeaderProps {
   title: string;
   subtitle?: string;
+  icon?: keyof typeof Ionicons.glyphMap;
+  iconColor?: string;
   actionLabel?: string;
   actionIcon?: keyof typeof Ionicons.glyphMap;
   onActionPress?: () => void;
@@ -17,6 +19,8 @@ interface SectionHeaderProps {
 export function SectionHeader({
   title,
   subtitle,
+  icon,
+  iconColor,
   actionLabel = 'See all',
   actionIcon = 'chevron-forward',
   onActionPress,
@@ -25,7 +29,11 @@ export function SectionHeader({
   return (
     <View style={[styles.row, style]}>
       <View style={styles.titleRow}>
-        <View style={styles.accentBar} />
+        {icon ? (
+          <Ionicons name={icon} size={17} color={iconColor ?? colors.primary} style={styles.leadingIcon} />
+        ) : (
+          <View style={styles.accentBar} />
+        )}
         <View style={{ flex: 1 }}>
           <AppText variant="h2">{title}</AppText>
           {subtitle && (
@@ -64,6 +72,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     marginRight: spacing.xs,
     alignSelf: 'stretch',
+  },
+  leadingIcon: {
+    marginRight: spacing.xs,
+    alignSelf: 'center',
   },
   action: {
     flexDirection: 'row',

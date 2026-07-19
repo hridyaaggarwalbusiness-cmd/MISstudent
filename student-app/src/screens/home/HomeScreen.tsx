@@ -7,8 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { RootStackParamList } from '@navigation/types';
 import { AppText, IconButton, Avatar, SectionHeader, Skeleton, EmptyState, ErrorState, AnimatedPressable } from '@components/ui';
-import { AtAGlanceCard, GlanceStat } from '@components/dashboard/AtAGlanceCard';
-import { HeaderIllustration } from '@components/dashboard/HeaderIllustration';
+import { SchoolPocketBanner } from '@components/dashboard/SchoolPocketBanner';
 import { AIPracticeTestBanner } from '@components/dashboard/AIPracticeTestBanner';
 import { UpdateFeedItem, UpdateFeedItemData } from '@components/dashboard/UpdateFeedItem';
 import { QuickAccessGrid, QuickAccessItem } from '@components/dashboard/QuickAccessGrid';
@@ -21,8 +20,7 @@ import { useHomeworkStore } from '@store/useHomeworkStore';
 import { useNoticesStore } from '@store/useNoticesStore';
 import { useNotificationsStore } from '@store/useNotificationsStore';
 import { useAuthStore } from '@store/useAuthStore';
-import { todayDayCode, greetingForNow, noticeTimeLabel, dueInLabelLong, parseDate } from '@utils/date';
-import { overallAttendancePercentage } from '@utils/attendance';
+import { greetingForNow, noticeTimeLabel, dueInLabelLong, parseDate } from '@utils/date';
 import { subjectMeta } from '@data/subjectMeta';
 
 const FEED_COLLAPSED_LIMIT = 4;
@@ -39,10 +37,6 @@ async function loadDashboard(classId: string, studentId: string) {
     repo.feePayments.list(studentId),
   ]);
   return { timetable, exams, attendanceMonth, results, calendarEvents, materials, feePayments };
-}
-
-function isoToday(): string {
-  return new Date().toISOString().slice(0, 10);
 }
 
 function BellButton({ count, onPress }: { count: number; onPress: () => void }) {
@@ -86,65 +80,6 @@ export function HomeScreen() {
     fetchNotifications();
   }, [fetchStudent, fetchHomework, fetchNotices, fetchNotifications]);
 
-  const todayIso = isoToday();
-
-  const upcomingEventsCount = useMemo(() => {
-    if (!data) return 0;
-    return data.calendarEvents.filter((e) => (e.endDate ?? e.date) >= todayIso).length;
-  }, [data, todayIso]);
-
-  const attendancePct = useMemo(
-    () => (data ? overallAttendancePercentage(data.attendanceMonth) : 0),
-    [data],
-  );
-
-  const pendingHomeworkCount = useMemo(
-    () => homeworkItems.filter((hw) => hw.status === 'pending' || hw.status === 'overdue').length,
-    [homeworkItems],
-  );
-
-  const glanceStats: GlanceStat[] = useMemo(
-    () => [
-      {
-        key: 'hw',
-        icon: 'book',
-        iconColor: '#6D3FD6',
-        cardBg: '#EDE8FC',
-        tag: 'Pending',
-        value: String(pendingHomeworkCount),
-        label: 'Homework',
-      },
-      {
-        key: 'notices',
-        icon: 'megaphone',
-        iconColor: '#2C52D9',
-        cardBg: '#E3EDFF',
-        tag: 'New',
-        value: String(noticeItems.filter((n) => !n.isRead).length),
-        label: 'Notices',
-      },
-      {
-        key: 'attendance',
-        icon: 'checkmark-circle',
-        iconColor: '#16803F',
-        cardBg: '#E1F5E7',
-        tag: 'This Month',
-        value: `${Math.round(attendancePct)}%`,
-        label: 'Attendance',
-      },
-      {
-        key: 'events',
-        icon: 'calendar',
-        iconColor: '#B4720C',
-        cardBg: '#FFF3DE',
-        tag: 'Upcoming',
-        value: String(upcomingEventsCount),
-        label: 'Events',
-      },
-    ],
-    [pendingHomeworkCount, noticeItems, attendancePct, upcomingEventsCount],
-  );
-
   const latestResult = data?.results[data.results.length - 1];
 
   // A single chronological feed instead of separate homework/notice/material/
@@ -159,12 +94,15 @@ export function HomeScreen() {
         item: {
           key: `hw-${hw.id}`,
           icon: meta.icon,
-          color: '#8B5CF6',
+          iconColor: '#6D3FD6',
+          iconBg: '#EAE1FB',
+          accentColor: '#8B5CF6',
+          cardBg: '#F7F3FD',
           categoryLabel: 'Homework',
           categoryColor: '#6D3FD6',
           title: hw.title,
-          badge: { label: dueInLabelLong(hw.dueDate), color: '#6D3FD6', bg: '#F3EEFF' },
-          timestamp: noticeTimeLabel(hw.assignedDate),
+          badge: { label: dueInLabelLong(hw.dueDate), icon: 'calendar-outline', color: '#6D3FD6', bg: '#EAE1FB' },
+          subtitle: `By ${hw.teacher} · ${noticeTimeLabel(hw.assignedDate)}`,
           onPress: () => navigation.navigate('HomeworkDetail', { id: hw.id }),
         },
       });
@@ -176,12 +114,14 @@ export function HomeScreen() {
         item: {
           key: `notice-${n.id}`,
           icon: 'megaphone',
-          color: '#F2711F',
-          categoryLabel: 'Notice',
+          iconColor: '#F2711F',
+          iconBg: '#FFE7D1',
+          accentColor: '#F2711F',
+          cardBg: '#FFF6EE',
+          categoryLabel: 'New Notice',
           categoryColor: '#F2711F',
           title: n.title,
-          subtitle: `By ${n.postedBy}`,
-          timestamp: noticeTimeLabel(n.postedAt),
+          subtitle: `By ${n.postedBy} · ${noticeTimeLabel(n.postedAt)}`,
           onPress: () => navigation.navigate('NoticeDetail', { id: n.id }),
         },
       });
@@ -193,12 +133,15 @@ export function HomeScreen() {
         item: {
           key: `material-${m.id}`,
           icon: 'document-text',
-          color: '#3E6BFA',
-          categoryLabel: 'Study Material',
+          iconColor: '#2C52D9',
+          iconBg: '#DCEAFF',
+          accentColor: '#3E6BFA',
+          cardBg: '#EFF5FF',
+          categoryLabel: 'New Study Material',
           categoryColor: '#2C52D9',
           title: m.title,
-          badge: { label: m.attachment?.type === 'pdf' ? 'New PDF' : 'New', color: '#2C52D9', bg: '#EAF0FF' },
-          timestamp: noticeTimeLabel(m.uploadedAt),
+          badge: { label: m.attachment?.type === 'pdf' ? 'PDF' : 'New', icon: 'document-outline', color: '#2C52D9', bg: '#DCEAFF' },
+          subtitle: `By ${m.uploadedBy} · ${noticeTimeLabel(m.uploadedAt)}`,
           onPress: () => navigation.navigate('StudyMaterials'),
         },
       });
@@ -207,21 +150,24 @@ export function HomeScreen() {
     (data?.feePayments ?? []).forEach((p) => {
       const badge =
         p.statusAfter === 'paid'
-          ? { label: 'Paid', color: '#16803F', bg: '#E9FBF1' }
+          ? { label: 'Paid', icon: 'checkmark' as const, color: '#16803F', bg: '#D9F5E3' }
           : p.statusAfter === 'partial'
-            ? { label: 'Partial', color: '#B4720C', bg: '#FFF6E4' }
-            : { label: 'Unpaid', color: '#C22A2F', bg: '#FFEEEE' };
+            ? { label: 'Partial', color: '#B4720C', bg: '#FFF0CE' }
+            : { label: 'Unpaid', color: '#C22A2F', bg: '#FFDCDC' };
       entries.push({
         ts: new Date(p.createdAt).getTime() || 0,
         item: {
           key: `fee-${p.id}`,
           icon: 'receipt',
-          color: '#22A55E',
-          categoryLabel: 'Fee',
+          iconColor: '#16803F',
+          iconBg: '#D9F5E3',
+          accentColor: '#22A55E',
+          cardBg: '#EEFBF3',
+          categoryLabel: 'Fee Receipt',
           categoryColor: '#16803F',
-          title: `${format(parseDate(p.paymentDate), 'MMMM')} Fee Receipt`,
+          title: `${format(parseDate(p.paymentDate), 'MMMM')} Fee Receipt Available`,
           badge,
-          timestamp: noticeTimeLabel(p.createdAt),
+          subtitle: `By ${p.collectedByName || 'Accounts Office'} · ${noticeTimeLabel(p.createdAt)}`,
           onPress: () => navigation.navigate('FeeReceipts'),
         },
       });
@@ -233,12 +179,14 @@ export function HomeScreen() {
         item: {
           key: `result-${latestResult.id}`,
           icon: 'stats-chart',
-          color: colors.tileViolet,
+          iconColor: '#6D3FD6',
+          iconBg: '#EAE1FB',
+          accentColor: '#8B5CF6',
+          cardBg: '#F7F3FD',
           categoryLabel: 'Result',
-          categoryColor: colors.tileViolet,
+          categoryColor: '#6D3FD6',
           title: `${latestResult.examName} results published`,
-          subtitle: 'Check your marks',
-          timestamp: noticeTimeLabel(latestResult.date),
+          subtitle: `Check your marks · ${noticeTimeLabel(latestResult.date)}`,
           onPress: () => navigation.navigate('MainTabs', { screen: 'ResultsTab' }),
         },
       });
@@ -337,9 +285,6 @@ export function HomeScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <View style={styles.headerIllustrationWrap} pointerEvents="none">
-          <HeaderIllustration width={220} height={150} />
-        </View>
         <View style={styles.headerRow}>
           <IconButton icon="menu-outline" onPress={() => setMoreVisible(true)} size={36} />
           <View style={{ flex: 1 }} />
@@ -371,15 +316,16 @@ export function HomeScreen() {
         }
       >
         <View style={{ paddingHorizontal: spacing.lg }}>
-          {loading ? (
-            <Skeleton height={190} borderRadius={20} />
-          ) : (
-            <AtAGlanceCard stats={glanceStats} onViewCalendar={() => navigation.navigate('AcademicCalendar')} />
-          )}
+          <SchoolPocketBanner onExplore={() => navigation.navigate('Search')} />
         </View>
 
         <View style={styles.section}>
-          <SectionHeader title="Latest Updates" actionLabel={feedActionLabel} onActionPress={onFeedActionPress} />
+          <SectionHeader
+            title="Today for you"
+            icon="sparkles"
+            actionLabel={feedActionLabel}
+            onActionPress={onFeedActionPress}
+          />
           {loading ? (
             <Skeleton height={90} borderRadius={16} />
           ) : feedItems.length === 0 ? (
@@ -402,7 +348,8 @@ export function HomeScreen() {
         <View style={styles.section}>
           <SectionHeader
             title="Quick Access"
-            actionLabel="Customize"
+            icon="grid"
+            actionLabel="Edit"
             actionIcon="pencil-outline"
             onActionPress={() => Alert.alert('Customize Quick Access', 'Rearranging shortcuts is coming in a future update.')}
           />
@@ -449,11 +396,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xs,
     paddingBottom: spacing.md,
     overflow: 'hidden',
-  },
-  headerIllustrationWrap: {
-    position: 'absolute',
-    top: -10,
-    right: -20,
   },
   headerRow: { flexDirection: 'row', alignItems: 'center' },
   classRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
