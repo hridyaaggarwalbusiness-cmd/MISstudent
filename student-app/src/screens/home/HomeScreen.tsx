@@ -315,7 +315,7 @@ export function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} colors={[colors.primary]} />
         }
       >
-        <View style={{ paddingHorizontal: spacing.lg }}>
+        <View style={{ paddingHorizontal: spacing.md, marginTop: -spacing.xs }}>
           <SchoolPocketBanner onExplore={() => navigation.navigate('Search')} />
         </View>
 
