@@ -1,10 +1,25 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Polygon, Circle, Line, Rect } from 'react-native-svg';
 import { AppText, AnimatedPressable } from '@components/ui';
 import { spacing, radius } from '@theme';
+
+// react-native's shadow* props (iOS) translate to boxShadow on web via
+// react-native-web, but Android needs the separate `elevation` prop - this
+// gives the floating illustration pieces a soft drop shadow on every platform.
+function floatShadow(radius: number, opacity = 0.28) {
+  return Platform.select({
+    android: { elevation: radius },
+    default: {
+      shadowColor: '#1A1240',
+      shadowOpacity: opacity,
+      shadowRadius: radius,
+      shadowOffset: { width: 0, height: radius / 2 },
+    },
+  });
+}
 
 function GraduationCap() {
   return (
@@ -27,7 +42,7 @@ const PHONE_ICONS: { icon: keyof typeof Ionicons.glyphMap; bg: string }[] = [
 
 function PhoneMockup() {
   return (
-    <View style={styles.phone}>
+    <View style={[styles.phone, floatShadow(10)]}>
       <View style={styles.phoneScreen}>
         <View style={styles.phoneRow}>
           {PHONE_ICONS.slice(0, 2).map((p) => (
@@ -52,44 +67,54 @@ export function SchoolPocketBanner({ onExplore, activeDot = 0 }: { onExplore: ()
   return (
     <View>
       <View style={styles.cardClip}>
-      <LinearGradient colors={['#8B6FEA', '#4F2FCB']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.card}>
-        <View style={styles.illustrationWrap} pointerEvents="none">
-          <View style={styles.capWrap}>
-            <GraduationCap />
+        <LinearGradient
+          colors={['#C4B5FD', '#8B6FEA', '#4F2FCB']}
+          locations={[0, 0.45, 1]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.card}
+        >
+          <View style={styles.illustrationWrap} pointerEvents="none">
+            <View style={[styles.cloudBlob, { top: -30, left: 40, width: 160, height: 100 }]} />
+            <View style={[styles.cloudBlob, { top: 30, right: -30, width: 140, height: 140 }]} />
+
+            <View style={[styles.capWrap, floatShadow(8)]}>
+              <GraduationCap />
+            </View>
+            <Ionicons name="paper-plane-outline" size={20} color="rgba(255,255,255,0.6)" style={styles.plane} />
+            <View style={styles.phoneWrap}>
+              <PhoneMockup />
+            </View>
+
+            <Ionicons name="sparkles" size={12} color="rgba(255,255,255,0.7)" style={[styles.sparkle, { top: 10, left: 96 }]} />
+            <Ionicons name="sparkles" size={9} color="rgba(255,255,255,0.55)" style={[styles.sparkle, { top: 72, left: 44 }]} />
+            <Ionicons name="sparkles" size={10} color="rgba(255,255,255,0.6)" style={[styles.sparkle, { top: 96, right: 96 }]} />
           </View>
-          <Ionicons name="paper-plane-outline" size={20} color="rgba(255,255,255,0.55)" style={styles.plane} />
-          <View style={styles.phoneWrap}>
-            <PhoneMockup />
+
+          <View style={styles.badge}>
+            <Ionicons name="sparkles" size={11} color="#fff" />
+            <AppText variant="tiny" color="#fff" style={{ marginLeft: 4, fontWeight: '700' }}>
+              Everything You Need
+            </AppText>
           </View>
-          <View style={[styles.sparkleDot, { top: 10, left: 90, width: 6, height: 6 }]} />
-          <View style={[styles.sparkleDot, { top: 70, left: 40, width: 4, height: 4 }]} />
-          <View style={[styles.sparkleDot, { top: 100, right: 90, width: 5, height: 5 }]} />
-        </View>
 
-        <View style={styles.badge}>
-          <Ionicons name="sparkles" size={11} color="#fff" />
-          <AppText variant="tiny" color="#fff" style={{ marginLeft: 4, fontWeight: '700' }}>
-            Everything You Need
+          <AppText style={styles.heroTitle}>Your School,</AppText>
+          <View style={{ flexDirection: 'row' }}>
+            <AppText style={styles.heroTitle}>Now in </AppText>
+            <AppText style={[styles.heroTitle, { color: '#C4B5FD' }]}>Your Pocket</AppText>
+          </View>
+
+          <AppText variant="caption" color="rgba(255,255,255,0.8)" style={{ marginTop: spacing.xs }} numberOfLines={1}>
+            Homework · Notices · Timetable · Results
           </AppText>
-        </View>
 
-        <AppText style={styles.heroTitle}>Your School,</AppText>
-        <View style={{ flexDirection: 'row' }}>
-          <AppText style={styles.heroTitle}>Now in </AppText>
-          <AppText style={[styles.heroTitle, { color: '#E4D9FF' }]}>Your Pocket</AppText>
-        </View>
-
-        <AppText variant="caption" color="rgba(255,255,255,0.78)" style={{ marginTop: spacing.xs, maxWidth: '65%' }}>
-          Homework · Notices · Timetable · Results
-        </AppText>
-
-        <AnimatedPressable onPress={onExplore} style={styles.exploreBtn}>
-          <AppText variant="bodySemibold" color="#4F2FCB">
-            Explore
-          </AppText>
-          <Ionicons name="arrow-forward" size={16} color="#4F2FCB" style={{ marginLeft: 6 }} />
-        </AnimatedPressable>
-      </LinearGradient>
+          <AnimatedPressable onPress={onExplore} style={styles.exploreBtn}>
+            <AppText variant="bodySemibold" color="#4F2FCB">
+              Explore
+            </AppText>
+            <Ionicons name="arrow-forward" size={16} color="#4F2FCB" style={{ marginLeft: 6 }} />
+          </AnimatedPressable>
+        </LinearGradient>
       </View>
 
       <View style={styles.dotsRow}>
@@ -116,6 +141,12 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
+    overflow: 'hidden',
+  },
+  cloudBlob: {
+    position: 'absolute',
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
   capWrap: {
     position: 'absolute',
@@ -161,10 +192,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sparkleDot: {
+  sparkle: {
     position: 'absolute',
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.6)',
   },
   badge: {
     flexDirection: 'row',
