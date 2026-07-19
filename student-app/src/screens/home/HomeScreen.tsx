@@ -27,10 +27,6 @@ import { subjectMeta } from '@data/subjectMeta';
 
 const FEED_COLLAPSED_LIMIT = 4;
 const FEED_EXPANDED_LIMIT = 10;
-// Extra bottom padding so scrolled content never sits under the fixed
-// AI Practice Test banner, which floats above the tab bar independent
-// of scroll position.
-const BANNER_RESERVED_SPACE = 100;
 
 async function loadDashboard(classId: string, studentId: string) {
   const [timetable, exams, attendanceMonth, results, calendarEvents, materials, feePayments] = await Promise.all([
@@ -403,7 +399,7 @@ export function HomeScreen() {
           )}
         </View>
 
-        <View style={[styles.section, { marginBottom: spacing.xxxl }]}>
+        <View style={styles.section}>
           <SectionHeader
             title="Quick Access"
             actionLabel="Customize"
@@ -412,11 +408,11 @@ export function HomeScreen() {
           />
           <QuickAccessGrid items={quickAccess} />
         </View>
-      </ScrollView>
 
-      <View style={styles.fixedBanner}>
-        <AIPracticeTestBanner onPress={() => navigation.navigate('PracticeTestGenerator')} />
-      </View>
+        <View style={[styles.section, { marginBottom: spacing.xxxl }]}>
+          <AIPracticeTestBanner onPress={() => navigation.navigate('PracticeTestGenerator')} />
+        </View>
+      </ScrollView>
 
       <MoreMenuModal
         visible={moreVisible}
@@ -482,16 +478,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.surface,
   },
-  scrollContent: { paddingBottom: layout.tabBarClearance + BANNER_RESERVED_SPACE },
+  scrollContent: { paddingBottom: layout.tabBarClearance },
   section: {
     paddingHorizontal: spacing.lg,
     marginTop: spacing.xl,
-  },
-  fixedBanner: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    bottom: spacing.md,
   },
   viewLess: {
     flexDirection: 'row',
