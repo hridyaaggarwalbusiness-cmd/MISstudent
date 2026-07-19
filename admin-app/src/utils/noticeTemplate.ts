@@ -30,14 +30,45 @@ export function escapeHtml(input: string): string {
     .replace(/'/g, '&#39;');
 }
 
+// AI-generated notices occasionally come back as one very long paragraph
+// with no blank lines. A single paragraph that's taller than a whole page
+// can't be paginated (there's nothing to break between), which is what lets
+// a page overflow past its footer/border. This guarantees a hard word-count
+// cap per paragraph - splitting on plain word boundaries, never inside a
+// **bold** span - rather than relying on sentence punctuation, which isn't
+// guaranteed to appear often enough (or at all) in a run-on paragraph.
+function splitLongParagraphs(paragraphs: string[], maxWords = 55): string[] {
+  const result: string[] = [];
+  for (const p of paragraphs) {
+    const words = p.split(/\s+/).filter(Boolean);
+    if (words.length <= maxWords) {
+      result.push(p);
+      continue;
+    }
+    let chunk: string[] = [];
+    for (const word of words) {
+      chunk.push(word);
+      const boldMarkersOpen = (chunk.join(' ').match(/\*\*/g)?.length ?? 0) % 2 !== 0;
+      if (chunk.length >= maxWords && !boldMarkersOpen) {
+        result.push(chunk.join(' '));
+        chunk = [];
+      }
+    }
+    if (chunk.length) result.push(chunk.join(' '));
+  }
+  return result;
+}
+
 // Converts **bold** markdown spans and \n-separated paragraphs into the
 // body's inner HTML, escaping everything else. This is the only part of the
 // document whose content is AI-generated.
 export function bodyToHtml(body: string): string {
-  const paragraphs = body
-    .split(/\n+/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+  const paragraphs = splitLongParagraphs(
+    body
+      .split(/\n+/)
+      .map((p) => p.trim())
+      .filter(Boolean),
+  );
 
   return paragraphs
     .map((p) => {
@@ -104,6 +135,7 @@ const NOTICE_STYLE = `
     padding: 4pt 11pt 14pt;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }
   .notice-header {
     display: flex;
@@ -297,6 +329,10 @@ async function renderPageToCanvas(html: string): Promise<HTMLCanvasElement> {
     await loadIntoFrame(iframe, html);
     const doc = iframe.contentDocument!;
     await waitForImages(doc);
+    // Let the browser actually paint the freshly-loaded iframe before
+    // snapshotting it - without this, html2canvas can occasionally
+    // capture a page before its background/border have been painted.
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const html2canvas = (await import('html2canvas')).default;
     const target = doc.querySelector('.notice-page') as HTMLElement;
     return await html2canvas(target, { scale: 2.5, useCORS: true, backgroundColor: '#fbd4b4' });
@@ -305,14 +341,27 @@ async function renderPageToCanvas(html: string): Promise<HTMLCanvasElement> {
   }
 }
 
-// Renders just the first page as a PNG data URL, for live preview display
-// and single-image sharing (student-app's <Image> component, "Download
-// Image"). Multi-page notices still export a full multi-page PDF via
-// downloadNoticePdf(); a PNG is inherently a single image.
+// Renders just the first page as a PNG data URL, for single-image sharing
+// ("Download Image") where a PNG is inherently one image. For on-screen
+// display, use renderAllPagesDataUrls() instead so a multi-page notice is
+// never silently truncated to page 1.
 export async function renderNoticeDataUrl(data: NoticeTemplateData): Promise<string> {
   const [firstPage] = await renderNoticePages(data);
   const canvas = await renderPageToCanvas(firstPage);
   return canvas.toDataURL('image/png');
+}
+
+// Renders every page as a PNG data URL, in order - what this returns is
+// exactly what downloadNoticePdf() would produce, so a preview built from
+// it can never show less than the actual published notice.
+export async function renderAllPagesDataUrls(data: NoticeTemplateData): Promise<string[]> {
+  const pages = await renderNoticePages(data);
+  const urls: string[] = [];
+  for (const page of pages) {
+    const canvas = await renderPageToCanvas(page);
+    urls.push(canvas.toDataURL('image/png'));
+  }
+  return urls;
 }
 
 function safeFileName(title: string): string {
@@ -333,7 +382,7 @@ export async function downloadNoticePdf(data: NoticeTemplateData, title: string)
   for (let i = 0; i < pages.length; i++) {
     const canvas = await renderPageToCanvas(pages[i]);
     const dataUrl = canvas.toDataURL('image/png');
-    if (i > 0) doc.addPage();
+    if (i > 0) doc.addPage('a4', 'portrait');
     doc.addImage(dataUrl, 'PNG', 0, 0, PAGE_WIDTH_PT, PAGE_HEIGHT_PT);
   }
   doc.save(`${safeFileName(title)}.pdf`);

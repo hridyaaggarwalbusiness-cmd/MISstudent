@@ -124,6 +124,7 @@ export type NoticeCategory = 'general' | 'academic' | 'event' | 'holiday';
 export type NoticeType = 'holiday' | 'examination' | 'ptm' | 'event' | 'circular' | 'urgent' | 'general';
 export type NoticeAudience = 'all' | 'classes' | 'teachers' | 'parents';
 export type NoticePriority = 'normal' | 'important' | 'urgent';
+export type NoticeTone = 'formal' | 'friendly' | 'enthusiastic' | 'urgent' | 'sympathetic';
 
 export interface Notice {
   id: string;

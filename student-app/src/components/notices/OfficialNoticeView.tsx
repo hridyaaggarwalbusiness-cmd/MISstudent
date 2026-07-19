@@ -2,26 +2,33 @@ import React, { useEffect, useState } from 'react';
 import { View, Image, ActivityIndicator, StyleSheet } from 'react-native';
 import { Button } from '@components/ui';
 import { colors, radius, spacing } from '@theme';
-import { downloadNoticeImage, downloadNoticePdf, NoticeTemplateData, renderNoticeDataUrl, PAGE_WIDTH_PT, PAGE_HEIGHT_PT } from '@utils/noticeTemplate';
+import {
+  downloadNoticeImage,
+  downloadNoticePdf,
+  NoticeTemplateData,
+  renderAllPagesDataUrls,
+  PAGE_WIDTH_PT,
+  PAGE_HEIGHT_PT,
+} from '@utils/noticeTemplate';
 
 const ASPECT_RATIO = PAGE_WIDTH_PT / PAGE_HEIGHT_PT;
 
 // Renders the notice through the same official HTML/CSS template used
-// everywhere else (see utils/noticeTemplate.ts) - the template is
-// rasterized once via html2canvas here (student-app is Expo web-only, so
-// document/iframe/canvas are always available) and the resulting PNG is
-// what's shown, downloaded as an image, and embedded into the downloaded
-// PDF, so all three are always pixel-identical.
+// everywhere else (see utils/noticeTemplate.ts) - every page is rasterized
+// via html2canvas (student-app is Expo web-only, so document/iframe/canvas
+// are always available) and shown here in full, so a multi-page notice is
+// never silently truncated to page 1: what's shown is exactly what
+// downloadNoticePdf() would produce.
 export function OfficialNoticeView({ data, fileBaseName }: { data: NoticeTemplateData; fileBaseName: string }) {
-  const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [pageUrls, setPageUrls] = useState<string[] | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [exportingImage, setExportingImage] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    setDataUrl(null);
-    renderNoticeDataUrl(data).then((url) => {
-      if (!cancelled) setDataUrl(url);
+    setPageUrls(null);
+    renderAllPagesDataUrls(data).then((urls) => {
+      if (!cancelled) setPageUrls(urls);
     });
     return () => {
       cancelled = true;
@@ -48,15 +55,19 @@ export function OfficialNoticeView({ data, fileBaseName }: { data: NoticeTemplat
 
   return (
     <View>
-      <View style={styles.frame}>
-        {dataUrl ? (
-          <Image source={{ uri: dataUrl }} style={styles.image} resizeMode="contain" />
-        ) : (
+      {pageUrls ? (
+        pageUrls.map((url, i) => (
+          <View key={i} style={[styles.frame, i > 0 && styles.pageSpacing]}>
+            <Image source={{ uri: url }} style={styles.image} resizeMode="contain" />
+          </View>
+        ))
+      ) : (
+        <View style={styles.frame}>
           <View style={[styles.image, styles.loading]}>
             <ActivityIndicator color={colors.textTertiary} />
           </View>
-        )}
-      </View>
+        </View>
+      )}
       <View style={styles.actions}>
         <Button
           label="Download PDF"
@@ -88,6 +99,9 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     backgroundColor: colors.surface,
+  },
+  pageSpacing: {
+    marginTop: spacing.sm,
   },
   image: {
     width: '100%',

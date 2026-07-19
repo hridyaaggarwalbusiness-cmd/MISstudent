@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Sparkles, Wand2, RotateCcw, Pencil, FileDown, ImageDown, Save, Send, Eraser } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Sparkles, Wand2, RotateCcw, Pencil, FileDown, ImageDown, Save, Send, Eraser, Files } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { TextField, TextAreaField, SelectField } from '@/components/ui/FormField';
@@ -12,9 +12,9 @@ import { repo } from '@/data/repositories';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getErrorMessage } from '@/utils/errors';
 import { noticeProvider, NoticeGenerationError } from '@/services/ai';
-import { downloadNoticeImage, downloadNoticePdf } from '@/utils/noticeTemplate';
+import { downloadNoticeImage, downloadNoticePdf, renderNoticePages } from '@/utils/noticeTemplate';
 import type { NoticeTemplateData } from '@/utils/noticeTemplate';
-import type { Notice, NoticeAudience, NoticeCategory, NoticePriority, NoticeType, SchoolClass } from '@/types';
+import type { Notice, NoticeAudience, NoticeCategory, NoticePriority, NoticeTone, NoticeType, SchoolClass } from '@/types';
 import styles from './AiNoticeWriterPage.module.css';
 
 const NOTICE_TYPE_OPTIONS: { value: NoticeType; label: string }[] = [
@@ -38,6 +38,14 @@ const PRIORITY_OPTIONS: { value: NoticePriority; label: string }[] = [
   { value: 'normal', label: 'Normal' },
   { value: 'important', label: 'Important' },
   { value: 'urgent', label: 'Urgent' },
+];
+
+const TONE_OPTIONS: { value: NoticeTone; label: string }[] = [
+  { value: 'formal', label: 'Formal' },
+  { value: 'friendly', label: 'Friendly' },
+  { value: 'enthusiastic', label: 'Enthusiastic' },
+  { value: 'urgent', label: 'Urgent' },
+  { value: 'sympathetic', label: 'Sympathetic' },
 ];
 
 const NOTICE_TYPE_TO_CATEGORY: Record<NoticeType, NoticeCategory> = {
@@ -93,6 +101,7 @@ export function AiNoticeWriterPage() {
   const [noticeDate, setNoticeDate] = useState(todayIso());
   const [effectiveDate, setEffectiveDate] = useState('');
   const [priority, setPriority] = useState<NoticePriority>('normal');
+  const [tone, setTone] = useState<NoticeTone>('formal');
   const [titleHint, setTitleHint] = useState('');
   const [instruction, setInstruction] = useState('');
 
@@ -128,6 +137,7 @@ export function AiNoticeWriterPage() {
         audience,
         classLabels: audience === 'classes' ? selectedClassIds.map(classLabel) : [],
         priority,
+        tone,
         noticeDate,
         effectiveDate: effectiveDate || undefined,
         titleHint: titleHint.trim() || undefined,
@@ -150,6 +160,7 @@ export function AiNoticeWriterPage() {
     setNoticeDate(todayIso());
     setEffectiveDate('');
     setPriority('normal');
+    setTone('formal');
     setTitleHint('');
     setInstruction('');
     setGeneratedTitle('');
@@ -218,6 +229,25 @@ export function AiNoticeWriterPage() {
 
   const hasContent = generatedBody.trim().length > 0;
   const downloadName = generatedTitle || instruction.slice(0, 40) || 'notice';
+
+  const [pageCount, setPageCount] = useState(1);
+  useEffect(() => {
+    if (!hasContent) {
+      setPageCount(1);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      renderNoticePages(previewData).then((pages) => {
+        if (!cancelled) setPageCount(pages.length);
+      });
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generatedTitle, generatedBody, noticeDate, hasContent]);
 
   async function handleDownloadPdf() {
     setExportingPdf(true);
@@ -294,13 +324,22 @@ export function AiNoticeWriterPage() {
                 <TextField label="Effective Date" type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} />
               </div>
 
-              <SelectField label="Priority" value={priority} onChange={(e) => setPriority(e.target.value as NoticePriority)}>
-                {PRIORITY_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </SelectField>
+              <div className={styles.fieldRow}>
+                <SelectField label="Priority" value={priority} onChange={(e) => setPriority(e.target.value as NoticePriority)}>
+                  {PRIORITY_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </SelectField>
+                <SelectField label="Tone" value={tone} onChange={(e) => setTone(e.target.value as NoticeTone)}>
+                  {TONE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </SelectField>
+              </div>
 
               <TextField
                 label="Notice Title (optional)"
@@ -346,6 +385,14 @@ export function AiNoticeWriterPage() {
           <div className={styles.previewFrame}>
             <NoticePreview data={previewData} />
           </div>
+
+          {hasContent && pageCount > 1 && (
+            <div className={styles.pageCountNote}>
+              <Files size={14} />
+              This notice spans {pageCount} pages — the header and signature repeat on every page in the downloaded PDF and
+              in the Student/Teacher app.
+            </div>
+          )}
 
           {editing && (
             <div className={styles.editBox}>

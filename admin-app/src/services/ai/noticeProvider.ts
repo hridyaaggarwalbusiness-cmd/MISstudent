@@ -1,4 +1,4 @@
-import type { NoticeAudience, NoticePriority, NoticeType } from '@/types';
+import type { NoticeAudience, NoticePriority, NoticeTone, NoticeType } from '@/types';
 
 // The one contract every concrete AI backend must satisfy - swapping the
 // underlying model (ChatGPT, Claude, Gemini, ...) means writing one new file
@@ -9,6 +9,7 @@ export interface NoticeGenerateRequest {
   audience: NoticeAudience;
   classLabels: string[];
   priority: NoticePriority;
+  tone: NoticeTone;
   noticeDate: string;
   effectiveDate?: string;
   titleHint?: string;
