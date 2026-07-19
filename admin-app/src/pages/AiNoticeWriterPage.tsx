@@ -14,6 +14,7 @@ import { getErrorMessage } from '@/utils/errors';
 import { noticeProvider, NoticeGenerationError } from '@/services/ai';
 import { downloadNoticeImage, downloadNoticePdf } from '@/utils/noticeTemplate';
 import type { NoticeTemplateData } from '@/utils/noticeTemplate';
+import { formatOfficialDate } from '@/utils/officialDate';
 import type { Notice, NoticeAudience, NoticeCategory, NoticePriority, NoticeTone, NoticeType, SchoolClass } from '@/types';
 import styles from './AiNoticeWriterPage.module.css';
 
@@ -77,17 +78,6 @@ const PLACEHOLDER_BODY =
 function todayIso(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function formatDisplayDate(iso: string): string {
-  if (!iso) return '';
-  const [y, m, d] = iso.split('-').map(Number);
-  if (!y || !m || !d) return iso;
-  const date = new Date(y, m - 1, d);
-  const day = date.getDate();
-  const suffix = day % 10 === 1 && day !== 11 ? 'st' : day % 10 === 2 && day !== 12 ? 'nd' : day % 10 === 3 && day !== 13 ? 'rd' : 'th';
-  const month = date.toLocaleDateString('en-IN', { month: 'long' });
-  return `${day}${suffix} ${month}, ${date.getFullYear()}`;
 }
 
 export function AiNoticeWriterPage() {
@@ -222,7 +212,7 @@ export function AiNoticeWriterPage() {
   }
 
   const previewData: NoticeTemplateData = {
-    date: formatDisplayDate(noticeDate),
+    date: formatOfficialDate(noticeDate),
     title: generatedTitle || undefined,
     body: generatedBody || PLACEHOLDER_BODY,
   };

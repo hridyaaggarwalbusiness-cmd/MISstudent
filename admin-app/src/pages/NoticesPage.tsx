@@ -12,6 +12,7 @@ import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { PageHeader } from '@/pages/PageHeader';
+import { NoticeCardPreview } from '@/components/notices/NoticeCardPreview';
 import { useCollection } from '@/hooks/useCollection';
 import { useQuickActionIntent } from '@/hooks/useQuickActionIntent';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -219,7 +220,11 @@ export function NoticesPage() {
                   <IconButton icon={Trash2} tone="danger" onClick={() => onDelete(n.id)} aria-label="Delete notice" />
                 </div>
               </div>
-              <div className={styles.noticeBody}>{n.body}</div>
+              {n.noticeType ? (
+                <NoticeCardPreview date={n.noticeDate ?? n.postedAt} title={n.title} body={n.body} />
+              ) : (
+                <div className={styles.noticeBody}>{n.body}</div>
+              )}
             </Card>
             );
           })}
