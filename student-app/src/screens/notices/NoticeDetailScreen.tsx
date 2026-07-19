@@ -8,13 +8,14 @@ import { RootStackParamList } from '@navigation/types';
 import { useNoticesStore } from '@store/useNoticesStore';
 import { friendlyDate, officialNoticeDate } from '@utils/date';
 import { noticeCategoryMeta } from '@data/noticeCategoryMeta';
-import { NoticeAttachmentChip } from '@components/notices/NoticeAttachmentChip';
+import { NoticeAttachmentChip, openAttachment } from '@components/notices/NoticeAttachmentChip';
 import { OfficialNoticeView } from '@components/notices/OfficialNoticeView';
 
 export function NoticeDetailScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'NoticeDetail'>>();
   const { items, markRead } = useNoticesStore();
   const notice = items.find((n) => n.id === route.params.id);
+  const pdfAttachment = notice?.attachments?.find((a) => a.type === 'pdf');
 
   useEffect(() => {
     if (notice && !notice.isRead) {
@@ -22,6 +23,16 @@ export function NoticeDetailScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notice?.id]);
+
+  // AI-generated notices publish a real PDF (see AI Notice Writer) - opening
+  // the notice should open that PDF directly, the same way tapping its
+  // attachment chip would, instead of showing a stacked-image preview.
+  useEffect(() => {
+    if (pdfAttachment) {
+      openAttachment(pdfAttachment.url, pdfAttachment.name, 'pdf');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notice?.id, pdfAttachment?.url]);
 
   if (!notice) {
     return (
@@ -53,7 +64,13 @@ export function NoticeDetailScreen() {
           {friendlyDate(notice.postedAt)} · By {notice.postedBy}
         </AppText>
 
-        {notice.noticeType ? (
+        {notice.noticeType && pdfAttachment ? (
+          <View style={{ marginTop: spacing.lg }}>
+            <AppText variant="body" color={colors.textSecondary}>
+              Opening the notice PDF…
+            </AppText>
+          </View>
+        ) : notice.noticeType ? (
           <View style={{ marginTop: spacing.lg }}>
             <OfficialNoticeView
               data={{

@@ -28,7 +28,7 @@ async function toOpenableUrl(url: string): Promise<string> {
 // types (doc/docx, ...) have no in-browser viewer, so those still trigger a
 // real download; the device's own download-complete notification is what
 // then offers an "Open with" app picker, same as WhatsApp.
-function openAttachment(url: string, filename: string, type: Attachment['type']) {
+export function openAttachment(url: string, filename: string, type: Attachment['type']) {
   if (Platform.OS === 'web') {
     if (type === 'pdf' || type === 'image') {
       // window.open must run synchronously in the click handler or popup
