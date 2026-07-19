@@ -6,7 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '@navigation/types';
 import { AppText, IconButton, Avatar, SectionHeader, Skeleton, EmptyState, ErrorState, AnimatedPressable } from '@components/ui';
-import { TodaysOverviewCard } from '@components/dashboard/TodaysOverviewCard';
+import { TodaysOverviewCard, SnapshotStat } from '@components/dashboard/TodaysOverviewCard';
 import { AIPracticeTestBanner } from '@components/dashboard/AIPracticeTestBanner';
 import { UpdateFeedItem, UpdateFeedItemData } from '@components/dashboard/UpdateFeedItem';
 import { QuickAccessGrid, QuickAccessItem } from '@components/dashboard/QuickAccessGrid';
@@ -19,20 +19,28 @@ import { useHomeworkStore } from '@store/useHomeworkStore';
 import { useNoticesStore } from '@store/useNoticesStore';
 import { useNotificationsStore } from '@store/useNotificationsStore';
 import { useAuthStore } from '@store/useAuthStore';
-import { todayDayCode, greetingForNow, noticeTimeLabel } from '@utils/date';
+import { todayDayCode, greetingForNow, noticeTimeLabel, dueDateLabel } from '@utils/date';
 import { overallAttendancePercentage } from '@utils/attendance';
 import { eventTypeMeta } from '@data/calendarEventTypeMeta';
 import { subjectMeta } from '@data/subjectMeta';
 
+const FEED_COLLAPSED_LIMIT = 4;
+const FEED_EXPANDED_LIMIT = 10;
+// Extra bottom padding so scrolled content never sits under the fixed
+// AI Practice Test banner, which floats above the tab bar independent
+// of scroll position.
+const BANNER_RESERVED_SPACE = 100;
+
 async function loadDashboard(classId: string, studentId: string) {
-  const [timetable, exams, attendanceMonth, results, calendarEvents] = await Promise.all([
+  const [timetable, exams, attendanceMonth, results, calendarEvents, materials] = await Promise.all([
     repo.timetable.getAll(classId),
     repo.exams.list(classId),
     repo.attendance.getCurrentMonth(studentId),
     repo.results.list(studentId),
     repo.calendar.list(),
+    repo.materials.list(classId),
   ]);
-  return { timetable, exams, attendanceMonth, results, calendarEvents };
+  return { timetable, exams, attendanceMonth, results, calendarEvents, materials };
 }
 
 function isRecent(dateIso: string, days: number): boolean {
@@ -69,12 +77,13 @@ export function HomeScreen() {
   const { items: noticeItems, fetch: fetchNotices } = useNoticesStore();
   const { unreadCount, fetch: fetchNotifications } = useNotificationsStore();
   const [moreVisible, setMoreVisible] = useState(false);
+  const [feedExpanded, setFeedExpanded] = useState(false);
 
   const { data, loading, refreshing, error, refresh } = useAsyncResource(
     () =>
       authStudent
         ? loadDashboard(authStudent.classId, authStudent.id)
-        : Promise.resolve({ timetable: [], exams: [], attendanceMonth: [], results: [], calendarEvents: [] }),
+        : Promise.resolve({ timetable: [], exams: [], attendanceMonth: [], results: [], calendarEvents: [], materials: [] }),
     [authStudent?.id],
   );
 
@@ -103,13 +112,34 @@ export function HomeScreen() {
     [data],
   );
 
-  const overviewStats = useMemo(
+  const snapshotStats: SnapshotStat[] = useMemo(
     () => [
-      { key: 'hw', icon: 'book-outline' as const, value: homeworkItems.length, label: 'Homework' },
-      { key: 'notices', icon: 'megaphone-outline' as const, value: noticeItems.filter((n) => !n.isRead).length, label: 'Notices' },
-      { key: 'events', icon: 'calendar-outline' as const, value: todaysEvents.length, label: 'Events' },
+      {
+        key: 'hw',
+        icon: 'book-outline',
+        value: String(homeworkItems.length),
+        label: 'Homework',
+        iconBg: '#E4D9FB',
+        iconColor: '#6D3FD6',
+      },
+      {
+        key: 'notices',
+        icon: 'megaphone-outline',
+        value: String(noticeItems.filter((n) => !n.isRead).length),
+        label: 'Notices',
+        iconBg: '#DCEAFF',
+        iconColor: '#2C52D9',
+      },
+      {
+        key: 'attendance',
+        icon: 'checkmark-done-outline',
+        value: `${Math.round(attendancePct)}%`,
+        label: 'Attendance',
+        iconBg: '#DCF5E3',
+        iconColor: '#16803F',
+      },
     ],
-    [homeworkItems, noticeItems, todaysEvents],
+    [homeworkItems, noticeItems, attendancePct],
   );
 
   const latestResult = data?.results[data.results.length - 1];
@@ -127,8 +157,10 @@ export function HomeScreen() {
           key: `hw-${hw.id}`,
           icon: meta.icon,
           color: meta.gradient[1],
+          categoryLabel: 'Homework',
+          categoryColor: colors.tileOrange,
           title: hw.title,
-          meta: `By ${hw.teacher} · ${noticeTimeLabel(hw.assignedDate)}`,
+          meta: `Due: ${dueDateLabel(hw.dueDate)}`,
           onPress: () => navigation.navigate('HomeworkDetail', { id: hw.id }),
         },
       });
@@ -141,9 +173,27 @@ export function HomeScreen() {
           key: `notice-${n.id}`,
           icon: 'megaphone',
           color: colors.tileOrange,
+          categoryLabel: 'Notice',
+          categoryColor: colors.tileOrange,
           title: n.title,
           meta: `By ${n.postedBy} · ${noticeTimeLabel(n.postedAt)}`,
           onPress: () => navigation.navigate('NoticeDetail', { id: n.id }),
+        },
+      });
+    });
+
+    (data?.materials ?? []).forEach((m) => {
+      entries.push({
+        ts: new Date(m.uploadedAt).getTime() || 0,
+        item: {
+          key: `material-${m.id}`,
+          icon: 'document-text',
+          color: colors.tileGreen,
+          categoryLabel: 'Material',
+          categoryColor: colors.tileGreen,
+          title: m.title,
+          meta: `Uploaded ${noticeTimeLabel(m.uploadedAt)}`,
+          onPress: () => navigation.navigate('StudyMaterials'),
         },
       });
     });
@@ -155,6 +205,8 @@ export function HomeScreen() {
           key: `event-${e.id}`,
           icon: (eventTypeMeta[e.type]?.icon as UpdateFeedItemData['icon']) ?? 'calendar',
           color: colors.tileGreen,
+          categoryLabel: 'Event',
+          categoryColor: colors.tileGreen,
           title: e.title,
           meta: e.location || 'Today',
           onPress: () => navigation.navigate('AcademicCalendar'),
@@ -169,6 +221,8 @@ export function HomeScreen() {
           key: `result-${latestResult.id}`,
           icon: 'stats-chart',
           color: colors.tileViolet,
+          categoryLabel: 'Result',
+          categoryColor: colors.tileViolet,
           title: `${latestResult.examName} results published`,
           meta: `Check your marks · ${noticeTimeLabel(latestResult.date)}`,
           onPress: () => navigation.navigate('MainTabs', { screen: 'ResultsTab' }),
@@ -178,9 +232,16 @@ export function HomeScreen() {
 
     return entries
       .sort((a, b) => b.ts - a.ts)
-      .slice(0, 4)
+      .slice(0, FEED_EXPANDED_LIMIT)
       .map((e) => e.item);
-  }, [homeworkItems, noticeItems, todaysEvents, latestResult, navigation]);
+  }, [homeworkItems, noticeItems, todaysEvents, latestResult, data?.materials, navigation]);
+
+  const visibleFeedItems = feedExpanded ? feedItems : feedItems.slice(0, FEED_COLLAPSED_LIMIT);
+  const canExpandFeed = feedItems.length > FEED_COLLAPSED_LIMIT;
+  const feedActionLabel = !feedExpanded && canExpandFeed ? 'View more' : 'View all';
+  const onFeedActionPress = !feedExpanded && canExpandFeed
+    ? () => setFeedExpanded(true)
+    : () => navigation.navigate('Notifications');
 
   const quickAccess: QuickAccessItem[] = [
     {
@@ -283,24 +344,20 @@ export function HomeScreen() {
       >
         <View style={{ paddingHorizontal: spacing.lg }}>
           {loading ? (
-            <Skeleton height={150} borderRadius={20} />
+            <Skeleton height={172} borderRadius={20} />
           ) : (
-            <TodaysOverviewCard stats={overviewStats} attendancePct={attendancePct} />
+            <TodaysOverviewCard stats={snapshotStats} />
           )}
         </View>
 
-        <View style={[styles.section, { marginTop: spacing.lg }]}>
-          <AIPracticeTestBanner onPress={() => navigation.navigate('PracticeTestGenerator')} />
-        </View>
-
         <View style={styles.section}>
-          <SectionHeader title="What's New" actionLabel="View all" onActionPress={() => navigation.navigate('Notifications')} />
+          <SectionHeader title="What's New" actionLabel={feedActionLabel} onActionPress={onFeedActionPress} />
           {loading ? (
             <Skeleton height={90} borderRadius={16} />
           ) : feedItems.length === 0 ? (
             <EmptyState icon="sparkles-outline" title="All quiet for now" message="New homework, notices and events will show up here." compact />
           ) : (
-            feedItems.map((item) => <UpdateFeedItem key={item.key} item={item} />)
+            visibleFeedItems.map((item) => <UpdateFeedItem key={item.key} item={item} />)
           )}
         </View>
 
@@ -313,6 +370,10 @@ export function HomeScreen() {
           <QuickAccessGrid items={quickAccess} />
         </View>
       </ScrollView>
+
+      <View style={styles.fixedBanner}>
+        <AIPracticeTestBanner onPress={() => navigation.navigate('PracticeTestGenerator')} />
+      </View>
 
       <MoreMenuModal
         visible={moreVisible}
@@ -378,9 +439,15 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.surface,
   },
-  scrollContent: { paddingBottom: layout.tabBarClearance },
+  scrollContent: { paddingBottom: layout.tabBarClearance + BANNER_RESERVED_SPACE },
   section: {
     paddingHorizontal: spacing.lg,
     marginTop: spacing.xl,
+  },
+  fixedBanner: {
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+    bottom: spacing.md,
   },
 });

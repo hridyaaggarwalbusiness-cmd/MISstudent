@@ -1,60 +1,52 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { AppText, ProgressRing } from '@components/ui';
-import { colors, spacing, radius } from '@theme';
+import { AppText } from '@components/ui';
+import { spacing, radius } from '@theme';
+import { SchoolIllustration } from './SchoolIllustration';
 
-interface OverviewStat {
+export interface SnapshotStat {
   key: string;
   icon: keyof typeof Ionicons.glyphMap;
-  value: number;
+  value: string;
   label: string;
+  iconBg: string;
+  iconColor: string;
 }
 
-export function TodaysOverviewCard({ stats, attendancePct }: { stats: OverviewStat[]; attendancePct: number }) {
+const CARD_BG = '#F1ECFC';
+const ACCENT = '#7C5CE0';
+
+export function TodaysOverviewCard({ stats }: { stats: SnapshotStat[] }) {
   return (
-    <LinearGradient
-      colors={[colors.accentIndigo, colors.accentViolet]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.card}
-    >
-      <AppText variant="caption" color="rgba(255,255,255,0.85)">
-        Today's Overview
-      </AppText>
-      <View style={styles.row}>
-        <View style={styles.statsCol}>
-          {stats.map((s) => (
-            <View key={s.key} style={styles.statBox}>
-              <Ionicons name={s.icon} size={16} color="#fff" />
-              <AppText variant="h3" color="#fff" style={{ marginTop: 6 }}>
-                {s.value}
-              </AppText>
-              <AppText variant="tiny" color="rgba(255,255,255,0.85)">
-                {s.label}
-              </AppText>
-            </View>
-          ))}
-        </View>
-        <ProgressRing
-          value={attendancePct}
-          size={78}
-          strokeWidth={7}
-          colorOverride="#fff"
-          centerContent={
-            <View style={{ alignItems: 'center' }}>
-              <AppText variant="bodySemibold" color="#fff">
-                {Math.round(attendancePct)}%
-              </AppText>
-              <AppText variant="tiny" color="rgba(255,255,255,0.85)">
-                Attendance
-              </AppText>
-            </View>
-          }
-        />
+    <View style={styles.card}>
+      <View style={styles.headerRow}>
+        <Ionicons name="sparkles" size={14} color={ACCENT} />
+        <AppText variant="bodySemibold" color={ACCENT} style={{ marginLeft: 6 }}>
+          Today's Snapshot
+        </AppText>
       </View>
-    </LinearGradient>
+
+      <View style={styles.statsRow}>
+        {stats.map((s) => (
+          <View key={s.key} style={styles.statItem}>
+            <View style={[styles.statIcon, { backgroundColor: s.iconBg }]}>
+              <Ionicons name={s.icon} size={18} color={s.iconColor} />
+            </View>
+            <AppText variant="h3" style={{ marginTop: spacing.sm }}>
+              {s.value}
+            </AppText>
+            <AppText variant="tiny" color="#6B6B80">
+              {s.label}
+            </AppText>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.illustrationWrap} pointerEvents="none">
+        <SchoolIllustration width={130} height={100} />
+      </View>
+    </View>
   );
 }
 
@@ -62,24 +54,33 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: radius.xl,
     padding: spacing.lg,
+    backgroundColor: CARD_BG,
+    minHeight: 172,
+    overflow: 'hidden',
   },
-  row: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.md,
   },
-  statsCol: {
+  statsRow: {
     flexDirection: 'row',
-    flex: 1,
+    marginTop: spacing.lg,
+    maxWidth: '62%',
+    gap: spacing.md,
   },
-  statBox: {
-    width: 64,
+  statItem: {
     alignItems: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+  statIcon: {
+    width: 38,
+    height: 38,
     borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    marginRight: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  illustrationWrap: {
+    position: 'absolute',
+    right: 4,
+    bottom: 0,
   },
 });

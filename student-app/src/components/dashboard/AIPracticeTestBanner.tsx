@@ -1,39 +1,29 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { AnimatedPressable, AppText } from '@components/ui';
-import { colors, spacing, radius } from '@theme';
+import { spacing, radius, shadows } from '@theme';
+
+const CARD_BG = '#F1ECFC';
+const ACCENT = '#7C5CE0';
 
 export function AIPracticeTestBanner({ onPress }: { onPress: () => void }) {
   return (
-    <AnimatedPressable onPress={onPress} scaleTo={0.98}>
-      <LinearGradient
-        colors={[colors.secondary, colors.accentIndigo]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.card}
-      >
-        <View style={styles.iconWrap}>
-          <Ionicons name="sparkles" size={24} color="#fff" />
-        </View>
-        <View style={{ flex: 1, marginLeft: spacing.md }}>
-          <View style={styles.titleRow}>
-            <AppText variant="bodySemibold" color="#fff">
-              AI Practice Test Generator
-            </AppText>
-            <View style={styles.premiumBadge}>
-              <AppText variant="tiny" color="#fff" style={{ fontWeight: '700' }}>
-                PREMIUM
-              </AppText>
-            </View>
-          </View>
-          <AppText variant="tiny" color="rgba(255,255,255,0.85)" style={{ marginTop: 3 }}>
-            Instant CBSE-style question papers on any chapter
+    <AnimatedPressable onPress={onPress} scaleTo={0.98} style={styles.card}>
+      <View style={{ flex: 1 }}>
+        <View style={styles.titleRow}>
+          <Ionicons name="sparkles" size={15} color={ACCENT} />
+          <AppText variant="bodySemibold" style={{ marginLeft: 6 }}>
+            AI Practice Test
           </AppText>
         </View>
-        <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.85)" />
-      </LinearGradient>
+        <AppText variant="caption" color="#6B6B80" style={{ marginTop: 3 }}>
+          Generate CBSE-style practice papers for any topic.
+        </AppText>
+      </View>
+      <View style={styles.arrowBtn}>
+        <Ionicons name="arrow-forward" size={18} color="#fff" />
+      </View>
     </AnimatedPressable>
   );
 }
@@ -44,21 +34,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: radius.xl,
     padding: spacing.md,
+    backgroundColor: CARD_BG,
+    ...shadows.sm,
   },
-  iconWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: radius.md,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+  titleRow: { flexDirection: 'row', alignItems: 'center' },
+  arrowBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: ACCENT,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  titleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
-  premiumBadge: {
-    marginLeft: 8,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.22)',
+    marginLeft: spacing.sm,
   },
 });

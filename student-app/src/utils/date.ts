@@ -53,6 +53,10 @@ export function noticeTimeLabel(iso: string): string {
   return relativeTime(iso);
 }
 
+export function dueDateLabel(iso: string): string {
+  return format(parseDate(iso), 'EEE, d MMM');
+}
+
 export function weekdayLabel(iso: string): string {
   return format(parseDate(iso), 'EEEE');
 }

@@ -18,10 +18,10 @@ export function QuickAccessGrid({ items }: { items: QuickAccessItem[] }) {
       {items.map((item) => (
         <AnimatedPressable key={item.key} onPress={item.onPress} style={styles.item} scaleTo={0.96}>
           <View style={[styles.iconWrap, { backgroundColor: item.color }]}>
-            <Ionicons name={item.icon} size={22} color="#fff" />
+            <Ionicons name={item.icon} size={26} color="#fff" />
           </View>
           <AppText
-            variant="caption"
+            variant="bodyMedium"
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.8}
@@ -42,20 +42,20 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   item: {
-    flexBasis: '30%',
+    flexBasis: '47%',
     flexGrow: 1,
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderSoft,
     borderRadius: radius.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.xl,
     paddingHorizontal: spacing.xs,
   },
   iconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.md,
+    width: 56,
+    height: 56,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
