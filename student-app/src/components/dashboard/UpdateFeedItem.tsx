@@ -11,7 +11,9 @@ export interface UpdateFeedItemData {
   categoryLabel: string;
   categoryColor: string;
   title: string;
-  meta: string;
+  subtitle?: string;
+  badge?: { label: string; color: string; bg: string };
+  timestamp: string;
   onPress?: () => void;
 }
 
@@ -26,14 +28,30 @@ export function UpdateFeedItem({ item }: { item: UpdateFeedItemData }) {
           <AppText variant="tiny" color={item.categoryColor} style={styles.categoryLabel}>
             {item.categoryLabel}
           </AppText>
-          <AppText variant="bodySemibold" numberOfLines={1} style={styles.title}>
-            {item.title}
-          </AppText>
-          <AppText variant="caption" color={colors.textSecondary} style={styles.meta}>
-            {item.meta}
-          </AppText>
+          <View style={styles.titleRow}>
+            <AppText variant="bodySemibold" numberOfLines={1} style={styles.title}>
+              {item.title}
+            </AppText>
+            {item.badge && (
+              <View style={[styles.badge, { backgroundColor: item.badge.bg }]}>
+                <AppText variant="tiny" color={item.badge.color} style={{ fontWeight: '700' }}>
+                  {item.badge.label}
+                </AppText>
+              </View>
+            )}
+          </View>
+          {item.subtitle && (
+            <AppText variant="caption" color={colors.textSecondary} style={styles.subtitle}>
+              {item.subtitle}
+            </AppText>
+          )}
         </View>
-        <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+        <View style={styles.right}>
+          <AppText variant="tiny" color={colors.textTertiary}>
+            {item.timestamp}
+          </AppText>
+          <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} style={{ marginTop: 6 }} />
+        </View>
       </View>
     </Card>
   );
@@ -41,7 +59,7 @@ export function UpdateFeedItem({ item }: { item: UpdateFeedItemData }) {
 
 const styles = StyleSheet.create({
   card: { marginBottom: spacing.sm },
-  row: { flexDirection: 'row', alignItems: 'center' },
+  row: { flexDirection: 'row', alignItems: 'flex-start' },
   iconWrap: {
     width: 44,
     height: 44,
@@ -56,6 +74,21 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 2,
   },
-  title: { fontSize: 15 },
-  meta: { marginTop: 2 },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  title: { fontSize: 15, flexShrink: 1 },
+  badge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  subtitle: { marginTop: 2 },
+  right: {
+    alignItems: 'flex-end',
+    marginLeft: spacing.xs,
+  },
 });

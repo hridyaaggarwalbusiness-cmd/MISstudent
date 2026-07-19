@@ -9,6 +9,7 @@ interface SectionHeaderProps {
   title: string;
   subtitle?: string;
   actionLabel?: string;
+  actionIcon?: keyof typeof Ionicons.glyphMap;
   onActionPress?: () => void;
   style?: ViewStyle;
 }
@@ -17,6 +18,7 @@ export function SectionHeader({
   title,
   subtitle,
   actionLabel = 'See all',
+  actionIcon = 'chevron-forward',
   onActionPress,
   style,
 }: SectionHeaderProps) {
@@ -38,7 +40,7 @@ export function SectionHeader({
           <AppText variant="bodyMedium" color={colors.primary}>
             {actionLabel}
           </AppText>
-          <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+          <Ionicons name={actionIcon} size={16} color={colors.primary} />
         </AnimatedPressable>
       )}
     </View>

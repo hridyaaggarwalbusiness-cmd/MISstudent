@@ -9,6 +9,7 @@ export interface QuickAccessItem {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
+  bg: string;
   onPress: () => void;
 }
 
@@ -17,15 +18,13 @@ export function QuickAccessGrid({ items }: { items: QuickAccessItem[] }) {
     <View style={styles.grid}>
       {items.map((item) => (
         <AnimatedPressable key={item.key} onPress={item.onPress} style={styles.item} scaleTo={0.96}>
-          <View style={[styles.iconWrap, { backgroundColor: item.color }]}>
-            <Ionicons name={item.icon} size={26} color="#fff" />
+          <View style={[styles.iconWrap, { backgroundColor: item.bg }]}>
+            <Ionicons name={item.icon} size={20} color={item.color} />
           </View>
           <AppText
-            variant="bodyMedium"
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.8}
-            style={{ fontWeight: '700', marginTop: spacing.sm }}
+            variant="tiny"
+            numberOfLines={2}
+            style={{ fontWeight: '700', marginTop: spacing.xs, textAlign: 'center' }}
           >
             {item.label}
           </AppText>
@@ -42,20 +41,20 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   item: {
-    flexBasis: '47%',
+    flexBasis: '30%',
     flexGrow: 1,
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderSoft,
     borderRadius: radius.lg,
-    paddingVertical: spacing.xl,
+    paddingVertical: spacing.md,
     paddingHorizontal: spacing.xs,
   },
   iconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.lg,
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },

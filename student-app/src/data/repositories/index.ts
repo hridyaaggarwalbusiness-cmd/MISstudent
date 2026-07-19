@@ -502,6 +502,7 @@ export const repo = {
         cb(snap.docs.map((d) => ({ ...withId<FeePayment>(d), createdAt: toIso(d.data().createdAt) }))),
       );
     },
+    list: (studentId: string) => once<FeePayment[]>((cb) => repo.feePayments.subscribeForStudent(studentId, cb)),
   },
 
   school: {

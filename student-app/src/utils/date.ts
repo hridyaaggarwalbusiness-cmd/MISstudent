@@ -42,6 +42,16 @@ export function dueInLabel(iso: string): { label: string; overdue: boolean; urge
   return { label: `Due in ${diff}d`, overdue: false, urgent: false };
 }
 
+// Full-word variant of dueInLabel's wording ("Due in 2 days" rather than
+// "Due in 2d"), used where the badge has room to spell it out.
+export function dueInLabelLong(iso: string): string {
+  const diff = differenceInCalendarDays(parseDate(iso), new Date());
+  if (diff < 0) return `Overdue by ${Math.abs(diff)} day${Math.abs(diff) === 1 ? '' : 's'}`;
+  if (diff === 0) return 'Due today';
+  if (diff === 1) return 'Due tomorrow';
+  return `Due in ${diff} days`;
+}
+
 export function relativeTime(iso: string): string {
   return formatDistanceToNow(parseDate(iso), { addSuffix: true });
 }

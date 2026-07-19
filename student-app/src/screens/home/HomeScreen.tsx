@@ -4,9 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { format } from 'date-fns';
 import { RootStackParamList } from '@navigation/types';
 import { AppText, IconButton, Avatar, SectionHeader, Skeleton, EmptyState, ErrorState, AnimatedPressable } from '@components/ui';
-import { TodaysOverviewCard, SnapshotStat } from '@components/dashboard/TodaysOverviewCard';
+import { AtAGlanceCard, GlanceStat } from '@components/dashboard/AtAGlanceCard';
+import { HeaderIllustration } from '@components/dashboard/HeaderIllustration';
 import { AIPracticeTestBanner } from '@components/dashboard/AIPracticeTestBanner';
 import { UpdateFeedItem, UpdateFeedItemData } from '@components/dashboard/UpdateFeedItem';
 import { QuickAccessGrid, QuickAccessItem } from '@components/dashboard/QuickAccessGrid';
@@ -19,9 +21,8 @@ import { useHomeworkStore } from '@store/useHomeworkStore';
 import { useNoticesStore } from '@store/useNoticesStore';
 import { useNotificationsStore } from '@store/useNotificationsStore';
 import { useAuthStore } from '@store/useAuthStore';
-import { todayDayCode, greetingForNow, noticeTimeLabel, dueDateLabel } from '@utils/date';
+import { todayDayCode, greetingForNow, noticeTimeLabel, dueInLabelLong, parseDate } from '@utils/date';
 import { overallAttendancePercentage } from '@utils/attendance';
-import { eventTypeMeta } from '@data/calendarEventTypeMeta';
 import { subjectMeta } from '@data/subjectMeta';
 
 const FEED_COLLAPSED_LIMIT = 4;
@@ -32,21 +33,16 @@ const FEED_EXPANDED_LIMIT = 10;
 const BANNER_RESERVED_SPACE = 100;
 
 async function loadDashboard(classId: string, studentId: string) {
-  const [timetable, exams, attendanceMonth, results, calendarEvents, materials] = await Promise.all([
+  const [timetable, exams, attendanceMonth, results, calendarEvents, materials, feePayments] = await Promise.all([
     repo.timetable.getAll(classId),
     repo.exams.list(classId),
     repo.attendance.getCurrentMonth(studentId),
     repo.results.list(studentId),
     repo.calendar.list(),
     repo.materials.list(classId),
+    repo.feePayments.list(studentId),
   ]);
-  return { timetable, exams, attendanceMonth, results, calendarEvents, materials };
-}
-
-function isRecent(dateIso: string, days: number): boolean {
-  const then = new Date(dateIso).getTime();
-  if (Number.isNaN(then)) return false;
-  return Date.now() - then <= days * 24 * 60 * 60 * 1000;
+  return { timetable, exams, attendanceMonth, results, calendarEvents, materials, feePayments };
 }
 
 function isoToday(): string {
@@ -83,7 +79,7 @@ export function HomeScreen() {
     () =>
       authStudent
         ? loadDashboard(authStudent.classId, authStudent.id)
-        : Promise.resolve({ timetable: [], exams: [], attendanceMonth: [], results: [], calendarEvents: [], materials: [] }),
+        : Promise.resolve({ timetable: [], exams: [], attendanceMonth: [], results: [], calendarEvents: [], materials: [], feePayments: [] }),
     [authStudent?.id],
   );
 
@@ -94,17 +90,11 @@ export function HomeScreen() {
     fetchNotifications();
   }, [fetchStudent, fetchHomework, fetchNotices, fetchNotifications]);
 
-  const today = todayDayCode();
   const todayIso = isoToday();
 
-  const todaysPeriods = useMemo(() => {
-    if (!data) return [];
-    return data.timetable.filter((p) => p.day === today);
-  }, [data, today]);
-
-  const todaysEvents = useMemo(() => {
-    if (!data) return [];
-    return data.calendarEvents.filter((e) => e.date <= todayIso && (e.endDate ?? e.date) >= todayIso);
+  const upcomingEventsCount = useMemo(() => {
+    if (!data) return 0;
+    return data.calendarEvents.filter((e) => (e.endDate ?? e.date) >= todayIso).length;
   }, [data, todayIso]);
 
   const attendancePct = useMemo(
@@ -112,40 +102,57 @@ export function HomeScreen() {
     [data],
   );
 
-  const snapshotStats: SnapshotStat[] = useMemo(
+  const pendingHomeworkCount = useMemo(
+    () => homeworkItems.filter((hw) => hw.status === 'pending' || hw.status === 'overdue').length,
+    [homeworkItems],
+  );
+
+  const glanceStats: GlanceStat[] = useMemo(
     () => [
       {
         key: 'hw',
         icon: 'book',
-        value: String(homeworkItems.length),
-        label: 'Homework',
-        iconBg: '#E4D9FB',
         iconColor: '#6D3FD6',
+        cardBg: '#EDE8FC',
+        tag: 'Pending',
+        value: String(pendingHomeworkCount),
+        label: 'Homework',
       },
       {
         key: 'notices',
         icon: 'megaphone',
+        iconColor: '#2C52D9',
+        cardBg: '#E3EDFF',
+        tag: 'New',
         value: String(noticeItems.filter((n) => !n.isRead).length),
         label: 'Notices',
-        iconBg: '#DCEAFF',
-        iconColor: '#2C52D9',
       },
       {
         key: 'attendance',
         icon: 'checkmark-circle',
+        iconColor: '#16803F',
+        cardBg: '#E1F5E7',
+        tag: 'This Month',
         value: `${Math.round(attendancePct)}%`,
         label: 'Attendance',
-        iconBg: '#DCF5E3',
-        iconColor: '#16803F',
+      },
+      {
+        key: 'events',
+        icon: 'calendar',
+        iconColor: '#B4720C',
+        cardBg: '#FFF3DE',
+        tag: 'Upcoming',
+        value: String(upcomingEventsCount),
+        label: 'Events',
       },
     ],
-    [homeworkItems, noticeItems, attendancePct],
+    [pendingHomeworkCount, noticeItems, attendancePct, upcomingEventsCount],
   );
 
   const latestResult = data?.results[data.results.length - 1];
 
-  // A single chronological feed instead of separate homework/notice/event/
-  // result sections, so the home screen leads with "what's new" first.
+  // A single chronological feed instead of separate homework/notice/material/
+  // fee sections, so the home screen leads with "latest updates" first.
   const feedItems: UpdateFeedItemData[] = useMemo(() => {
     const entries: { ts: number; item: UpdateFeedItemData }[] = [];
 
@@ -156,11 +163,12 @@ export function HomeScreen() {
         item: {
           key: `hw-${hw.id}`,
           icon: meta.icon,
-          color: meta.gradient[1],
+          color: '#8B5CF6',
           categoryLabel: 'Homework',
-          categoryColor: colors.tileOrange,
+          categoryColor: '#6D3FD6',
           title: hw.title,
-          meta: `Due: ${dueDateLabel(hw.dueDate)}`,
+          badge: { label: dueInLabelLong(hw.dueDate), color: '#6D3FD6', bg: '#F3EEFF' },
+          timestamp: noticeTimeLabel(hw.assignedDate),
           onPress: () => navigation.navigate('HomeworkDetail', { id: hw.id }),
         },
       });
@@ -172,11 +180,12 @@ export function HomeScreen() {
         item: {
           key: `notice-${n.id}`,
           icon: 'megaphone',
-          color: colors.tileOrange,
+          color: '#F2711F',
           categoryLabel: 'Notice',
-          categoryColor: colors.tileOrange,
+          categoryColor: '#F2711F',
           title: n.title,
-          meta: `By ${n.postedBy} · ${noticeTimeLabel(n.postedAt)}`,
+          subtitle: `By ${n.postedBy}`,
+          timestamp: noticeTimeLabel(n.postedAt),
           onPress: () => navigation.navigate('NoticeDetail', { id: n.id }),
         },
       });
@@ -188,28 +197,36 @@ export function HomeScreen() {
         item: {
           key: `material-${m.id}`,
           icon: 'document-text',
-          color: colors.tileGreen,
-          categoryLabel: 'Material',
-          categoryColor: colors.tileGreen,
+          color: '#3E6BFA',
+          categoryLabel: 'Study Material',
+          categoryColor: '#2C52D9',
           title: m.title,
-          meta: `Uploaded ${noticeTimeLabel(m.uploadedAt)}`,
+          badge: { label: m.attachment?.type === 'pdf' ? 'New PDF' : 'New', color: '#2C52D9', bg: '#EAF0FF' },
+          timestamp: noticeTimeLabel(m.uploadedAt),
           onPress: () => navigation.navigate('StudyMaterials'),
         },
       });
     });
 
-    todaysEvents.forEach((e) => {
+    (data?.feePayments ?? []).forEach((p) => {
+      const badge =
+        p.statusAfter === 'paid'
+          ? { label: 'Paid', color: '#16803F', bg: '#E9FBF1' }
+          : p.statusAfter === 'partial'
+            ? { label: 'Partial', color: '#B4720C', bg: '#FFF6E4' }
+            : { label: 'Unpaid', color: '#C22A2F', bg: '#FFEEEE' };
       entries.push({
-        ts: Date.now(),
+        ts: new Date(p.createdAt).getTime() || 0,
         item: {
-          key: `event-${e.id}`,
-          icon: (eventTypeMeta[e.type]?.icon as UpdateFeedItemData['icon']) ?? 'calendar',
-          color: colors.tileGreen,
-          categoryLabel: 'Event',
-          categoryColor: colors.tileGreen,
-          title: e.title,
-          meta: e.location || 'Today',
-          onPress: () => navigation.navigate('AcademicCalendar'),
+          key: `fee-${p.id}`,
+          icon: 'receipt',
+          color: '#22A55E',
+          categoryLabel: 'Fee',
+          categoryColor: '#16803F',
+          title: `${format(parseDate(p.paymentDate), 'MMMM')} Fee Receipt`,
+          badge,
+          timestamp: noticeTimeLabel(p.createdAt),
+          onPress: () => navigation.navigate('FeeReceipts'),
         },
       });
     });
@@ -224,7 +241,8 @@ export function HomeScreen() {
           categoryLabel: 'Result',
           categoryColor: colors.tileViolet,
           title: `${latestResult.examName} results published`,
-          meta: `Check your marks · ${noticeTimeLabel(latestResult.date)}`,
+          subtitle: 'Check your marks',
+          timestamp: noticeTimeLabel(latestResult.date),
           onPress: () => navigation.navigate('MainTabs', { screen: 'ResultsTab' }),
         },
       });
@@ -234,7 +252,7 @@ export function HomeScreen() {
       .sort((a, b) => b.ts - a.ts)
       .slice(0, FEED_EXPANDED_LIMIT)
       .map((e) => e.item);
-  }, [homeworkItems, noticeItems, todaysEvents, latestResult, data?.materials, navigation]);
+  }, [homeworkItems, noticeItems, latestResult, data?.materials, data?.feePayments, navigation]);
 
   const visibleFeedItems = feedExpanded ? feedItems : feedItems.slice(0, FEED_COLLAPSED_LIMIT);
   const canExpandFeed = feedItems.length > FEED_COLLAPSED_LIMIT;
@@ -248,57 +266,49 @@ export function HomeScreen() {
       key: 'homework',
       label: 'Homework',
       icon: 'book',
-      color: colors.tileViolet,
+      color: '#6D3FD6',
+      bg: '#EDE8FC',
       onPress: () => navigation.navigate('MainTabs', { screen: 'HomeworkTab' }),
-    },
-    {
-      key: 'timetable',
-      label: 'Timetable',
-      icon: 'calendar',
-      color: colors.tileGreen,
-      onPress: () => navigation.navigate('MainTabs', { screen: 'TimetableTab' }),
-    },
-    {
-      key: 'results',
-      label: 'Results',
-      icon: 'bar-chart',
-      color: colors.tileGreen,
-      onPress: () => navigation.navigate('MainTabs', { screen: 'ResultsTab' }),
-    },
-    {
-      key: 'attendance',
-      label: 'Attendance',
-      icon: 'checkmark-circle',
-      color: colors.tileViolet,
-      onPress: () => navigation.navigate('Attendance'),
     },
     {
       key: 'materials',
       label: 'Study Material',
       icon: 'folder',
-      color: colors.tileBlue,
+      color: '#2C52D9',
+      bg: '#E3EDFF',
       onPress: () => navigation.navigate('StudyMaterials'),
+    },
+    {
+      key: 'results',
+      label: 'Results',
+      icon: 'bar-chart',
+      color: '#16803F',
+      bg: '#E1F5E7',
+      onPress: () => navigation.navigate('MainTabs', { screen: 'ResultsTab' }),
     },
     {
       key: 'fees',
       label: 'Fee Receipts',
       icon: 'receipt',
-      color: colors.tileOrange,
+      color: '#B4720C',
+      bg: '#FFF3DE',
       onPress: () => navigation.navigate('FeeReceipts'),
     },
     {
-      key: 'calendar',
-      label: 'Calendar',
-      icon: 'today',
-      color: colors.tileOrange,
-      onPress: () => navigation.navigate('AcademicCalendar'),
+      key: 'timetable',
+      label: 'Timetable',
+      icon: 'calendar',
+      color: '#C22A2F',
+      bg: '#FFEEEE',
+      onPress: () => navigation.navigate('MainTabs', { screen: 'TimetableTab' }),
     },
     {
-      key: 'more',
-      label: 'More',
-      icon: 'ellipsis-horizontal',
-      color: colors.textTertiary,
-      onPress: () => setMoreVisible(true),
+      key: 'leave',
+      label: 'Leave Application',
+      icon: 'document-text',
+      color: '#0876AE',
+      bg: '#EAF7FF',
+      onPress: () => Alert.alert('Leave Application', 'Requesting leave from the app is coming in a future update.'),
     },
   ];
 
@@ -315,6 +325,9 @@ export function HomeScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
+        <View style={styles.headerIllustrationWrap} pointerEvents="none">
+          <HeaderIllustration width={220} height={150} />
+        </View>
         <View style={styles.headerRow}>
           <IconButton icon="menu-outline" onPress={() => setMoreVisible(true)} size={36} />
           <View style={{ flex: 1 }} />
@@ -328,9 +341,12 @@ export function HomeScreen() {
           {student?.name ?? firstName} 👋
         </AppText>
         {student && (
-          <AppText variant="caption" color={colors.textTertiary} style={{ marginTop: 2 }}>
-            {student.className} · Section {student.section}
-          </AppText>
+          <View style={styles.classRow}>
+            <AppText variant="caption" color={colors.textTertiary}>
+              {student.className} · Section {student.section}
+            </AppText>
+            <Ionicons name="chevron-down" size={13} color={colors.textTertiary} style={{ marginLeft: 4 }} />
+          </View>
         )}
       </View>
 
@@ -344,18 +360,18 @@ export function HomeScreen() {
       >
         <View style={{ paddingHorizontal: spacing.lg }}>
           {loading ? (
-            <Skeleton height={172} borderRadius={20} />
+            <Skeleton height={190} borderRadius={20} />
           ) : (
-            <TodaysOverviewCard stats={snapshotStats} />
+            <AtAGlanceCard stats={glanceStats} onViewCalendar={() => navigation.navigate('AcademicCalendar')} />
           )}
         </View>
 
         <View style={styles.section}>
-          <SectionHeader title="What's New" actionLabel={feedActionLabel} onActionPress={onFeedActionPress} />
+          <SectionHeader title="Latest Updates" actionLabel={feedActionLabel} onActionPress={onFeedActionPress} />
           {loading ? (
             <Skeleton height={90} borderRadius={16} />
           ) : feedItems.length === 0 ? (
-            <EmptyState icon="sparkles-outline" title="All quiet for now" message="New homework, notices and events will show up here." compact />
+            <EmptyState icon="sparkles-outline" title="All quiet for now" message="New homework, notices and updates will show up here." compact />
           ) : (
             <>
               {visibleFeedItems.map((item) => <UpdateFeedItem key={item.key} item={item} />)}
@@ -374,7 +390,8 @@ export function HomeScreen() {
         <View style={[styles.section, { marginBottom: spacing.xxxl }]}>
           <SectionHeader
             title="Quick Access"
-            actionLabel="Edit"
+            actionLabel="Customize"
+            actionIcon="pencil-outline"
             onActionPress={() => Alert.alert('Customize Quick Access', 'Rearranging shortcuts is coming in a future update.')}
           />
           <QuickAccessGrid items={quickAccess} />
@@ -415,23 +432,23 @@ export function HomeScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, paddingBottom: spacing.md },
-  headerRow: { flexDirection: 'row', alignItems: 'center' },
-  classPill: {
-    alignSelf: 'flex-start',
-    marginTop: spacing.md,
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
+  header: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.md,
+    overflow: 'hidden',
   },
+  headerIllustrationWrap: {
+    position: 'absolute',
+    top: -10,
+    right: -20,
+  },
+  headerRow: { flexDirection: 'row', alignItems: 'center' },
+  classRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
   bell: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
