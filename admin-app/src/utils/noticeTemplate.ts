@@ -414,18 +414,34 @@ export async function renderAllPagesForStorage(data: NoticeTemplateData): Promis
   return urls;
 }
 
-// Builds a multi-page PDF directly from already-rendered page images (e.g.
-// notice.pageImages stored at publish time), with no re-render step - so a
-// student's downloaded PDF is assembled from the exact bytes the admin
-// published rather than being regenerated from title/body.
-export async function downloadNoticePdfFromImages(pageUrls: string[], title: string) {
+// Assembles already-rendered page images (e.g. from renderAllPagesForStorage)
+// into a real multi-page PDF, entirely client-side, with no re-render step.
+function buildPdfFromImages(pageUrls: string[]): jsPDF {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   pageUrls.forEach((dataUrl, i) => {
     if (i > 0) doc.addPage('a4', 'portrait');
     const format = dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
     doc.addImage(dataUrl, format, 0, 0, PAGE_WIDTH_PT, PAGE_HEIGHT_PT);
   });
-  doc.save(`${safeFileName(title)}.pdf`);
+  return doc;
+}
+
+// Returns the assembled PDF as a base64 data: URI - suitable for storing as
+// a Notice attachment (this project's Spark plan has no Cloud Storage, so
+// attachments are inlined the same way file uploads already are). Opening
+// this through the standard attachment "open" action (a real PDF, not an
+// image) is what lets it launch the device's own PDF viewer, same as any
+// manually attached PDF.
+export function buildNoticePdfDataUrl(pageUrls: string[]): string {
+  return buildPdfFromImages(pageUrls).output('datauristring');
+}
+
+// Builds a multi-page PDF directly from already-rendered page images (e.g.
+// notice.pageImages stored at publish time), with no re-render step - so a
+// student's downloaded PDF is assembled from the exact bytes the admin
+// published rather than being regenerated from title/body.
+export async function downloadNoticePdfFromImages(pageUrls: string[], title: string) {
+  buildPdfFromImages(pageUrls).save(`${safeFileName(title)}.pdf`);
 }
 
 export function downloadImageDataUrl(dataUrl: string, title: string) {

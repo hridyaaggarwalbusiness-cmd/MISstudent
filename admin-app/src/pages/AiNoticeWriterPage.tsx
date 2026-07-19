@@ -12,10 +12,10 @@ import { repo } from '@/data/repositories';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getErrorMessage } from '@/utils/errors';
 import { noticeProvider, NoticeGenerationError } from '@/services/ai';
-import { downloadNoticeImage, downloadNoticePdf, renderAllPagesForStorage } from '@/utils/noticeTemplate';
+import { downloadNoticeImage, downloadNoticePdf, renderAllPagesForStorage, buildNoticePdfDataUrl } from '@/utils/noticeTemplate';
 import type { NoticeTemplateData } from '@/utils/noticeTemplate';
 import { formatOfficialDate } from '@/utils/officialDate';
-import type { Notice, NoticeAudience, NoticeCategory, NoticePriority, NoticeTone, NoticeType, SchoolClass } from '@/types';
+import type { Attachment, Notice, NoticeAudience, NoticeCategory, NoticePriority, NoticeTone, NoticeType, SchoolClass } from '@/types';
 import styles from './AiNoticeWriterPage.module.css';
 
 const NOTICE_TYPE_OPTIONS: { value: NoticeType; label: string }[] = [
@@ -77,6 +77,16 @@ const SUGGESTIONS = [
 // larger than this (unusually long, many-page notices), pageImages is left
 // off and display falls back to live regeneration from title/body instead.
 const MAX_NOTICE_IMAGES_BYTES = 700 * 1024;
+// The PDF attachment and the stored preview images share the same 1 MiB
+// document, so this caps their combined size - the PDF (the newly required
+// "open like a real PDF" feature) takes priority over the preview images
+// (which already have a working live-regeneration fallback) if both can't fit.
+const MAX_NOTICE_COMBINED_BYTES = 950 * 1024;
+
+function sizeLabel(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 const PLACEHOLDER_BODY =
   'Dear Students,\n\nYour AI-generated notice will appear here once you describe what it should say and click "Generate Notice".';
@@ -208,17 +218,40 @@ export function AiNoticeWriterPage() {
     setPublishing(true);
     try {
       let pageImages: string[] | undefined;
+      let attachments: Attachment[] | undefined;
       try {
         const images = await renderAllPagesForStorage(previewData);
-        const approxBytes = images.reduce((sum, url) => sum + url.length, 0);
-        if (approxBytes <= MAX_NOTICE_IMAGES_BYTES) {
+        const imagesBytes = images.reduce((sum, url) => sum + url.length, 0);
+        // A real PDF built from the exact same rendered pages - attached the
+        // same way a manually-uploaded PDF is, so it opens through the
+        // device's own PDF viewer instead of only downloading.
+        const pdfDataUrl = buildNoticePdfDataUrl(images);
+        const pdfBytes = pdfDataUrl.length;
+
+        if (pdfBytes <= MAX_NOTICE_IMAGES_BYTES) {
+          attachments = [
+            {
+              id: `notice-pdf-${Date.now()}`,
+              name: `${generatedTitle.trim() || 'Notice'}.pdf`,
+              type: 'pdf',
+              url: pdfDataUrl,
+              sizeLabel: sizeLabel(pdfBytes),
+            },
+          ];
+        }
+        if (imagesBytes + pdfBytes <= MAX_NOTICE_COMBINED_BYTES) {
           pageImages = images;
         }
       } catch {
-        // Storage capture is best-effort — if it fails, the notice still
+        // Storage/PDF capture is best-effort — if it fails, the notice still
         // publishes and display falls back to live regeneration.
       }
-      await repo.notices.upsert({ id: '', ...buildNoticeRecord(), ...(pageImages ? { pageImages } : {}) });
+      await repo.notices.upsert({
+        id: '',
+        ...buildNoticeRecord(),
+        ...(pageImages ? { pageImages } : {}),
+        ...(attachments ? { attachments } : {}),
+      });
       show('Notice published — now live in the Student and Teacher apps');
       handleClear();
     } catch (e) {
