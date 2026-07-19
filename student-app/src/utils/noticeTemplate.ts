@@ -367,7 +367,7 @@ async function waitForImages(doc: Document): Promise<void> {
   );
 }
 
-async function renderPageToCanvas(html: string): Promise<HTMLCanvasElement> {
+async function renderPageToCanvas(html: string, scale = 2.5): Promise<HTMLCanvasElement> {
   const iframe = createProbeFrame();
 
   try {
@@ -380,7 +380,7 @@ async function renderPageToCanvas(html: string): Promise<HTMLCanvasElement> {
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const html2canvas = (await import('html2canvas')).default;
     const target = doc.querySelector('.notice-page') as HTMLElement;
-    return await html2canvas(target, { scale: 2.5, useCORS: true, backgroundColor: '#fbd4b4' });
+    return await html2canvas(target, { scale, useCORS: true, backgroundColor: '#fbd4b4' });
   } finally {
     document.body.removeChild(iframe);
   }
@@ -407,6 +407,45 @@ export async function renderAllPagesDataUrls(data: NoticeTemplateData): Promise<
     urls.push(canvas.toDataURL('image/png'));
   }
   return urls;
+}
+
+// Renders every page as a compact JPEG data URL, for inlining the exact
+// rendered artifact into a Firestore notice document at publish time (this
+// project's Spark plan has no Cloud Storage). Uses a lower raster scale and
+// JPEG compression instead of renderAllPagesDataUrls()'s high-quality PNGs,
+// purely so the result fits Firestore's 1 MiB document limit - the source
+// HTML/CSS is identical, so what this captures is pixel-for-pixel the same
+// notice, just compressed for storage.
+export async function renderAllPagesForStorage(data: NoticeTemplateData): Promise<string[]> {
+  const pages = await renderNoticePages(data);
+  const urls: string[] = [];
+  for (const page of pages) {
+    const canvas = await renderPageToCanvas(page, 0.85);
+    urls.push(canvas.toDataURL('image/jpeg', 0.55));
+  }
+  return urls;
+}
+
+// Builds a multi-page PDF directly from already-rendered page images (e.g.
+// notice.pageImages stored at publish time), with no re-render step - so a
+// student's downloaded PDF is assembled from the exact bytes the admin
+// published rather than being regenerated from title/body.
+export async function downloadNoticePdfFromImages(pageUrls: string[], title: string) {
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  pageUrls.forEach((dataUrl, i) => {
+    if (i > 0) doc.addPage('a4', 'portrait');
+    const format = dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+    doc.addImage(dataUrl, format, 0, 0, PAGE_WIDTH_PT, PAGE_HEIGHT_PT);
+  });
+  doc.save(`${safeFileName(title)}.pdf`);
+}
+
+export function downloadImageDataUrl(dataUrl: string, title: string) {
+  const link = document.createElement('a');
+  link.href = dataUrl;
+  const ext = dataUrl.startsWith('data:image/png') ? 'png' : 'jpg';
+  link.download = `${safeFileName(title)}.${ext}`;
+  link.click();
 }
 
 function safeFileName(title: string): string {

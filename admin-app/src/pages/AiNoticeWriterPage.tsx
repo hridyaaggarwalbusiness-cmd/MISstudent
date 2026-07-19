@@ -12,7 +12,7 @@ import { repo } from '@/data/repositories';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getErrorMessage } from '@/utils/errors';
 import { noticeProvider, NoticeGenerationError } from '@/services/ai';
-import { downloadNoticeImage, downloadNoticePdf } from '@/utils/noticeTemplate';
+import { downloadNoticeImage, downloadNoticePdf, renderAllPagesForStorage } from '@/utils/noticeTemplate';
 import type { NoticeTemplateData } from '@/utils/noticeTemplate';
 import { formatOfficialDate } from '@/utils/officialDate';
 import type { Notice, NoticeAudience, NoticeCategory, NoticePriority, NoticeTone, NoticeType, SchoolClass } from '@/types';
@@ -71,6 +71,12 @@ const SUGGESTIONS = [
   'Annual Function',
   'Transport Notice',
 ];
+
+// Leaves headroom under Firestore's 1 MiB document limit once the rest of
+// the notice document's fields are accounted for. If a render comes back
+// larger than this (unusually long, many-page notices), pageImages is left
+// off and display falls back to live regeneration from title/body instead.
+const MAX_NOTICE_IMAGES_BYTES = 700 * 1024;
 
 const PLACEHOLDER_BODY =
   'Dear Students,\n\nYour AI-generated notice will appear here once you describe what it should say and click "Generate Notice".';
@@ -201,7 +207,18 @@ export function AiNoticeWriterPage() {
     }
     setPublishing(true);
     try {
-      await repo.notices.upsert({ id: '', ...buildNoticeRecord() });
+      let pageImages: string[] | undefined;
+      try {
+        const images = await renderAllPagesForStorage(previewData);
+        const approxBytes = images.reduce((sum, url) => sum + url.length, 0);
+        if (approxBytes <= MAX_NOTICE_IMAGES_BYTES) {
+          pageImages = images;
+        }
+      } catch {
+        // Storage capture is best-effort — if it fails, the notice still
+        // publishes and display falls back to live regeneration.
+      }
+      await repo.notices.upsert({ id: '', ...buildNoticeRecord(), ...(pageImages ? { pageImages } : {}) });
       show('Notice published — now live in the Student and Teacher apps');
       handleClear();
     } catch (e) {

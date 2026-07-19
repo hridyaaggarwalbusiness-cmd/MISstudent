@@ -61,6 +61,7 @@ export function NoticeDetailScreen() {
                 body: notice.body,
               }}
               fileBaseName={notice.title}
+              pageImages={notice.pageImages}
             />
           </View>
         ) : (

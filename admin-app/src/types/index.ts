@@ -143,6 +143,14 @@ export interface Notice {
   noticeDate?: string;
   effectiveDate?: string;
   aiGenerated?: boolean;
+  // Base64 JPEG data URLs of each rendered page, captured at publish time
+  // from the exact same template used for the preview/PDF export. Storage
+  // isn't provisioned on this project's Spark plan, so the rendered notice
+  // is inlined here instead of uploaded to Cloud Storage. Absent on notices
+  // published before this existed, or when the render was too large to fit
+  // Firestore's 1 MiB document limit - both cases fall back to live
+  // regeneration from title/body, which produces an identical result.
+  pageImages?: string[];
 }
 
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'leave' | 'holiday' | 'weekend' | 'future';

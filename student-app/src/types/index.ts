@@ -125,6 +125,12 @@ export interface Notice {
   priority?: NoticePriority;
   noticeDate?: string;
   effectiveDate?: string;
+  // Base64 JPEG data URLs of each rendered page, captured by the admin app
+  // at publish time from the exact same template used there. When present,
+  // display should use these directly instead of regenerating from
+  // title/body so the student always sees byte-identical output to what
+  // was published.
+  pageImages?: string[];
 }
 
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'leave' | 'holiday' | 'weekend' | 'future';

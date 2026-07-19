@@ -103,6 +103,7 @@ interface BackendNotice {
   priority?: NoticePriority;
   noticeDate?: string;
   effectiveDate?: string;
+  pageImages?: string[];
 }
 
 interface BackendAttendanceRecord {
@@ -354,6 +355,7 @@ export const repo = {
             priority: n.priority,
             noticeDate: n.noticeDate,
             effectiveDate: n.effectiveDate,
+            pageImages: n.pageImages,
           })),
         );
       });

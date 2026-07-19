@@ -10,10 +10,25 @@ const ASPECT_RATIO = PAGE_WIDTH_PT / PAGE_HEIGHT_PT;
 // export - so an AI-generated notice shows its real logo, background and
 // signature in the Notices list, not the plain title/body text used for
 // ordinary (non-template) notices.
-export function NoticeCardPreview({ date, title, body }: { date: string; title: string; body: string }) {
-  const [dataUrl, setDataUrl] = useState<string | null>(null);
+export function NoticeCardPreview({
+  date,
+  title,
+  body,
+  pageImages,
+}: {
+  date: string;
+  title: string;
+  body: string;
+  pageImages?: string[];
+}) {
+  const storedFirstPage = pageImages?.[0];
+  const [dataUrl, setDataUrl] = useState<string | null>(storedFirstPage ?? null);
 
   useEffect(() => {
+    if (storedFirstPage) {
+      setDataUrl(storedFirstPage);
+      return;
+    }
     let cancelled = false;
     renderNoticeDataUrl({ date: formatOfficialDate(date), title, body }).then((url) => {
       if (!cancelled) setDataUrl(url);
@@ -22,7 +37,7 @@ export function NoticeCardPreview({ date, title, body }: { date: string; title: 
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date, title, body]);
+  }, [date, title, body, storedFirstPage]);
 
   return (
     <div className={styles.frame} style={{ aspectRatio: `${PAGE_WIDTH_PT} / ${PAGE_HEIGHT_PT}` }}>

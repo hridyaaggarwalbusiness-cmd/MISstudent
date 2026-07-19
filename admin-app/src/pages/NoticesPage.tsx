@@ -221,7 +221,7 @@ export function NoticesPage() {
                 </div>
               </div>
               {n.noticeType ? (
-                <NoticeCardPreview date={n.noticeDate ?? n.postedAt} title={n.title} body={n.body} />
+                <NoticeCardPreview date={n.noticeDate ?? n.postedAt} title={n.title} body={n.body} pageImages={n.pageImages} />
               ) : (
                 <div className={styles.noticeBody}>{n.body}</div>
               )}

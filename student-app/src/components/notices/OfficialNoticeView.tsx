@@ -5,6 +5,8 @@ import { colors, radius, spacing } from '@theme';
 import {
   downloadNoticeImage,
   downloadNoticePdf,
+  downloadNoticePdfFromImages,
+  downloadImageDataUrl,
   NoticeTemplateData,
   renderAllPagesDataUrls,
   PAGE_WIDTH_PT,
@@ -14,17 +16,32 @@ import {
 const ASPECT_RATIO = PAGE_WIDTH_PT / PAGE_HEIGHT_PT;
 
 // Renders the notice through the same official HTML/CSS template used
-// everywhere else (see utils/noticeTemplate.ts) - every page is rasterized
-// via html2canvas (student-app is Expo web-only, so document/iframe/canvas
-// are always available) and shown here in full, so a multi-page notice is
-// never silently truncated to page 1: what's shown is exactly what
-// downloadNoticePdf() would produce.
-export function OfficialNoticeView({ data, fileBaseName }: { data: NoticeTemplateData; fileBaseName: string }) {
-  const [pageUrls, setPageUrls] = useState<string[] | null>(null);
+// everywhere else (see utils/noticeTemplate.ts). When the admin published
+// this notice with pageImages already captured (see AiNoticeWriterPage's
+// publish flow), those exact stored pages are shown/downloaded directly -
+// no re-render - so what the student sees is byte-identical to what was
+// published. Older notices (or ones where storage was skipped for being
+// too large) fall back to live regeneration from title/body, rasterized via
+// html2canvas, which produces the same visual result.
+export function OfficialNoticeView({
+  data,
+  fileBaseName,
+  pageImages,
+}: {
+  data: NoticeTemplateData;
+  fileBaseName: string;
+  pageImages?: string[];
+}) {
+  const hasStoredPages = !!pageImages?.length;
+  const [pageUrls, setPageUrls] = useState<string[] | null>(hasStoredPages ? pageImages! : null);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [exportingImage, setExportingImage] = useState(false);
 
   useEffect(() => {
+    if (hasStoredPages) {
+      setPageUrls(pageImages!);
+      return;
+    }
     let cancelled = false;
     setPageUrls(null);
     renderAllPagesDataUrls(data).then((urls) => {
@@ -33,12 +50,17 @@ export function OfficialNoticeView({ data, fileBaseName }: { data: NoticeTemplat
     return () => {
       cancelled = true;
     };
-  }, [data]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, hasStoredPages, pageImages]);
 
   async function handleDownloadPdf() {
     setExportingPdf(true);
     try {
-      await downloadNoticePdf(data, fileBaseName);
+      if (hasStoredPages) {
+        await downloadNoticePdfFromImages(pageImages!, fileBaseName);
+      } else {
+        await downloadNoticePdf(data, fileBaseName);
+      }
     } finally {
       setExportingPdf(false);
     }
@@ -47,7 +69,11 @@ export function OfficialNoticeView({ data, fileBaseName }: { data: NoticeTemplat
   async function handleDownloadImage() {
     setExportingImage(true);
     try {
-      await downloadNoticeImage(data, fileBaseName);
+      if (hasStoredPages) {
+        downloadImageDataUrl(pageImages![0], fileBaseName);
+      } else {
+        await downloadNoticeImage(data, fileBaseName);
+      }
     } finally {
       setExportingImage(false);
     }
