@@ -1,23 +1,61 @@
-import React, { useMemo } from 'react';
-import { View, Image, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Image, ActivityIndicator, StyleSheet } from 'react-native';
 import { Button } from '@components/ui';
 import { colors, radius, spacing } from '@theme';
-import { downloadNoticeImage, downloadNoticePdf, NoticeTemplateData, renderNoticeDataUrl } from '@utils/noticeTemplate';
+import { downloadNoticeImage, downloadNoticePdf, NoticeTemplateData, renderNoticeDataUrl, PAGE_WIDTH_PT, PAGE_HEIGHT_PT } from '@utils/noticeTemplate';
 
-const ASPECT_RATIO = 1000 / 1414;
+const ASPECT_RATIO = PAGE_WIDTH_PT / PAGE_HEIGHT_PT;
 
-// Renders the notice through the same official template used everywhere
-// else (see utils/noticeTemplate.ts) - the canvas draw runs once here
-// (student-app is Expo web-only, so document/canvas are always available)
-// and the resulting PNG is what's shown, downloaded as an image, and
-// embedded into the downloaded PDF, so all three are always pixel-identical.
+// Renders the notice through the same official HTML/CSS template used
+// everywhere else (see utils/noticeTemplate.ts) - the template is
+// rasterized once via html2canvas here (student-app is Expo web-only, so
+// document/iframe/canvas are always available) and the resulting PNG is
+// what's shown, downloaded as an image, and embedded into the downloaded
+// PDF, so all three are always pixel-identical.
 export function OfficialNoticeView({ data, fileBaseName }: { data: NoticeTemplateData; fileBaseName: string }) {
-  const dataUrl = useMemo(() => renderNoticeDataUrl(data), [data]);
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingImage, setExportingImage] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDataUrl(null);
+    renderNoticeDataUrl(data).then((url) => {
+      if (!cancelled) setDataUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [data]);
+
+  async function handleDownloadPdf() {
+    setExportingPdf(true);
+    try {
+      await downloadNoticePdf(data, fileBaseName);
+    } finally {
+      setExportingPdf(false);
+    }
+  }
+
+  async function handleDownloadImage() {
+    setExportingImage(true);
+    try {
+      await downloadNoticeImage(data, fileBaseName);
+    } finally {
+      setExportingImage(false);
+    }
+  }
 
   return (
     <View>
       <View style={styles.frame}>
-        <Image source={{ uri: dataUrl }} style={styles.image} resizeMode="contain" />
+        {dataUrl ? (
+          <Image source={{ uri: dataUrl }} style={styles.image} resizeMode="contain" />
+        ) : (
+          <View style={[styles.image, styles.loading]}>
+            <ActivityIndicator color={colors.textTertiary} />
+          </View>
+        )}
       </View>
       <View style={styles.actions}>
         <Button
@@ -25,7 +63,8 @@ export function OfficialNoticeView({ data, fileBaseName }: { data: NoticeTemplat
           icon="document-text-outline"
           variant="outline"
           size="sm"
-          onPress={() => downloadNoticePdf(data, fileBaseName)}
+          loading={exportingPdf}
+          onPress={handleDownloadPdf}
           style={styles.actionBtn}
         />
         <Button
@@ -33,7 +72,8 @@ export function OfficialNoticeView({ data, fileBaseName }: { data: NoticeTemplat
           icon="image-outline"
           variant="outline"
           size="sm"
-          onPress={() => downloadNoticeImage(data, fileBaseName)}
+          loading={exportingImage}
+          onPress={handleDownloadImage}
           style={styles.actionBtn}
         />
       </View>
@@ -52,6 +92,10 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     aspectRatio: ASPECT_RATIO,
+  },
+  loading: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actions: {
     flexDirection: 'row',

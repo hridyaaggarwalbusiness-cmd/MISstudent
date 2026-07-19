@@ -103,6 +103,8 @@ export function AiNoticeWriterPage() {
   const [genError, setGenError] = useState('');
   const [savingDraft, setSavingDraft] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingImage, setExportingImage] = useState(false);
 
   function classLabel(id: string) {
     const c = classes.find((cl) => cl.id === id);
@@ -210,11 +212,34 @@ export function AiNoticeWriterPage() {
 
   const previewData: NoticeTemplateData = {
     date: formatDisplayDate(noticeDate),
+    title: generatedTitle || undefined,
     body: generatedBody || PLACEHOLDER_BODY,
   };
 
   const hasContent = generatedBody.trim().length > 0;
   const downloadName = generatedTitle || instruction.slice(0, 40) || 'notice';
+
+  async function handleDownloadPdf() {
+    setExportingPdf(true);
+    try {
+      await downloadNoticePdf(previewData, downloadName);
+    } catch (e) {
+      show(getErrorMessage(e), 'error');
+    } finally {
+      setExportingPdf(false);
+    }
+  }
+
+  async function handleDownloadImage() {
+    setExportingImage(true);
+    try {
+      await downloadNoticeImage(previewData, downloadName);
+    } catch (e) {
+      show(getErrorMessage(e), 'error');
+    } finally {
+      setExportingImage(false);
+    }
+  }
 
   return (
     <div>
@@ -336,10 +361,10 @@ export function AiNoticeWriterPage() {
             <Button variant="outline" size="sm" icon={<RotateCcw size={14} />} loading={generating} onClick={handleGenerate} disabled={!instruction.trim()}>
               Regenerate
             </Button>
-            <Button variant="outline" size="sm" icon={<FileDown size={14} />} onClick={() => downloadNoticePdf(previewData, downloadName)} disabled={!hasContent}>
+            <Button variant="outline" size="sm" icon={<FileDown size={14} />} loading={exportingPdf} onClick={handleDownloadPdf} disabled={!hasContent}>
               Download PDF
             </Button>
-            <Button variant="outline" size="sm" icon={<ImageDown size={14} />} onClick={() => downloadNoticeImage(previewData, downloadName)} disabled={!hasContent}>
+            <Button variant="outline" size="sm" icon={<ImageDown size={14} />} loading={exportingImage} onClick={handleDownloadImage} disabled={!hasContent}>
               Download Image
             </Button>
             <Button variant="outline" size="sm" icon={<Save size={14} />} loading={savingDraft} onClick={handleSaveDraft} disabled={!hasContent}>

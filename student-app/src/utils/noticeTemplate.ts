@@ -1,258 +1,330 @@
 import { jsPDF } from 'jspdf';
 
-// The official school notice design - reference image supplied by the
-// school. Every visual element (border, background, crest, school name,
-// affiliation line, "NOTICE" heading placement, date position,
-// salutation-first body, "Thanks & Regards", signature block, principal
-// name) is the school's fixed, real letterhead and must never change.
-// Only the date and the AI-generated body text vary between notices.
+// On Expo web, Metro resolves a required image straight to its URL string;
+// on native it would be a numeric asset ID or {uri} object instead. This
+// app is web-only (see AGENTS.md), but resolve defensively so it doesn't
+// silently break if that ever changes.
+function assetUri(mod: unknown): string {
+  if (typeof mod === 'string') return mod;
+  if (mod && typeof mod === 'object' && 'uri' in mod) return String((mod as { uri: unknown }).uri);
+  if (mod && typeof mod === 'object' && 'default' in mod) return assetUri((mod as { default: unknown }).default);
+  return String(mod);
+}
+
+const madaanLogoUrl = assetUri(require('@/assets/notice/madaan-logo.png'));
+const principalSignatureUrl = assetUri(require('@/assets/notice/principal-signature.png'));
+
+// The official school notice template. Every measurement below (fonts,
+// sizes, colors, spacing, logo/signature placement) was extracted directly
+// from the school's real notice PDF - not approximated - so this reproduces
+// that document exactly. Only {{DATE}}, {{TITLE}} and {{BODY}} ever change;
+// everything else (header, border, background, footer, logo, signature) is
+// fixed and must never be generated or altered by AI.
 export interface NoticeTemplateData {
-  date: string; // already formatted for display, e.g. "14th July, 2026"
-  body: string; // full body text, starting with the salutation line. Key
-  // terms may be wrapped in **double asterisks** for inline emphasis,
-  // matching the bolding style used on the original printed notice.
+  date: string; // pre-formatted for display, e.g. "14th July, 2026"
+  title?: string; // optional bold subject line shown above the body
+  body: string; // salutation-first body text. Wrap key terms in
+  // **double asterisks** for inline bold emphasis, matching the source PDF.
 }
 
-const SCHOOL_NAME = 'MADAAN INTERNATIONAL SCHOOL';
-const AFFILIATION = 'Affiliated to CBSE, New Delhi (Nursery to XII)';
-const PRINCIPAL_NAME = 'Bhavna Mittal';
+// jsPDF's default A4 page size in points - the HTML page container below is
+// sized to match exactly so the rendered raster maps onto the PDF page with
+// zero stretching.
+export const PAGE_WIDTH_PT = 595.28;
+export const PAGE_HEIGHT_PT = 841.89;
 
-const CANVAS_WIDTH = 1000;
-const CANVAS_HEIGHT = 1414; // ~A4 portrait ratio
-
-const PEACH_BG = '#f7dcb8';
-const INK = '#1a1208';
-const INK_SOFT = '#4a3a22';
-const GOLD = '#8a6a2f';
-const SIGNATURE_COLOR = '#0f6b52';
-
-const FONT_BODY = "20px 'Times New Roman', Georgia, serif";
-const FONT_BODY_BOLD = "bold 20px 'Times New Roman', Georgia, serif";
-
-type BoldToken = { word: string; bold: boolean };
-
-// Splits body text on **bold** markers into word tokens tagged bold/plain,
-// so the AI's emphasis (dates, key names) survives into the drawn notice.
-function tokenizeBold(text: string): BoldToken[] {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
-  const tokens: BoldToken[] = [];
-  for (const part of parts) {
-    const match = part.match(/^\*\*([^*]+)\*\*$/);
-    const bold = !!match;
-    const content = match ? match[1] : part;
-    for (const word of content.split(/\s+/).filter(Boolean)) {
-      // Punctuation left dangling right after a closing ** marker (e.g. the
-      // "." in "**Monday**.") has no space before it in the source text -
-      // glue it onto the previous word instead of drawing it as its own
-      // space-separated token.
-      if (/^[.,;:!?)\]]+$/.test(word) && tokens.length) {
-        tokens[tokens.length - 1] = { ...tokens[tokens.length - 1], word: tokens[tokens.length - 1].word + word };
-      } else {
-        tokens.push({ word, bold });
-      }
-    }
-  }
-  return tokens;
+export function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
-function wrapRuns(ctx: CanvasRenderingContext2D, tokens: BoldToken[], maxWidth: number): BoldToken[][] {
-  ctx.font = FONT_BODY;
-  const spaceWidth = ctx.measureText(' ').width;
-  const lines: BoldToken[][] = [];
-  let current: BoldToken[] = [];
-  let currentWidth = 0;
-  for (const token of tokens) {
-    ctx.font = token.bold ? FONT_BODY_BOLD : FONT_BODY;
-    const wordWidth = ctx.measureText(token.word).width;
-    const extra = current.length ? spaceWidth : 0;
-    if (current.length && currentWidth + extra + wordWidth > maxWidth) {
-      lines.push(current);
-      current = [token];
-      currentWidth = wordWidth;
-    } else {
-      current.push(token);
-      currentWidth += extra + wordWidth;
-    }
-  }
-  if (current.length) lines.push(current);
-  return lines;
-}
-
-// Body text may contain the AI's own paragraph breaks (blank lines) - each
-// paragraph is wrapped independently so those breaks survive.
-function wrapParagraphs(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): BoldToken[][][] {
-  return text
+// Converts **bold** markdown spans and \n-separated paragraphs into the
+// body's inner HTML, escaping everything else. This is the only part of the
+// document whose content is AI-generated.
+export function bodyToHtml(body: string): string {
+  const paragraphs = body
     .split(/\n+/)
     .map((p) => p.trim())
-    .filter(Boolean)
-    .map((p) => wrapRuns(ctx, tokenizeBold(p), maxWidth));
+    .filter(Boolean);
+
+  return paragraphs
+    .map((p) => {
+      const escaped = escapeHtml(p);
+      const withBold = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      return `<p class="notice-paragraph">${withBold}</p>`;
+    })
+    .join('\n');
 }
 
-function drawRunLine(ctx: CanvasRenderingContext2D, line: BoldToken[], x: number, y: number) {
-  ctx.font = FONT_BODY;
-  const spaceWidth = ctx.measureText(' ').width;
-  let cx = x;
-  ctx.textAlign = 'left';
-  for (const token of line) {
-    ctx.font = token.bold ? FONT_BODY_BOLD : FONT_BODY;
-    ctx.fillText(token.word, cx, y);
-    cx += ctx.measureText(token.word).width + spaceWidth;
+// The fixed template, as a literal HTML string with {{DATE}}, {{TITLE}} and
+// {{BODY}} placeholders - the header, border, background, footer, logo and
+// signature markup here must never change.
+const NOTICE_TEMPLATE_HTML = `
+<div class="notice-page">
+  <div class="notice-border">
+    <header class="notice-header">
+      <img class="notice-logo" src="${madaanLogoUrl}" alt="" />
+      <div class="notice-header-text">
+        <h1 class="notice-school-name">MADAAN INTERNATIONAL SCHOOL</h1>
+        <p class="notice-affiliation">Affiliated to CBSE, New Delhi (Nursery to XII)</p>
+      </div>
+      <img class="notice-logo" src="${madaanLogoUrl}" alt="" />
+    </header>
+
+    <div class="notice-heading-row">
+      <span class="notice-heading-spacer"></span>
+      <span class="notice-heading">NOTICE</span>
+      <span class="notice-date">{{DATE}}</span>
+    </div>
+
+    <main class="notice-body">
+      {{TITLE}}
+      {{BODY}}
+    </main>
+
+    <footer class="notice-footer">
+      <p class="notice-thanks">Thanks &amp; Regards</p>
+      <img class="notice-signature" src="${principalSignatureUrl}" alt="" />
+      <p class="notice-principal-name">Bhavna Mittal</p>
+      <p class="notice-principal-title">(Principal)</p>
+    </footer>
+  </div>
+</div>
+`;
+
+const NOTICE_STYLE = `
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: transparent; }
+  .notice-page {
+    width: ${PAGE_WIDTH_PT}pt;
+    height: ${PAGE_HEIGHT_PT}pt;
+    background: #fbd4b4;
+    font-family: 'Times New Roman', Georgia, serif;
+    color: #000;
+  }
+  .notice-border {
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    border: 2.2pt solid #000;
+    margin: 0;
+    padding: 4pt 11pt 14pt;
+    display: flex;
+    flex-direction: column;
+  }
+  .notice-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 6pt;
+  }
+  .notice-logo {
+    width: 48pt;
+    height: auto;
+    flex-shrink: 0;
+  }
+  .notice-header-text {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    padding-top: 4pt;
+  }
+  .notice-school-name {
+    margin: 0;
+    font-size: 23pt;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .notice-affiliation {
+    margin: 3pt 0 0;
+    font-size: 15pt;
+    font-weight: 400;
+  }
+  .notice-heading-row {
+    display: flex;
+    align-items: baseline;
+    margin-top: 26pt;
+    font-size: 23pt;
+  }
+  .notice-heading-spacer {
+    flex: 0 0 42%;
+  }
+  .notice-heading {
+    font-weight: 700;
+  }
+  .notice-date {
+    margin-left: auto;
+  }
+  .notice-body {
+    margin-top: 18pt;
+    font-size: 23pt;
+    line-height: 1.72;
+    flex: 1;
+  }
+  .notice-title {
+    margin: 0 0 10pt;
+    font-weight: 700;
+  }
+  .notice-paragraph {
+    margin: 0 0 8pt;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  .notice-footer {
+    margin-top: auto;
+    padding-top: 20pt;
+  }
+  .notice-thanks {
+    margin: 0 0 10pt;
+    font-size: 18pt;
+  }
+  .notice-signature {
+    display: block;
+    width: 101pt;
+    height: auto;
+    margin: 0 0 6pt;
+  }
+  .notice-principal-name {
+    margin: 0 0 4pt;
+    font-size: 18pt;
+  }
+  .notice-principal-title {
+    margin: 0;
+    font-size: 18pt;
+  }
+`;
+
+function wrapDocument(bodyHtml: string): string {
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${NOTICE_STYLE}</style></head><body>${bodyHtml}</body></html>`;
+}
+
+function fillPage(date: string, titleHtml: string, bodyHtml: string): string {
+  const page = NOTICE_TEMPLATE_HTML.replace('{{DATE}}', escapeHtml(date))
+    .replace('{{TITLE}}', titleHtml)
+    .replace('{{BODY}}', bodyHtml);
+  return wrapDocument(page);
+}
+
+// Accepts { date, title, body } and fills the fixed HTML template - the
+// literal templating function the notice-writer feature is built around.
+// Covers the common single-page case; for bodies too long to fit one page,
+// use renderNoticePages() instead, which paginates while repeating this
+// same header/footer on every page.
+export function fillNoticeTemplate(data: NoticeTemplateData): string {
+  const titleHtml = data.title?.trim() ? `<p class="notice-title">${escapeHtml(data.title.trim())}</p>` : '';
+  return fillPage(data.date, titleHtml, bodyToHtml(data.body));
+}
+
+const CONTENT_AREA_SELECTOR = '.notice-body';
+
+// Measures whether the body content overflows a single page and, if so,
+// splits it into per-paragraph groups that each fit one page - each
+// resulting page reuses the identical fixed header/footer markup above, per
+// the requirement that header and footer repeat on every page.
+export async function renderNoticePages(data: NoticeTemplateData): Promise<string[]> {
+  const probeFrame = document.createElement('iframe');
+  probeFrame.style.position = 'fixed';
+  probeFrame.style.left = '-99999px';
+  probeFrame.style.top = '0';
+  probeFrame.style.width = `${PAGE_WIDTH_PT}pt`;
+  probeFrame.style.height = `${PAGE_HEIGHT_PT}pt`;
+  probeFrame.style.border = 'none';
+  document.body.appendChild(probeFrame);
+
+  try {
+    const titleHtml = data.title?.trim() ? `<p class="notice-title">${escapeHtml(data.title.trim())}</p>` : '';
+    const paragraphs = bodyToHtml(data.body).split('\n').filter(Boolean);
+    const fullHtml = fillPage(data.date, titleHtml, paragraphs.join('\n'));
+
+    await loadIntoFrame(probeFrame, fullHtml);
+    const doc = probeFrame.contentDocument!;
+    const bodyEl = doc.querySelector(CONTENT_AREA_SELECTOR) as HTMLElement;
+    const borderEl = doc.querySelector('.notice-border') as HTMLElement;
+    const footerEl = doc.querySelector('.notice-footer') as HTMLElement;
+    // Reserve the footer's real rendered height (not a guess) plus a small
+    // buffer, so the signature block never gets pushed past the page edge.
+    const availableHeight = borderEl.clientHeight - (bodyEl.offsetTop - borderEl.offsetTop) - footerEl.offsetHeight - 16;
+
+    if (bodyEl.scrollHeight <= availableHeight) {
+      return [fullHtml];
+    }
+
+    // Overflow: greedily group paragraphs so each page's body fits.
+    const paraNodes = Array.from(bodyEl.querySelectorAll('.notice-paragraph, .notice-title')) as HTMLElement[];
+    const pages: string[][] = [[]];
+    let currentHeight = 0;
+    for (const node of paraNodes) {
+      const h = node.offsetHeight;
+      if (currentHeight + h > availableHeight && pages[pages.length - 1].length > 0) {
+        pages.push([]);
+        currentHeight = 0;
+      }
+      pages[pages.length - 1].push(node.outerHTML);
+      currentHeight += h;
+    }
+
+    return pages.map((paras, i) => fillPage(data.date, i === 0 ? titleHtml : '', paras.filter((p) => !p.startsWith('<p class="notice-title')).join('\n')));
+  } finally {
+    document.body.removeChild(probeFrame);
   }
 }
 
-// Draws the school crest: a shield containing a simple domed-institution
-// icon, with the school's short name captioned underneath. This is a
-// best-effort recreation of the printed crest (no source logo file was
-// available) rather than a plain circle-and-initial placeholder.
-function drawCrest(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
-  ctx.save();
-  const w = size;
-  const h = size * 1.15;
-
-  ctx.beginPath();
-  ctx.moveTo(cx - w, cy - h);
-  ctx.lineTo(cx + w, cy - h);
-  ctx.lineTo(cx + w, cy + h * 0.2);
-  ctx.quadraticCurveTo(cx + w, cy + h * 0.75, cx, cy + h);
-  ctx.quadraticCurveTo(cx - w, cy + h * 0.75, cx - w, cy + h * 0.2);
-  ctx.closePath();
-  ctx.fillStyle = '#fdf6ea';
-  ctx.fill();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = GOLD;
-  ctx.stroke();
-
-  // Domed institution icon
-  const baseW = w * 1.05;
-  const baseH = h * 0.26;
-  const baseY = cy + h * 0.5;
-  ctx.fillStyle = GOLD;
-  ctx.fillRect(cx - baseW / 2, baseY - baseH, baseW, baseH);
-
-  ctx.fillStyle = '#fdf6ea';
-  const pillarCount = 4;
-  const pillarW = baseW * 0.1;
-  for (let i = 0; i < pillarCount; i++) {
-    const px = cx - baseW / 2 + (baseW * (i + 0.5)) / pillarCount - pillarW / 2;
-    ctx.fillRect(px, baseY - baseH + 3, pillarW, baseH - 6);
-  }
-
-  ctx.fillStyle = GOLD;
-  ctx.beginPath();
-  ctx.arc(cx, baseY - baseH, w * 0.4, Math.PI, 0);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(cx - 2, baseY - baseH - w * 0.4);
-  ctx.lineTo(cx + 2, baseY - baseH - w * 0.4);
-  ctx.lineTo(cx, baseY - baseH - w * 0.4 - 9);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-
-  ctx.fillStyle = GOLD;
-  ctx.font = `bold ${Math.round(size * 0.3)}px 'Times New Roman', Georgia, serif`;
-  ctx.textAlign = 'center';
-  ctx.fillText('MADAAN', cx, cy + h + Math.round(size * 0.42));
-}
-
-// Draws the complete official notice onto the given canvas. Kept as one
-// deterministic draw routine so the live preview, the downloaded PNG, and
-// the downloaded PDF (which embeds this same canvas as its page image) are
-// always pixel-identical - there is exactly one place the design lives.
-export function drawNoticeOnCanvas(canvas: HTMLCanvasElement, data: NoticeTemplateData) {
-  canvas.width = CANVAS_WIDTH;
-  canvas.height = CANVAS_HEIGHT;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  const w = CANVAS_WIDTH;
-  const h = CANVAS_HEIGHT;
-  const margin = 34;
-  const contentPad = 60;
-  const contentLeft = contentPad;
-  const contentRight = w - contentPad;
-  const contentWidth = contentRight - contentLeft;
-
-  // ---- Background + border ----
-  ctx.fillStyle = PEACH_BG;
-  ctx.fillRect(0, 0, w, h);
-  ctx.strokeStyle = INK;
-  ctx.lineWidth = 5;
-  ctx.strokeRect(margin, margin, w - margin * 2, h - margin * 2);
-
-  // ---- Header: crests + school name + affiliation ----
-  let y = 118;
-  drawCrest(ctx, contentLeft + 46, y, 36);
-  drawCrest(ctx, contentRight - 46, y, 36);
-
-  ctx.fillStyle = INK;
-  ctx.textAlign = 'center';
-  ctx.font = "bold 34px 'Times New Roman', Georgia, serif";
-  ctx.fillText(SCHOOL_NAME, w / 2, y - 4);
-
-  ctx.font = "16px 'Times New Roman', Georgia, serif";
-  ctx.fillStyle = INK_SOFT;
-  ctx.fillText(AFFILIATION, w / 2, y + 26);
-
-  y += 100;
-
-  // ---- NOTICE + date row ----
-  ctx.textAlign = 'left';
-  ctx.fillStyle = INK;
-  ctx.font = "bold 26px 'Times New Roman', Georgia, serif";
-  ctx.fillText('NOTICE', contentLeft + contentWidth * 0.39, y);
-  ctx.textAlign = 'right';
-  ctx.font = "26px 'Times New Roman', Georgia, serif";
-  ctx.fillText(data.date, contentRight, y);
-  ctx.textAlign = 'left';
-
-  y += 56;
-
-  // ---- Body (starts with the salutation, already generated by the AI) ----
-  ctx.fillStyle = INK;
-  const lineHeight = 32;
-  const paragraphs = wrapParagraphs(ctx, data.body, contentWidth);
-  paragraphs.forEach((lines) => {
-    lines.forEach((line) => {
-      drawRunLine(ctx, line, contentLeft, y);
-      y += lineHeight;
-    });
-    y += 10;
+function loadIntoFrame(iframe: HTMLIFrameElement, html: string): Promise<void> {
+  return new Promise((resolve) => {
+    iframe.onload = () => resolve();
+    iframe.srcdoc = html;
   });
-
-  // ---- Closing + signature block ----
-  y += 30;
-  ctx.font = FONT_BODY;
-  ctx.fillStyle = INK;
-  ctx.fillText('Thanks & Regards', contentLeft, y);
-
-  y += 70;
-  // Signature scribble
-  ctx.save();
-  ctx.strokeStyle = SIGNATURE_COLOR;
-  ctx.lineWidth = 2.2;
-  ctx.beginPath();
-  ctx.moveTo(contentLeft, y);
-  ctx.bezierCurveTo(contentLeft + 20, y - 26, contentLeft + 40, y + 18, contentLeft + 65, y - 6);
-  ctx.bezierCurveTo(contentLeft + 85, y - 24, contentLeft + 100, y + 10, contentLeft + 130, y - 4);
-  ctx.bezierCurveTo(contentLeft + 150, y - 14, contentLeft + 165, y + 4, contentLeft + 185, y - 2);
-  ctx.stroke();
-  ctx.restore();
-
-  y += 38;
-  ctx.font = "bold 21px 'Times New Roman', Georgia, serif";
-  ctx.fillStyle = INK;
-  ctx.fillText(PRINCIPAL_NAME, contentLeft, y);
-
-  y += 26;
-  ctx.font = "17px 'Times New Roman', Georgia, serif";
-  ctx.fillStyle = INK_SOFT;
-  ctx.fillText('(Principal)', contentLeft, y);
 }
 
-export function renderNoticeDataUrl(data: NoticeTemplateData): string {
-  const canvas = document.createElement('canvas');
-  drawNoticeOnCanvas(canvas, data);
+async function waitForImages(doc: Document): Promise<void> {
+  const imgs = Array.from(doc.images);
+  await Promise.all(
+    imgs.map((img) =>
+      img.complete
+        ? Promise.resolve()
+        : new Promise<void>((resolve) => {
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+          }),
+    ),
+  );
+}
+
+async function renderPageToCanvas(html: string): Promise<HTMLCanvasElement> {
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.left = '-99999px';
+  iframe.style.top = '0';
+  iframe.style.width = `${PAGE_WIDTH_PT}pt`;
+  iframe.style.height = `${PAGE_HEIGHT_PT}pt`;
+  iframe.style.border = 'none';
+  document.body.appendChild(iframe);
+
+  try {
+    await loadIntoFrame(iframe, html);
+    const doc = iframe.contentDocument!;
+    await waitForImages(doc);
+    const html2canvas = (await import('html2canvas')).default;
+    const target = doc.querySelector('.notice-page') as HTMLElement;
+    return await html2canvas(target, { scale: 2.5, useCORS: true, backgroundColor: '#fbd4b4' });
+  } finally {
+    document.body.removeChild(iframe);
+  }
+}
+
+// Renders just the first page as a PNG data URL, for live display (RN
+// <Image> has no direct HTML/CSS rendering, so the page is rasterized once
+// and shown as an image) and single-image sharing ("Download Image").
+// Multi-page notices still export a full multi-page PDF via
+// downloadNoticePdf(); a PNG is inherently a single image.
+export async function renderNoticeDataUrl(data: NoticeTemplateData): Promise<string> {
+  const [firstPage] = await renderNoticePages(data);
+  const canvas = await renderPageToCanvas(firstPage);
   return canvas.toDataURL('image/png');
 }
 
@@ -260,19 +332,22 @@ function safeFileName(title: string): string {
   return title.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'notice';
 }
 
-export function downloadNoticeImage(data: NoticeTemplateData, title: string) {
-  const dataUrl = renderNoticeDataUrl(data);
+export async function downloadNoticeImage(data: NoticeTemplateData, title: string) {
+  const dataUrl = await renderNoticeDataUrl(data);
   const link = document.createElement('a');
   link.href = dataUrl;
   link.download = `${safeFileName(title)}.png`;
   link.click();
 }
 
-export function downloadNoticePdf(data: NoticeTemplateData, title: string) {
-  const dataUrl = renderNoticeDataUrl(data);
+export async function downloadNoticePdf(data: NoticeTemplateData, title: string) {
+  const pages = await renderNoticePages(data);
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  doc.addImage(dataUrl, 'PNG', 0, 0, pageWidth, pageHeight);
+  for (let i = 0; i < pages.length; i++) {
+    const canvas = await renderPageToCanvas(pages[i]);
+    const dataUrl = canvas.toDataURL('image/png');
+    if (i > 0) doc.addPage();
+    doc.addImage(dataUrl, 'PNG', 0, 0, PAGE_WIDTH_PT, PAGE_HEIGHT_PT);
+  }
   doc.save(`${safeFileName(title)}.pdf`);
 }
