@@ -116,7 +116,7 @@ export function HomeScreen() {
     () => [
       {
         key: 'hw',
-        icon: 'book-outline',
+        icon: 'book',
         value: String(homeworkItems.length),
         label: 'Homework',
         iconBg: '#E4D9FB',
@@ -124,7 +124,7 @@ export function HomeScreen() {
       },
       {
         key: 'notices',
-        icon: 'megaphone-outline',
+        icon: 'megaphone',
         value: String(noticeItems.filter((n) => !n.isRead).length),
         label: 'Notices',
         iconBg: '#DCEAFF',
@@ -132,7 +132,7 @@ export function HomeScreen() {
       },
       {
         key: 'attendance',
-        icon: 'checkmark-done-outline',
+        icon: 'checkmark-circle',
         value: `${Math.round(attendancePct)}%`,
         label: 'Attendance',
         iconBg: '#DCF5E3',
@@ -247,49 +247,49 @@ export function HomeScreen() {
     {
       key: 'homework',
       label: 'Homework',
-      icon: 'book-outline',
+      icon: 'book',
       color: colors.tileViolet,
       onPress: () => navigation.navigate('MainTabs', { screen: 'HomeworkTab' }),
     },
     {
       key: 'timetable',
       label: 'Timetable',
-      icon: 'calendar-outline',
+      icon: 'calendar',
       color: colors.tileGreen,
       onPress: () => navigation.navigate('MainTabs', { screen: 'TimetableTab' }),
     },
     {
       key: 'results',
       label: 'Results',
-      icon: 'stats-chart-outline',
-      color: colors.tileTeal,
+      icon: 'bar-chart',
+      color: colors.tileGreen,
       onPress: () => navigation.navigate('MainTabs', { screen: 'ResultsTab' }),
     },
     {
       key: 'attendance',
       label: 'Attendance',
-      icon: 'checkmark-done-outline',
+      icon: 'checkmark-circle',
       color: colors.tileViolet,
       onPress: () => navigation.navigate('Attendance'),
     },
     {
       key: 'materials',
-      label: 'Materials',
-      icon: 'library-outline',
-      color: colors.tileSky,
+      label: 'Study Material',
+      icon: 'folder',
+      color: colors.tileBlue,
       onPress: () => navigation.navigate('StudyMaterials'),
     },
     {
       key: 'fees',
       label: 'Fee Receipts',
-      icon: 'receipt-outline',
-      color: colors.tileYellow,
+      icon: 'receipt',
+      color: colors.tileOrange,
       onPress: () => navigation.navigate('FeeReceipts'),
     },
     {
       key: 'calendar',
       label: 'Calendar',
-      icon: 'today-outline',
+      icon: 'today',
       color: colors.tileOrange,
       onPress: () => navigation.navigate('AcademicCalendar'),
     },
@@ -357,7 +357,17 @@ export function HomeScreen() {
           ) : feedItems.length === 0 ? (
             <EmptyState icon="sparkles-outline" title="All quiet for now" message="New homework, notices and events will show up here." compact />
           ) : (
-            visibleFeedItems.map((item) => <UpdateFeedItem key={item.key} item={item} />)
+            <>
+              {visibleFeedItems.map((item) => <UpdateFeedItem key={item.key} item={item} />)}
+              {feedExpanded && (
+                <AnimatedPressable onPress={() => setFeedExpanded(false)} style={styles.viewLess} haptic={false}>
+                  <AppText variant="bodyMedium" color={colors.primary}>
+                    View less
+                  </AppText>
+                  <Ionicons name="chevron-up" size={16} color={colors.primary} />
+                </AnimatedPressable>
+              )}
+            </>
           )}
         </View>
 
@@ -449,5 +459,11 @@ const styles = StyleSheet.create({
     left: spacing.lg,
     right: spacing.lg,
     bottom: spacing.md,
+  },
+  viewLess: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
   },
 });
