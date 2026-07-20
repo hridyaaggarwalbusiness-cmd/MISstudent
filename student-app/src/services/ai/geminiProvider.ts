@@ -24,21 +24,30 @@ const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 // older ones). Rather than depend on one model working, try a prioritized
 // list and fall through to the next on any failure - this self-heals
 // without needing per-account diagnosis.
-// gemini-2.5-flash goes first: it has a far higher output-token ceiling
-// than the older flash models, which matters because a full CBSE paper
-// (up to 100 marks, 30+ questions with model answers) can run long enough
-// to hit the older models' ~8k-token cap mid-JSON. The older models stay
-// as fallbacks for accounts where 2.5 isn't available or is over quota.
-const MODEL_CANDIDATES = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-flash-latest'];
+// gemini-2.5-flash goes first: it has a far higher output-token ceiling,
+// which matters because a full CBSE paper (up to 100 marks, 30+ questions
+// with model answers) can run long enough to hit a smaller cap mid-JSON.
+// gemini-2.5-flash-lite is the fallback: same generation, no separate
+// billing/quota bucket shared with 2.5-flash, and a noticeably higher free-
+// tier daily request cap - so once 2.5-flash's own daily quota is used up,
+// this keeps the app working for the rest of the day instead of failing.
+// gemini-flash-latest is a final catch-all alias in case Google renames the
+// current flagship flash model again. The older gemini-2.0-flash,
+// gemini-1.5-flash, and gemini-1.5-flash-8b model IDs have all been
+// permanently retired by Google (shut down / returning 404) as of 2026 -
+// keeping them in this list would only waste an attempt on every request,
+// so they've been removed. Google's model lineup and rate limits do
+// continue to shift periodically; if requests start failing on every
+// candidate, check https://ai.google.dev/gemini-api/docs/models for the
+// current model IDs.
+const MODEL_CANDIDATES = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest'];
 
 // Each model's real output-token ceiling - requests above this are just
 // wasted budget (or rejected outright by some models), so the requested
 // amount is clamped per-model rather than sent as one flat number.
 const MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
   'gemini-2.5-flash': 24000,
-  'gemini-2.0-flash': 8000,
-  'gemini-1.5-flash': 8000,
-  'gemini-1.5-flash-8b': 8000,
+  'gemini-2.5-flash-lite': 8000,
   'gemini-flash-latest': 8000,
 };
 
@@ -50,7 +59,7 @@ const MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
 // Setting thinkingBudget: 0 turns thinking off so the full budget goes to
 // the response. Only send this to models that actually understand it -
 // older models reject unrecognized generationConfig fields outright.
-const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-2.5-flash', 'gemini-flash-latest']);
+const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest']);
 
 // Carries the HTTP status so callGemini can tell a transient, worth-a-retry
 // failure (429 rate-limited, 503 "high demand") apart from a hard one.
