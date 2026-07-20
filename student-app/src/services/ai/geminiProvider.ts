@@ -63,12 +63,18 @@ function getApiKey(): string {
   return key;
 }
 
-async function callGeminiModel(model: string, apiKey: string, prompt: string, requestedMaxOutputTokens: number): Promise<string> {
+async function callGeminiModel(
+  model: string,
+  apiKey: string,
+  prompt: string,
+  requestedMaxOutputTokens: number,
+  temperature: number,
+): Promise<string> {
   const maxOutputTokens = Math.min(requestedMaxOutputTokens, MODEL_MAX_OUTPUT_TOKENS[model] ?? requestedMaxOutputTokens);
   const generationConfig: Record<string, unknown> = {
     responseMimeType: 'application/json',
     maxOutputTokens,
-    temperature: 0.8,
+    temperature,
   };
   if (MODELS_WITH_THINKING_CONFIG.has(model)) {
     generationConfig.thinkingConfig = { thinkingBudget: 0 };
@@ -110,13 +116,20 @@ async function callGeminiModel(model: string, apiKey: string, prompt: string, re
   return text;
 }
 
-async function callGemini(prompt: string, maxOutputTokens: number): Promise<string> {
+// Generation benefits from some creative variety across questions (higher
+// temperature); grading must not - the same answer should score the same
+// way every time it's submitted, so grading calls use a near-deterministic
+// temperature instead of inheriting generation's default.
+const GENERATION_TEMPERATURE = 0.8;
+const GRADING_TEMPERATURE = 0.15;
+
+async function callGemini(prompt: string, maxOutputTokens: number, temperature: number = GENERATION_TEMPERATURE): Promise<string> {
   const apiKey = getApiKey();
   let lastMessage = 'The AI provider is currently unavailable.';
 
   for (const model of MODEL_CANDIDATES) {
     try {
-      return await callGeminiModel(model, apiKey, prompt, maxOutputTokens);
+      return await callGeminiModel(model, apiKey, prompt, maxOutputTokens, temperature);
     } catch (err) {
       if (err instanceof PaperGenerationError) throw err;
       lastMessage = err instanceof Error ? err.message : String(err);
@@ -191,7 +204,7 @@ export const geminiProvider: PaperProvider = {
         ? `\n\nYour previous attempt was invalid: ${lastError.message}\nFix this and respond again with ONLY the corrected JSON array, one object per question.`
         : '';
       try {
-        const raw = await callGemini(prompt + correction, 4000);
+        const raw = await callGemini(prompt + correction, 4000, GRADING_TEMPERATURE);
         const parsed = extractJson(raw);
         return normalizeGrades(parsed, request.answers);
       } catch (err) {

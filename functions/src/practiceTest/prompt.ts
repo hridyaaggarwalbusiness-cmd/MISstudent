@@ -179,7 +179,14 @@ Student's answer: ${a.studentAnswer.trim() || '(left blank)'}`,
 
   return `You are an expert, fair CBSE examiner grading a ${DIFFICULTY_LABEL[request.difficulty]}-difficulty ${request.subject} paper for ${request.classLabel}.
 
-Grade each of the following ${answers.length} student answers against its model answer. Be lenient about phrasing, spelling, and ordering of points - judge whether the student demonstrates the correct understanding, not whether the wording matches exactly. Award partial credit where the student gets some but not all key points. Award 0 marks for answers left blank or completely unrelated to the question.
+Grade each of the following ${answers.length} student answers against its model answer. Follow these rules strictly and apply them the same way to every answer:
+
+1. Judge MEANING, never exact wording. The model answer is a reference for what correct understanding looks like, not a script to match word-for-word. Different phrasing, synonyms, different but equivalent examples, reordered points, different units/notation for the same value, or a shorter answer that still states the key idea correctly must NOT lose marks.
+2. If the student's answer conveys everything the question requires and contains nothing factually wrong, award FULL marks - even if it's phrased completely differently from the model answer, is more concise, or adds correct extra detail.
+3. Only deduct marks for a concrete, identifiable reason: a required point that is genuinely missing, a factual error, or a claim that contradicts the correct answer. Never deduct marks just because the wording differs from the model answer.
+4. Award partial credit proportional to how many of the required key points are present when the answer is incomplete or partially correct.
+5. Award 0 marks only for answers left blank or entirely unrelated to the question.
+6. Be consistent: the same quality of answer must receive the same score every time you grade it - do not vary your standard between questions or students.
 
 ${questionsBlock}
 
@@ -188,7 +195,7 @@ Respond with ONLY raw JSON (no markdown, no commentary) - an array with exactly 
   {
     "questionId": string (copy the "id" given above),
     "marksAwarded": number (0 to the question's max marks, may be a whole or half number),
-    "feedback": string (one short sentence explaining the score - what was right or missing)
+    "feedback": string (one short sentence - if marks were deducted, name the specific missing point or error; if full marks were awarded, briefly say why the answer is correct)
   }
 ]`;
 }

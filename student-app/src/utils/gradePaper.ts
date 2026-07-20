@@ -29,7 +29,40 @@ function textsMatch(a: string, b: string): boolean {
   if (na === nb) return true;
   // Tolerate the student or the model answer being a superset phrase of
   // the other (e.g. "photosynthesis" vs "the process of photosynthesis").
-  return na.includes(nb) || nb.includes(na);
+  if (na.includes(nb) || nb.includes(na)) return true;
+  // Tolerate the same words in a different order (e.g. "carbon and iron"
+  // vs "iron and carbon") - a fair grader doesn't dock marks for that.
+  const wa = na.split(' ').filter(Boolean);
+  const wb = nb.split(' ').filter(Boolean);
+  if (wa.length > 1 && wa.length === wb.length) {
+    const setA = new Set(wa);
+    const setB = new Set(wb);
+    if (setA.size === setB.size && [...setA].every((w) => setB.has(w))) return true;
+  }
+  return false;
+}
+
+// The AI is asked to copy a selected option's exact text into "answer",
+// but wording sometimes drifts from the options list it also generated
+// (e.g. "Mt. Everest" as the answer vs "Mount Everest" as the option) -
+// resolve which option the model actually meant as correct before
+// comparing, so a paraphrase in the answer key never costs a student
+// marks for picking the objectively right option. Comparison against the
+// resolved option is exact (normalized), not fuzzy-substring, so distinct
+// options that happen to share words (e.g. "Red" vs "Dark Red") can't be
+// confused for one another.
+function resolveCorrectOption(question: PaperQuestion): string {
+  const options = question.options ?? [];
+  const exact = options.find((o) => normalizeText(o) === normalizeText(question.answer));
+  if (exact) return exact;
+  const fuzzy = options.find((o) => textsMatch(o, question.answer));
+  return fuzzy ?? question.answer;
+}
+
+function optionsMatch(response: string, question: PaperQuestion): boolean {
+  if (!question.options || question.options.length === 0) return textsMatch(response, question.answer);
+  const correctOption = resolveCorrectOption(question);
+  return normalizeText(response) === normalizeText(correctOption);
 }
 
 function parseNumber(text: string): number | null {
@@ -97,7 +130,12 @@ export function gradeObjectiveQuestion(question: PaperQuestion, answer: AttemptA
     };
   }
 
-  const isCorrect = question.type === 'numerical' ? numbersMatch(response, question.answer) : textsMatch(response, question.answer);
+  const isCorrect =
+    question.type === 'numerical'
+      ? numbersMatch(response, question.answer)
+      : question.type === 'mcq' || question.type === 'assertion_reason'
+        ? optionsMatch(response, question)
+        : textsMatch(response, question.answer);
 
   return {
     questionId: question.id,
