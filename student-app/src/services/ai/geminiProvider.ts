@@ -173,6 +173,16 @@ function requestedTokenBudget(totalMarks: number): number {
   return Math.min(24000, Math.max(8000, totalMarks * 220));
 }
 
+// Each graded answer now returns an explanation plus missing/incorrect
+// concept lists and a suggestion - several times larger than the single
+// feedback sentence the old prompt asked for. A flat 4000-token budget
+// (fine for that old shape) truncates the JSON mid-array once a paper has
+// more than a couple of subjective questions, which silently falls back to
+// the provisional estimate. Scale with the number of answers instead.
+function gradingTokenBudget(answerCount: number): number {
+  return Math.min(24000, Math.max(3000, answerCount * 900));
+}
+
 // Retries once with the validation failure fed back to the model - marks
 // mismatches and malformed JSON are the two failure modes worth a second
 // try; anything else (network, missing key) is a hard failure.
@@ -223,13 +233,14 @@ export const geminiProvider: PaperProvider = {
   async gradeSubjectiveAnswers(request: GradeAnswersRequest): Promise<SubjectiveGrade[]> {
     if (request.answers.length === 0) return [];
     const prompt = buildGradeAnswersPrompt(request);
+    const maxOutputTokens = gradingTokenBudget(request.answers.length);
     let lastError: Error | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {
       const correction = lastError
-        ? `\n\nYour previous attempt was invalid: ${lastError.message}\nFix this and respond again with ONLY the corrected JSON array, one object per question.`
+        ? `\n\nYour previous attempt was invalid: ${lastError.message}\nFix this and respond again with ONLY the corrected JSON array, one object per question. If your previous response was cut off, keep each question's "explanation" and "suggestions" more concise so the whole array fits.`
         : '';
       try {
-        const raw = await callGemini(prompt + correction, 4000, GRADING_TEMPERATURE);
+        const raw = await callGemini(prompt + correction, maxOutputTokens, GRADING_TEMPERATURE);
         const parsed = extractJson(raw);
         return normalizeGrades(parsed, request.answers);
       } catch (err) {

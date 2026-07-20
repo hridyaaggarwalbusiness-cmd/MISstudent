@@ -155,8 +155,13 @@ export const gradePracticeTestAnswers = onCall(
     const { request, answers } = validateGradeRequest(req.data);
 
     const prompt = buildGradeAnswersPrompt({ request, answers });
+    // Each graded answer returns an explanation plus missing/incorrect
+    // concept lists and a suggestion, not a single feedback sentence -
+    // scale the budget with the batch size the same way the student-app
+    // copy of this call does (see geminiProvider.ts's gradingTokenBudget).
+    const maxTokens = Math.min(24000, Math.max(3000, answers.length * 900));
     try {
-      const raw = await llmProvider.complete(prompt, { maxTokens: 4000 });
+      const raw = await llmProvider.complete(prompt, { maxTokens });
       const parsed = extractJson(raw);
       return normalizeGrades(parsed, answers);
     } catch (err) {
