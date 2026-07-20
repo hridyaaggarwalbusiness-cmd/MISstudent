@@ -352,11 +352,16 @@ export interface RegenerateQuestionRequest {
 // everything else). `matchSelections` is match_following-only: parallel to
 // the question's matchPairs, matchSelections[i] is the index into
 // matchPairs the student picked as the right-hand match for left item i
-// (or -1 if left unmatched).
+// (or -1 if left unmatched). `answerImage` is a data URL (e.g.
+// "data:image/jpeg;base64,...") of a photographed/uploaded answer - lets a
+// student submit a diagram or handwritten answer instead of typing, for any
+// free-text question. When present it takes priority over `response` for
+// grading (see gradePaper.ts).
 export interface AttemptAnswer {
   questionId: string;
   response: string;
   matchSelections?: number[];
+  answerImage?: string;
 }
 
 export type GradingMethod = 'objective' | 'ai' | 'unanswered';
@@ -368,6 +373,7 @@ export interface QuestionResult {
   method: GradingMethod;
   correct: boolean;
   studentAnswerText: string;
+  studentAnswerImage?: string;
   correctAnswerText: string;
   // Populated only for AI-graded (subjective) questions - the examiner's
   // concept-level breakdown of the score, not a text-match verdict.
@@ -389,11 +395,15 @@ export interface PaperAttemptResult {
 // Deliberately excludes a "model answer" - the AI grades by understanding
 // the question and the student's answer like a real examiner would, not by
 // text-matching against a canned reference key (see promptBuilder.ts).
+// `answerImage` (a data URL) is set instead of `studentAnswer` when the
+// student photographed/uploaded their answer (e.g. a diagram) rather than
+// typing it - the AI reads it directly as an image, not OCR'd text.
 export interface SubjectiveAnswerToGrade {
   questionId: string;
   questionText: string;
   maxMarks: number;
   studentAnswer: string;
+  answerImage?: string;
 }
 
 export interface GradeAnswersRequest {

@@ -1,10 +1,22 @@
 import React from 'react';
-import { View, TextInput, StyleSheet } from 'react-native';
+import { View, TextInput, Image, StyleSheet, Alert } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { AnimatedPressable, AppText } from '@components/ui';
 import { colors, radius, spacing } from '@theme';
 import { AttemptAnswer, PaperQuestion } from '@/types';
 
 const OPTION_LABELS = ['a', 'b', 'c', 'd', 'e', 'f'];
+
+// Question types answered by free-text/handwriting - these are the only
+// ones offered the "upload a photo instead" option (MCQ/True-False/Match
+// are selection-based, so there's nothing to photograph).
+const IMAGE_UPLOAD_TYPES = new Set(['fill_blank', 'very_short', 'numerical', 'short', 'long', 'case_study']);
+
+function supportsImageUpload(q: PaperQuestion): boolean {
+  if (IMAGE_UPLOAD_TYPES.has(q.type)) return true;
+  return q.type === 'assertion_reason' && !q.options;
+}
 
 interface AttemptQuestionBlockProps {
   question: PaperQuestion;
@@ -13,10 +25,11 @@ interface AttemptQuestionBlockProps {
 }
 
 export function AttemptQuestionBlock({ question: q, answer, onChange }: AttemptQuestionBlockProps) {
-  const answered = q.type === 'match_following' ? (answer?.matchSelections?.some((s) => s >= 0) ?? false) : !!answer?.response?.trim();
+  const answered =
+    q.type === 'match_following' ? (answer?.matchSelections?.some((s) => s >= 0) ?? false) : !!answer?.response?.trim() || !!answer?.answerImage;
 
   function setResponse(response: string) {
-    onChange({ questionId: q.id, response });
+    onChange({ questionId: q.id, response, answerImage: undefined });
   }
 
   function setMatchSelection(leftIndex: number, rightIndex: number) {
@@ -25,6 +38,68 @@ export function AttemptQuestionBlock({ question: q, answer, onChange }: AttemptQ
     const next = [...current];
     next[leftIndex] = rightIndex;
     onChange({ questionId: q.id, response: '', matchSelections: next });
+  }
+
+  async function pickAnswerImage() {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        base64: true,
+        quality: 0.5,
+      });
+      if (result.canceled) return;
+      const asset = result.assets?.[0];
+      if (!asset?.base64) {
+        Alert.alert("Couldn't read that photo", 'Please try picking the image again.');
+        return;
+      }
+      const mimeType = asset.mimeType ?? 'image/jpeg';
+      onChange({ questionId: q.id, response: '', answerImage: `data:${mimeType};base64,${asset.base64}` });
+    } catch {
+      Alert.alert("Couldn't open your photos", 'Please try again, or type your answer instead.');
+    }
+  }
+
+  function clearAnswerImage() {
+    onChange({ questionId: q.id, response: answer?.response ?? '', answerImage: undefined });
+  }
+
+  function renderTextOrImageAnswer(multiline: boolean) {
+    if (answer?.answerImage) {
+      return (
+        <View style={styles.imageAnswerWrap}>
+          <Image source={{ uri: answer.answerImage }} style={styles.imageAnswerPreview} resizeMode="contain" />
+          <AnimatedPressable onPress={clearAnswerImage} haptic={false} style={styles.imageRemoveBtn}>
+            <Ionicons name="close-circle" size={16} color={colors.textInverse} />
+            <AppText variant="tiny" color={colors.textInverse} style={{ marginLeft: 4, fontWeight: '700' }}>
+              Remove photo
+            </AppText>
+          </AnimatedPressable>
+        </View>
+      );
+    }
+
+    return (
+      <>
+        <TextInput
+          value={answer?.response ?? ''}
+          onChangeText={setResponse}
+          placeholder={multiline ? 'Write your answer...' : 'Type your answer...'}
+          placeholderTextColor={colors.textTertiary}
+          multiline={multiline}
+          style={[multiline ? styles.longInput : styles.shortInput, multiline && q.type === 'long' && { height: 120 }]}
+          textAlignVertical={multiline ? 'top' : undefined}
+        />
+        {supportsImageUpload(q) && (
+          <AnimatedPressable onPress={pickAnswerImage} haptic={false} style={styles.uploadBtn}>
+            <Ionicons name="camera-outline" size={15} color={colors.primary} />
+            <AppText variant="tiny" color={colors.primary} style={{ marginLeft: 5, fontWeight: '700' }}>
+              Or upload a photo of your answer (e.g. a diagram)
+            </AppText>
+          </AnimatedPressable>
+        )}
+      </>
+    );
   }
 
   return (
@@ -122,27 +197,10 @@ export function AttemptQuestionBlock({ question: q, answer, onChange }: AttemptQ
         </View>
       )}
 
-      {(q.type === 'fill_blank' || q.type === 'very_short' || q.type === 'numerical') && (
-        <TextInput
-          value={answer?.response ?? ''}
-          onChangeText={setResponse}
-          placeholder="Type your answer..."
-          placeholderTextColor={colors.textTertiary}
-          style={styles.shortInput}
-        />
-      )}
+      {(q.type === 'fill_blank' || q.type === 'very_short' || q.type === 'numerical') && renderTextOrImageAnswer(false)}
 
-      {(q.type === 'short' || q.type === 'long' || q.type === 'case_study' || (q.type === 'assertion_reason' && !q.options)) && (
-        <TextInput
-          value={answer?.response ?? ''}
-          onChangeText={setResponse}
-          placeholder="Write your answer..."
-          placeholderTextColor={colors.textTertiary}
-          multiline
-          style={[styles.longInput, q.type === 'long' && { height: 120 }]}
-          textAlignVertical="top"
-        />
-      )}
+      {(q.type === 'short' || q.type === 'long' || q.type === 'case_study' || (q.type === 'assertion_reason' && !q.options)) &&
+        renderTextOrImageAnswer(true)}
     </View>
   );
 }
@@ -256,5 +314,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textPrimary,
     fontFamily: 'Inter_500Medium',
+  },
+  uploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  imageAnswerWrap: {
+    marginTop: spacing.sm,
+  },
+  imageAnswerPreview: {
+    width: '100%',
+    height: 180,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  imageRemoveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+    backgroundColor: colors.dangerStrong,
   },
 });

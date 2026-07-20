@@ -114,6 +114,10 @@ function gradeMatchFollowing(question: PaperQuestion, answer: AttemptAnswer | un
 // caller routes to gradeAttempt's AI batch instead.
 export function gradeObjectiveQuestion(question: PaperQuestion, answer: AttemptAnswer | undefined): QuestionResult | null {
   if (!isObjective(question)) return null;
+  // A student can photograph/upload an answer instead of typing it (see
+  // AttemptQuestionBlock.tsx) - there's no text to string-match against in
+  // that case, so route it to the AI batch, which reads the image directly.
+  if (answer?.answerImage) return null;
 
   if (question.type === 'match_following') return gradeMatchFollowing(question, answer);
 
@@ -185,6 +189,7 @@ export async function gradeAttempt(paper: GeneratedPaper, answers: AttemptAnswer
       questionText: q.text,
       maxMarks: q.marks,
       studentAnswer: answerById.get(q.id)?.response ?? '',
+      answerImage: answerById.get(q.id)?.answerImage,
     }));
     try {
       subjectiveGrades = await paperProvider.gradeSubjectiveAnswers({
@@ -217,11 +222,12 @@ export async function gradeAttempt(paper: GeneratedPaper, answers: AttemptAnswer
       // so it reads as provisional, not a final AI-reviewed grade.
       subjectiveGrades = subjectiveAnswers.map((a) => {
         const wordCount = a.studentAnswer.trim().split(/\s+/).filter(Boolean).length;
-        const marksAwarded = wordCount >= 3 ? Math.round((a.maxMarks / 2) * 100) / 100 : 0;
+        const attempted = wordCount >= 3 || !!a.answerImage;
+        const marksAwarded = attempted ? Math.round((a.maxMarks / 2) * 100) / 100 : 0;
         return {
           questionId: a.questionId,
           marksAwarded,
-          explanation: wordCount >= 3
+          explanation: attempted
             ? 'Provisional score - AI grading was unavailable, so this is an estimate. Ask your teacher to review this answer.'
             : 'No answer provided.',
           missingConcepts: [],
@@ -235,14 +241,18 @@ export async function gradeAttempt(paper: GeneratedPaper, answers: AttemptAnswer
   const gradeById = new Map(subjectiveGrades.map((g) => [g.questionId, g]));
   const subjectiveResults: QuestionResult[] = subjectiveQuestions.map((q) => {
     const g = gradeById.get(q.id);
-    const response = answerById.get(q.id)?.response?.trim() ?? '';
+    const ans = answerById.get(q.id);
+    const response = ans?.response?.trim() ?? '';
+    const hasImage = !!ans?.answerImage;
+    const answered = hasImage || !!response;
     return {
       questionId: q.id,
       marksAwarded: g?.marksAwarded ?? 0,
       maxMarks: q.marks,
-      method: response ? 'ai' : 'unanswered',
+      method: answered ? 'ai' : 'unanswered',
       correct: (g?.marksAwarded ?? 0) >= q.marks,
-      studentAnswerText: response || '(not attempted)',
+      studentAnswerText: hasImage ? 'Answered with an uploaded photo' : response || '(not attempted)',
+      studentAnswerImage: ans?.answerImage,
       correctAnswerText: q.answer,
       explanation: g?.explanation,
       missingConcepts: g?.missingConcepts,

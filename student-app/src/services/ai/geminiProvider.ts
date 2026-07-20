@@ -1,5 +1,5 @@
 import { GeneratedPaper, GradeAnswersRequest, PaperQuestion, PracticeTestRequest, RegenerateQuestionRequest, SubjectiveGrade } from '@/types';
-import { buildGeneratePrompt, buildGradeAnswersPrompt, buildRegenerateQuestionPrompt } from './promptBuilder';
+import { buildGeneratePrompt, buildGradeAnswersPrompt, buildRegenerateQuestionPrompt, GradePromptPart } from './promptBuilder';
 import { extractJson, getSyllabusMismatchMessage, normalizeGrades, normalizePaper, normalizeRegeneratedQuestion, PaperValidationError } from './paperSchema';
 import { PaperGenerationError, PaperProvider } from './paperProvider';
 
@@ -89,7 +89,7 @@ function getApiKey(): string {
 async function callGeminiModel(
   model: string,
   apiKey: string,
-  prompt: string,
+  parts: GradePromptPart[],
   requestedMaxOutputTokens: number,
   temperature: number,
 ): Promise<string> {
@@ -106,7 +106,7 @@ async function callGeminiModel(
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
+      contents: [{ parts }],
       generationConfig,
     }),
   });
@@ -152,14 +152,19 @@ const GRADING_TEMPERATURE = 0.15;
 // and falling through to the next candidate.
 const RETRY_DELAYS_MS = [400, 1200];
 
-async function callGemini(prompt: string, maxOutputTokens: number, temperature: number = GENERATION_TEMPERATURE): Promise<string> {
+async function callGemini(
+  prompt: string | GradePromptPart[],
+  maxOutputTokens: number,
+  temperature: number = GENERATION_TEMPERATURE,
+): Promise<string> {
   const apiKey = getApiKey();
+  const parts = typeof prompt === 'string' ? [{ text: prompt }] : prompt;
   let lastMessage = 'The AI provider is currently unavailable.';
 
   for (const model of MODEL_CANDIDATES) {
     for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
       try {
-        return await callGeminiModel(model, apiKey, prompt, maxOutputTokens, temperature);
+        return await callGeminiModel(model, apiKey, parts, maxOutputTokens, temperature);
       } catch (err) {
         if (err instanceof PaperGenerationError) throw err;
         lastMessage = err instanceof Error ? err.message : String(err);
@@ -245,15 +250,17 @@ export const geminiProvider: PaperProvider = {
   // up, since a student is waiting on their score, not just browsing.
   async gradeSubjectiveAnswers(request: GradeAnswersRequest): Promise<SubjectiveGrade[]> {
     if (request.answers.length === 0) return [];
-    const prompt = buildGradeAnswersPrompt(request);
+    const promptParts = buildGradeAnswersPrompt(request);
     const maxOutputTokens = gradingTokenBudget(request.answers.length);
     let lastError: Error | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {
-      const correction = lastError
-        ? `\n\nYour previous attempt was invalid: ${lastError.message}\nFix this and respond again with ONLY the corrected JSON array, one object per question. If your previous response was cut off, keep each question's "explanation" and "suggestions" more concise so the whole array fits.`
-        : '';
+      const correction: GradePromptPart[] = lastError
+        ? [{
+            text: `\n\nYour previous attempt was invalid: ${lastError.message}\nFix this and respond again with ONLY the corrected JSON array, one object per question. If your previous response was cut off, keep each question's "explanation" and "suggestions" more concise so the whole array fits.`,
+          }]
+        : [];
       try {
-        const raw = await callGemini(prompt + correction, maxOutputTokens, GRADING_TEMPERATURE);
+        const raw = await callGemini([...promptParts, ...correction], maxOutputTokens, GRADING_TEMPERATURE);
         const parsed = extractJson(raw);
         return normalizeGrades(parsed, request.answers);
       } catch (err) {

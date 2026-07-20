@@ -173,6 +173,26 @@ Respond with ONLY raw JSON (no markdown, no commentary) matching exactly:
 }`;
 }
 
+// One piece of a multimodal Gemini request - either a text chunk or an
+// inline image. gradeSubjectiveAnswers sends these as one ordered `parts`
+// array so a photographed diagram/handwritten answer can sit directly next
+// to the question it belongs to, exactly the way a human examiner would
+// flip to that page and look at it. Exactly one of the two fields is set.
+export interface GradePromptPart {
+  text?: string;
+  inlineData?: { mimeType: string; data: string };
+}
+
+// Parses a "data:<mimeType>;base64,<data>" URL (what expo-image-picker's
+// `base64` option + a manually-prefixed data URI produces) into the two
+// fields Gemini's inlineData part needs. Returns null for anything that
+// doesn't match, so a malformed value degrades to "no image" rather than
+// throwing mid-grade.
+function parseDataUrl(dataUrl: string): { mimeType: string; data: string } | null {
+  const match = dataUrl.match(/^data:([^;]+);base64,([\s\S]+)$/);
+  return match ? { mimeType: match[1], data: match[2] } : null;
+}
+
 // Grades a batch of subjective (free-text) answers in one call, rather than
 // one AI request per question, to keep quota usage low on a single test
 // submission.
@@ -187,20 +207,14 @@ Respond with ONLY raw JSON (no markdown, no commentary) matching exactly:
 // in different words lose marks unfairly. So this only ever sends the
 // question, its max marks, and the student's answer, and asks the model to
 // evaluate it the same way - using its own knowledge of the subject.
-export function buildGradeAnswersPrompt(input: GradeAnswersRequest): string {
+export function buildGradeAnswersPrompt(input: GradeAnswersRequest): GradePromptPart[] {
   const { request, answers } = input;
-  const questionsBlock = answers
-    .map(
-      (a, i) => `${i + 1}. [id: "${a.questionId}"]
-Question: ${a.questionText}
-Maximum marks: ${a.maxMarks}
-Student's answer: ${a.studentAnswer.trim() || '(left blank)'}`,
-    )
-    .join('\n\n');
 
-  return `You are an experienced, fair CBSE examiner evaluating answer sheets for a ${DIFFICULTY_LABEL[request.difficulty]}-difficulty ${request.subject} paper, ${request.classLabel}. You are marking from your own subject expertise, exactly as a real teacher checking a physical answer sheet would - not by comparing text against a prewritten answer key.
+  const intro = `You are an experienced, fair CBSE examiner evaluating answer sheets for a ${DIFFICULTY_LABEL[request.difficulty]}-difficulty ${request.subject} paper, ${request.classLabel}. You are marking from your own subject expertise, exactly as a real teacher checking a physical answer sheet would - not by comparing text against a prewritten answer key.
 
 For each of the following ${answers.length} answers, first understand what the student is trying to say, then evaluate the CONCEPT, REASONING, FACTS, CALCULATIONS, and CONCLUSION - never the wording or sentence structure.
+
+Some answers are typed text; others are a photo the student took of their handwritten or hand-drawn answer (common for diagrams, or when a student prefers not to type). For a photographed answer: read the handwriting/diagram carefully and grade exactly what it shows, using the same standards as a typed answer - do not penalize for handwriting neatness, photo lighting, or drawing artistry; only for the actual content being incomplete or incorrect. If a photo is genuinely too blurry/unclear to read, say so in "incorrectConcepts" or "missingConcepts" rather than guessing at content that isn't legible.
 
 The student is free to:
 - use different wording, sentence structure, or vocabulary than a textbook would
@@ -208,28 +222,45 @@ The student is free to:
 - give answer points/bullets instead of full paragraphs
 - write a shorter or longer answer than expected
 - use synonyms or different but equivalent examples
+- submit a photo of a hand-drawn diagram or handwritten answer instead of typing
 
 None of the above may ever cost the student marks by itself.
 
 Strict grading rules - apply identically to every answer:
-1. If the student's concept, reasoning, facts, and conclusion are correct, award FULL marks - regardless of how differently it is phrased, structured, or how short/long it is.
-2. Deduct marks ONLY for a concrete, identifiable reason: a required concept/point is genuinely missing from the answer, a fact or calculation is wrong, or a claim contradicts the correct understanding of the topic. Never deduct for wording, structure, or language style alone.
+1. If the student's concept, reasoning, facts, and conclusion are correct, award FULL marks - regardless of how differently it is phrased, structured, drawn, or how short/long it is.
+2. Deduct marks ONLY for a concrete, identifiable reason: a required concept/point is genuinely missing from the answer, a fact or calculation is wrong, a diagram is mislabeled or structurally incorrect, or a claim contradicts the correct understanding of the topic. Never deduct for wording, structure, handwriting, or language style alone.
 3. Never mark all-or-nothing. When some concepts are present and correct but others are missing or wrong, award partial marks proportional to how much of the complete, correct answer is actually there.
 4. Ignore grammar mistakes, spelling mistakes, punctuation, and writing style entirely, UNLESS the question itself is specifically testing language/grammar/composition skills (e.g. an English-subject writing question) - only then do those things matter.
-5. Award 0 marks only when the answer is left blank or is entirely unrelated to what the question asks.
+5. Award 0 marks only when the answer is left blank, the photo shows no genuine attempt, or the answer is entirely unrelated to what the question asks.
 6. Be consistent: given the same answer quality, always arrive at the same score - apply one fixed standard across every question and every student, not a variable one.
+`;
 
-${questionsBlock}
+  const parts: GradePromptPart[] = [{ text: intro }];
 
-Respond with ONLY raw JSON (no markdown, no commentary) - an array with exactly one object per question, in any order, matching exactly:
+  answers.forEach((a, i) => {
+    const header = `${i + 1}. [id: "${a.questionId}"]\nQuestion: ${a.questionText}\nMaximum marks: ${a.maxMarks}\n`;
+    const image = a.answerImage ? parseDataUrl(a.answerImage) : null;
+    if (image) {
+      parts.push({ text: `${header}Student's answer: submitted as the photo below.` });
+      parts.push({ inlineData: image });
+    } else {
+      parts.push({ text: `${header}Student's answer: ${a.studentAnswer.trim() || '(left blank)'}` });
+    }
+  });
+
+  parts.push({
+    text: `Respond with ONLY raw JSON (no markdown, no commentary) - an array with exactly one object per question, in any order, matching exactly:
 [
   {
     "questionId": string (copy the "id" given above),
     "marksAwarded": number (0 to that question's maximum marks, may be a whole or half number),
     "explanation": string (1-2 sentences: what the student got right, in your own words - why this many marks),
     "missingConcepts": string[] (specific concepts/points required by the question that the answer did not cover; empty array if nothing is missing),
-    "incorrectConcepts": string[] (specific facts, claims, or calculations in the answer that are wrong; empty array if none),
+    "incorrectConcepts": string[] (specific facts, claims, calculations, or diagram errors in the answer that are wrong; empty array if none),
     "suggestions": string (one short, concrete, actionable sentence on how the student could improve this answer; empty string if the answer already earned full marks)
   }
-]`;
+]`,
+  });
+
+  return parts;
 }

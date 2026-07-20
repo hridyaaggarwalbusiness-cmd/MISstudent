@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, Image, StyleSheet } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -157,9 +157,13 @@ function ReviewCard({ result, questionText, questionNumber }: { result: Question
         <AppText variant="tiny" color={colors.textTertiary}>
           YOUR ANSWER
         </AppText>
-        <AppText variant="caption" color={result.method === 'unanswered' ? colors.textTertiary : colors.textPrimary} style={{ marginTop: 2 }}>
-          {result.studentAnswerText}
-        </AppText>
+        {result.studentAnswerImage ? (
+          <Image source={{ uri: result.studentAnswerImage }} style={styles.answerImage} resizeMode="contain" />
+        ) : (
+          <AppText variant="caption" color={result.method === 'unanswered' ? colors.textTertiary : colors.textPrimary} style={{ marginTop: 2 }}>
+            {result.studentAnswerText}
+          </AppText>
+        )}
       </View>
 
       {!result.correct && (
@@ -240,6 +244,13 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: radius.pill,
     marginLeft: 8,
+  },
+  answerImage: {
+    width: '100%',
+    height: 180,
+    marginTop: 6,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceAlt,
   },
   answerRow: {
     marginTop: spacing.sm,

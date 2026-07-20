@@ -32,7 +32,7 @@ export function PracticeTestAttemptScreen() {
   const answeredCount = allQuestions.filter((q) => {
     const a = answers[q.id];
     if (q.type === 'match_following') return a?.matchSelections?.some((s) => s >= 0) ?? false;
-    return !!a?.response?.trim();
+    return !!a?.response?.trim() || !!a?.answerImage;
   }).length;
 
   function updateAnswer(a: AttemptAnswer) {
