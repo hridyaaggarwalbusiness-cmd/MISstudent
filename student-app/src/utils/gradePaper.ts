@@ -200,7 +200,16 @@ export async function gradeAttempt(paper: GeneratedPaper, answers: AttemptAnswer
         },
         answers: subjectiveAnswers,
       });
-    } catch {
+    } catch (err) {
+      // Log the real cause before falling back - this fallback exists so a
+      // student waiting on their score is never blocked by a genuine AI
+      // hiccup, but a swallowed error here previously made real bugs (e.g.
+      // a JSON-parsing regression) indistinguishable from a transient
+      // outage from the outside, which made this exact failure mode hard
+      // to diagnose. Surfacing it in the console costs nothing and means
+      // the next one won't be a mystery.
+      // eslint-disable-next-line no-console
+      console.error('AI grading failed, falling back to provisional scores:', err);
       // A student waiting on their score should never be blocked by an AI
       // hiccup - fall back to a conservative provisional estimate (half
       // marks for a substantive attempt, 0 for blank/trivial ones) rather

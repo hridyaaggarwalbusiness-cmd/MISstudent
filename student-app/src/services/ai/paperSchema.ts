@@ -11,16 +11,27 @@ import {
 export class PaperValidationError extends Error {}
 
 // Models sometimes wrap JSON in ```json fences or add a stray sentence
-// around it despite instructions - this pulls out the outermost {...}
-// object rather than trusting the response to be bare JSON. Mirrors
-// functions/src/practiceTest/schema.ts (see promptBuilder.ts for why this
-// app keeps a client-side copy instead of calling that Cloud Function).
+// around it despite instructions - this pulls out the outermost JSON value
+// rather than trusting the response to be bare JSON. The top-level value can
+// be either an object (paper generation, a question regeneration) or an
+// array (grading, which returns one entry per question) - whichever
+// bracket type opens FIRST in the response is the real outer shape, so that
+// one is used to find the matching close, instead of always assuming an
+// object and (for an array response) slicing off its enclosing `[`/`]` and
+// leaving a comma-joined list of objects that isn't valid JSON on its own.
+// Mirrors functions/src/practiceTest/schema.ts (see promptBuilder.ts for why
+// this app keeps a client-side copy instead of calling that Cloud Function).
 export function extractJson(raw: string): unknown {
   const trimmed = raw.trim();
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const candidate = fenced ? fenced[1].trim() : trimmed;
-  const start = candidate.indexOf('{');
-  const end = candidate.lastIndexOf('}');
+
+  const braceStart = candidate.indexOf('{');
+  const bracketStart = candidate.indexOf('[');
+  const isArray = bracketStart >= 0 && (braceStart < 0 || bracketStart < braceStart);
+
+  const start = isArray ? bracketStart : braceStart;
+  const end = isArray ? candidate.lastIndexOf(']') : candidate.lastIndexOf('}');
   const jsonText = start >= 0 && end > start ? candidate.slice(start, end + 1) : candidate;
   try {
     return JSON.parse(jsonText);
