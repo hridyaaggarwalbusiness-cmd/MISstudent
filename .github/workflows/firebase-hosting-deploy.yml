@@ -25,6 +25,8 @@ jobs:
           # student-app/src/services/ai/geminiProvider.ts) since Cloud
           # Functions need the Blaze plan. Restrict this key by HTTP
           # referrer in Google Cloud Console to this app's real domains.
+          # Dedicated to this app - see NOTICE_GEMINI_API_KEY below for why
+          # admin-app's Notice Writer no longer shares this same quota.
           EXPO_PUBLIC_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: npx expo export --platform web --output-dir dist
 
@@ -38,10 +40,14 @@ jobs:
           # Baked into the static web bundle at build time - the AI Notice
           # Writer calls Gemini directly from the browser (see
           # admin-app/src/services/ai/geminiProvider.ts), same reasoning as
-          # student-app's EXPO_PUBLIC_GEMINI_API_KEY above. Reuses the same
-          # key; make sure this app's Hosting domain is also on the key's
+          # student-app's EXPO_PUBLIC_GEMINI_API_KEY above. Uses its OWN key
+          # (NOTICE_GEMINI_API_KEY) so Notice Writer usage doesn't share a
+          # free-tier quota bucket with the student-app's AI Practice Test
+          # Generator - falls back to the shared GEMINI_API_KEY if the
+          # dedicated secret hasn't been added yet, so this never breaks the
+          # build. Make sure this app's Hosting domain is on whichever key's
           # HTTP-referrer allowlist in Google Cloud Console.
-          VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          VITE_GEMINI_API_KEY: ${{ secrets.NOTICE_GEMINI_API_KEY || secrets.GEMINI_API_KEY }}
         run: npm run build
 
       - name: Install teacher-app dependencies
