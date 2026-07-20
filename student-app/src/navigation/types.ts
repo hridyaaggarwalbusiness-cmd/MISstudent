@@ -21,6 +21,7 @@ export type RootStackParamList = {
   Notifications: undefined;
   Search: undefined;
   FeeReceipts: undefined;
+  LiveBusTracking: undefined;
   PracticeTestGenerator: undefined;
   PracticeTestResult: { paper: GeneratedPaper };
   PracticeTestAttempt: { paper: GeneratedPaper };

@@ -55,6 +55,12 @@ import type {
   FeePaymentMethod,
   FeeStatus,
   SchoolProfile,
+  Bus,
+  BusStop,
+  BusRoute,
+  DriverProfile,
+  Trip,
+  SchoolLocation,
 } from '@/types';
 
 function withId<T>(d: { id: string; data: () => unknown }): T {
@@ -114,12 +120,13 @@ async function createAuthAccountWithoutSignIn(
 // collection (teachers/{uid} or students/{uid}); admins only need the
 // users/{uid} role doc, since every security rule's isAdmin() check reads
 // straight from there.
-const PROFILE_COLLECTION: Partial<Record<Role, string>> = { teacher: 'teachers', student: 'students' };
+const PROFILE_COLLECTION: Partial<Record<Role, string>> = { teacher: 'teachers', student: 'students', driver: 'drivers' };
 
 const AUDIT_ACTION_FOR_ROLE: Record<Role, { created: AuditAction; removed: AuditAction }> = {
   admin: { created: 'admin_created', removed: 'admin_removed' },
   teacher: { created: 'teacher_created', removed: 'teacher_removed' },
   student: { created: 'student_created', removed: 'student_removed' },
+  driver: { created: 'driver_created', removed: 'driver_removed' },
 };
 
 async function createSchoolUser(role: Role, payload: {
@@ -540,6 +547,61 @@ export const repo = {
     },
   },
 
+  drivers: {
+    subscribeAll: (cb: (items: DriverProfile[]) => void): Unsubscribe =>
+      onSnapshot(collection(db, 'drivers'), (snap) => cb(snap.docs.map((d) => withId<DriverProfile>(d)))),
+    create: (payload: { email: string; password: string; displayName: string; phone: string }) =>
+      createSchoolUser('driver', {
+        email: payload.email,
+        password: payload.password,
+        displayName: payload.displayName,
+        profile: { name: payload.displayName, phone: payload.phone, assignedBusId: null },
+      }),
+    update: (id: string, changes: Partial<Pick<DriverProfile, 'name' | 'phone' | 'assignedBusId'>>) =>
+      updateDoc(doc(db, 'drivers', id), changes),
+    remove: (id: string) => revokeSchoolUser('driver', id),
+  },
+
+  busStops: {
+    subscribeAll: (cb: (items: BusStop[]) => void): Unsubscribe =>
+      onSnapshot(collection(db, 'busStops'), (snap) => cb(snap.docs.map((d) => withId<BusStop>(d)))),
+    upsert: (stop: Omit<BusStop, 'createdAt'> & { createdAt?: string }) =>
+      setDoc(doc(db, 'busStops', stop.id || cryptoId()), { ...stop, createdAt: stop.createdAt ?? new Date().toISOString() }, { merge: true }),
+    remove: (id: string) => deleteDoc(doc(db, 'busStops', id)),
+  },
+
+  routes: {
+    subscribeAll: (cb: (items: BusRoute[]) => void): Unsubscribe =>
+      onSnapshot(collection(db, 'routes'), (snap) => cb(snap.docs.map((d) => withId<BusRoute>(d)))),
+    upsert: (route: Omit<BusRoute, 'createdAt'> & { createdAt?: string }) =>
+      setDoc(doc(db, 'routes', route.id || cryptoId()), { ...route, createdAt: route.createdAt ?? new Date().toISOString() }, { merge: true }),
+    remove: (id: string) => deleteDoc(doc(db, 'routes', id)),
+  },
+
+  buses: {
+    subscribeAll: (cb: (items: Bus[]) => void): Unsubscribe =>
+      onSnapshot(collection(db, 'buses'), (snap) => cb(snap.docs.map((d) => withId<Bus>(d)))),
+    upsert: async (bus: Omit<Bus, 'createdAt'> & { createdAt?: string }, isNew = false) => {
+      await setDoc(doc(db, 'buses', bus.id || cryptoId()), { ...bus, createdAt: bus.createdAt ?? new Date().toISOString() }, { merge: true });
+      if (isNew) logAudit('bus_created', `Bus ${bus.busNumber} added`);
+    },
+    update: (id: string, changes: Partial<Bus>) => updateDoc(doc(db, 'buses', id), changes),
+    remove: (id: string) => deleteDoc(doc(db, 'buses', id)),
+  },
+
+  trips: {
+    subscribeActiveForBus: (busId: string, cb: (trip: Trip | null) => void): Unsubscribe => {
+      const q = query(collection(db, 'trips'), where('busId', '==', busId), where('status', '==', 'active'));
+      return onSnapshot(q, (snap) => cb(snap.empty ? null : withId<Trip>(snap.docs[0])));
+    },
+  },
+
+  schoolLocation: {
+    subscribe: (cb: (loc: SchoolLocation | null) => void): Unsubscribe =>
+      onSnapshot(doc(db, 'settings', 'schoolLocation'), (snap) => cb(snap.exists() ? (snap.data() as SchoolLocation) : null)),
+    update: (loc: SchoolLocation) => setDoc(doc(db, 'settings', 'schoolLocation'), loc, { merge: true }),
+  },
+
   // Firebase Storage isn't provisioned on this project, so file attachments
   // are inlined as base64 data URLs directly on the Firestore document
   // instead of living in a bucket. Firestore caps documents at 1 MiB, so
@@ -566,6 +628,6 @@ export async function fetchOnce<T>(collectionName: string): Promise<T[]> {
   return snap.docs.map((d) => withId<T>(d));
 }
 
-function cryptoId(): string {
+export function cryptoId(): string {
   return doc(collection(db, '_ids')).id;
 }

@@ -23,6 +23,9 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  Bus,
+  MapPin,
+  Truck,
 } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -46,6 +49,14 @@ const sections: { label: string; links: { to: string; icon: ComponentType<{ size
       { to: '/exams', icon: FlaskConical, label: 'Exams' },
       { to: '/results', icon: BarChart3, label: 'Results' },
       { to: '/fees', icon: Wallet, label: 'Fees' },
+    ],
+  },
+  {
+    label: 'Transport',
+    links: [
+      { to: '/buses', icon: Bus, label: 'Buses' },
+      { to: '/bus-stops', icon: MapPin, label: 'Bus Stops' },
+      { to: '/drivers', icon: Truck, label: 'Drivers' },
     ],
   },
   {

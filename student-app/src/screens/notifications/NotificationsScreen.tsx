@@ -51,6 +51,9 @@ export function NotificationsScreen() {
       case 'exam':
         navigation.navigate('AcademicCalendar');
         break;
+      case 'bus':
+        navigation.navigate('LiveBusTracking');
+        break;
     }
   };
 

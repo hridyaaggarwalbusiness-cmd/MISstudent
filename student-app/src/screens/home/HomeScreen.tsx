@@ -20,6 +20,7 @@ import { useHomeworkStore } from '@store/useHomeworkStore';
 import { useNoticesStore } from '@store/useNoticesStore';
 import { useNotificationsStore } from '@store/useNotificationsStore';
 import { useAuthStore } from '@store/useAuthStore';
+import { useBusTrackingStore, requestBusNotificationPermission } from '@store/useBusTrackingStore';
 import { greetingForNow, noticeTimeLabel, dueInLabelLong, parseDate } from '@utils/date';
 import { subjectMeta } from '@data/subjectMeta';
 
@@ -79,6 +80,13 @@ export function HomeScreen() {
     fetchNotices();
     fetchNotifications();
   }, [fetchStudent, fetchHomework, fetchNotices, fetchNotifications]);
+
+  React.useEffect(() => {
+    if (authStudent?.assignedBusId) {
+      requestBusNotificationPermission();
+      useBusTrackingStore.getState().init(authStudent.assignedBusId, authStudent.assignedStopId);
+    }
+  }, [authStudent?.assignedBusId, authStudent?.assignedStopId]);
 
   const latestResult = data?.results[data.results.length - 1];
 
@@ -262,6 +270,18 @@ export function HomeScreen() {
       bg: '#FFEEEE',
       onPress: () => navigation.navigate('AcademicCalendar'),
     },
+    ...(student?.assignedBusId
+      ? [
+          {
+            key: 'bus',
+            label: 'Live Bus',
+            icon: 'bus' as const,
+            color: '#0876AE',
+            bg: '#EAF7FF',
+            onPress: () => navigation.navigate('LiveBusTracking'),
+          },
+        ]
+      : []),
     {
       key: 'more',
       label: 'More',

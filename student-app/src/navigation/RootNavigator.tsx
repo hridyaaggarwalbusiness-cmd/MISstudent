@@ -12,6 +12,7 @@ import { AcademicCalendarScreen } from '@screens/calendar/AcademicCalendarScreen
 import { NotificationsScreen } from '@screens/notifications/NotificationsScreen';
 import { SearchScreen } from '@screens/search/SearchScreen';
 import { FeeReceiptsScreen } from '@screens/fees/FeeReceiptsScreen';
+import { LiveBusTrackingScreen } from '@screens/busTracking/LiveBusTrackingScreen';
 import { PracticeTestGeneratorScreen } from '@screens/practiceTest/PracticeTestGeneratorScreen';
 import { PracticeTestResultScreen } from '@screens/practiceTest/PracticeTestResultScreen';
 import { PracticeTestAttemptScreen } from '@screens/practiceTest/PracticeTestAttemptScreen';
@@ -45,6 +46,7 @@ export function RootNavigator() {
         <Stack.Screen name="AcademicCalendar" component={AcademicCalendarScreen} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
         <Stack.Screen name="FeeReceipts" component={FeeReceiptsScreen} />
+        <Stack.Screen name="LiveBusTracking" component={LiveBusTrackingScreen} />
         <Stack.Screen name="PracticeTestGenerator" component={PracticeTestGeneratorScreen} />
         <Stack.Screen name="PracticeTestResult" component={PracticeTestResultScreen} />
         <Stack.Screen name="PracticeTestAttempt" component={PracticeTestAttemptScreen} />

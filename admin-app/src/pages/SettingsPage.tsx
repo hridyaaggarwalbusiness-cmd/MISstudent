@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
-import { School, UserCircle, Bell } from 'lucide-react';
+import { School, UserCircle, Bell, MapPin } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { TextField } from '@/components/ui/FormField';
 import { Switch } from '@/components/ui/Switch';
+import { GoogleMapPicker } from '@/components/maps/GoogleMapPicker';
 import { PageHeader } from '@/pages/PageHeader';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useToast } from '@/components/ui/Toast';
 import { repo } from '@/data/repositories';
 import { getErrorMessage } from '@/utils/errors';
-import type { SchoolProfile } from '@/types';
+import type { SchoolProfile, SchoolLocation } from '@/types';
 import styles from './SettingsPage.module.css';
 
 const PREFS_KEY = 'mis-admin:notification-prefs';
@@ -34,9 +35,13 @@ export function SettingsPage() {
   const [school, setSchool] = useState<SchoolProfile>({ name: '', address: '', phone: '' });
   const [savingSchool, setSavingSchool] = useState(false);
 
+  const [schoolLocation, setSchoolLocation] = useState<SchoolLocation | null>(null);
+  const [savingLocation, setSavingLocation] = useState(false);
+
   const [prefs, setPrefs] = useState(loadPrefs);
 
   useEffect(() => repo.school.subscribe((s) => s && setSchool(s)), []);
+  useEffect(() => repo.schoolLocation.subscribe((l) => setSchoolLocation(l)), []);
   useEffect(() => setDisplayName(profile?.displayName ?? ''), [profile?.displayName]);
 
   async function saveProfile() {
@@ -61,6 +66,19 @@ export function SettingsPage() {
       show(getErrorMessage(e), 'error');
     } finally {
       setSavingSchool(false);
+    }
+  }
+
+  async function saveSchoolLocation() {
+    if (!schoolLocation) return;
+    setSavingLocation(true);
+    try {
+      await repo.schoolLocation.update(schoolLocation);
+      show('School location updated');
+    } catch (e) {
+      show(getErrorMessage(e), 'error');
+    } finally {
+      setSavingLocation(false);
     }
   }
 
@@ -98,6 +116,32 @@ export function SettingsPage() {
             <TextField label="Contact Phone" value={school.phone} onChange={(e) => setSchool((s) => ({ ...s, phone: e.target.value }))} />
             <Button onClick={saveSchool} loading={savingSchool} className={styles.saveBtn}>
               Save School Profile
+            </Button>
+          </div>
+        </Card>
+
+        <Card>
+          <div className={styles.cardTitle}>
+            <MapPin size={16} /> School Location (for Live Bus Tracking)
+          </div>
+          <div className={styles.form}>
+            <TextField
+              label="School Name"
+              value={schoolLocation?.name ?? ''}
+              onChange={(e) => setSchoolLocation((l) => ({ lat: l?.lat ?? 0, lng: l?.lng ?? 0, name: e.target.value }))}
+            />
+            <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+              Click on the map to set the school's exact location
+              {schoolLocation && schoolLocation.lat ? ` (${schoolLocation.lat.toFixed(5)}, ${schoolLocation.lng.toFixed(5)})` : ''}
+            </div>
+            <GoogleMapPicker
+              height={280}
+              center={schoolLocation && schoolLocation.lat ? schoolLocation : undefined}
+              selected={schoolLocation && schoolLocation.lat ? schoolLocation : null}
+              onPick={(p) => setSchoolLocation((l) => ({ name: l?.name ?? '', lat: p.lat, lng: p.lng }))}
+            />
+            <Button onClick={saveSchoolLocation} loading={savingLocation} className={styles.saveBtn}>
+              Save School Location
             </Button>
           </div>
         </Card>

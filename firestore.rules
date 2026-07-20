@@ -23,6 +23,10 @@ service cloud.firestore {
       return signedIn() && myRole() == 'student';
     }
 
+    function isDriver() {
+      return signedIn() && myRole() == 'driver';
+    }
+
     function isMe(uid) {
       return signedIn() && request.auth.uid == uid;
     }
@@ -191,6 +195,52 @@ service cloud.firestore {
     // ---- sequential receipt-number counters, one per academic session ----
     match /counters/{counterId} {
       allow read, write: if isAdmin();
+    }
+
+    // ---- drivers (one doc per driver, doc id = auth uid) ----
+    match /drivers/{driverId} {
+      allow read: if isAdmin() || isMe(driverId);
+      allow create, delete: if isAdmin();
+      // A driver may only update their own FCM token list; every other
+      // field (name, phone, assignedBusId) stays admin-only.
+      allow update: if isAdmin() || (
+        isMe(driverId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fcmTokens'])
+      );
+    }
+
+    // ---- busStops (master list of stop locations, reused across routes) ----
+    match /busStops/{stopId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // ---- buses ----
+    match /buses/{busId} {
+      allow read: if signedIn();
+      allow create, delete: if isAdmin();
+      // The assigned driver may flip status/currentTripId when starting or
+      // ending a trip; every other field (driver/route assignment, etc.)
+      // stays admin-only.
+      allow update: if isAdmin() || (
+        isDriver() &&
+        resource.data.driverId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'currentTripId'])
+      );
+    }
+
+    // ---- routes (ordered stop sequence for one bus's morning/afternoon shift) ----
+    match /routes/{routeId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // ---- trips (one Start Trip -> End Trip cycle) ----
+    match /trips/{tripId} {
+      allow read: if signedIn();
+      allow create: if isAdmin() || (isDriver() && request.resource.data.driverId == request.auth.uid);
+      allow update: if isAdmin() || (isDriver() && resource.data.driverId == request.auth.uid);
+      allow delete: if isAdmin();
     }
   }
 }

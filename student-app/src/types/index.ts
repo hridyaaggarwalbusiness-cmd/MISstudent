@@ -1,4 +1,4 @@
-export type Role = 'admin' | 'teacher' | 'student';
+export type Role = 'admin' | 'teacher' | 'student' | 'driver';
 
 export interface SchoolProfile {
   name: string;
@@ -36,6 +36,8 @@ export interface Student {
   emergencyContactRelation: string;
   house?: string;
   busRoute?: string;
+  assignedBusId?: string;
+  assignedStopId?: string;
 }
 
 export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat';
@@ -209,7 +211,8 @@ export type NotificationType =
   | 'material'
   | 'attendance'
   | 'result'
-  | 'notice';
+  | 'notice'
+  | 'bus';
 
 export interface AppNotification {
   id: string;
@@ -418,4 +421,91 @@ export interface SubjectiveGrade {
   missingConcepts: string[];
   incorrectConcepts: string[];
   suggestions: string;
+}
+
+// ---- Live Bus Tracking ----
+
+export type BusStatus = 'offline' | 'online' | 'trip_started' | 'trip_completed';
+export type RouteType = 'morning' | 'afternoon';
+export type GpsQuality = 'excellent' | 'good' | 'weak';
+
+// A physical stop location, stored once and reused across whichever
+// morning/afternoon routes actually pass through it.
+export interface BusStop {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  createdAt: string;
+}
+
+// One entry in a route's ordered stop sequence - a join between a route and
+// a stop, carrying the travel order.
+export interface RouteStop {
+  stopId: string;
+  order: number;
+}
+
+// An ordered sequence of stops for one bus's morning or afternoon shift.
+export interface BusRoute {
+  id: string;
+  name: string;
+  busId: string;
+  type: RouteType;
+  stops: RouteStop[];
+  createdAt: string;
+}
+
+export interface Bus {
+  id: string;
+  busNumber: string;
+  vehicleRegistrationNumber: string;
+  driverId: string | null;
+  driverName: string;
+  driverPhone: string;
+  morningRouteId: string | null;
+  afternoonRouteId: string | null;
+  status: BusStatus;
+  currentTripId: string | null;
+  createdAt: string;
+}
+
+export interface DriverProfile {
+  id: string;
+  name: string;
+  phone: string;
+  assignedBusId: string | null;
+  fcmTokens?: string[];
+}
+
+// One Start Trip -> End Trip cycle.
+export interface Trip {
+  id: string;
+  busId: string;
+  driverId: string;
+  routeId: string;
+  type: RouteType;
+  status: 'active' | 'completed';
+  startedAt: string;
+  endedAt: string | null;
+}
+
+// The live GPS ping for a bus - lives in Realtime Database, not Firestore,
+// because it's overwritten every 5-10s and RTDB (not Firestore's per-write
+// billing/latency model) is built for that kind of churn.
+export interface LiveLocation {
+  lat: number;
+  lng: number;
+  speed: number | null;
+  heading: number | null;
+  accuracy: number | null;
+  timestamp: number;
+  tripId: string;
+  driverId: string;
+}
+
+export interface SchoolLocation {
+  name: string;
+  lat: number;
+  lng: number;
 }

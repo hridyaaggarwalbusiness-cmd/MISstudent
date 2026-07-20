@@ -21,6 +21,9 @@ import { MaterialsPage } from '@/pages/MaterialsPage';
 import { CalendarPage } from '@/pages/CalendarPage';
 import { FeesPage } from '@/pages/FeesPage';
 import { StudentFeeDetailPage } from '@/pages/StudentFeeDetailPage';
+import { BusesPage } from '@/pages/BusesPage';
+import { BusStopsPage } from '@/pages/BusStopsPage';
+import { DriversPage } from '@/pages/DriversPage';
 import { ReportsPage } from '@/pages/ReportsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { SystemLogsPage } from '@/pages/SystemLogsPage';
@@ -42,6 +45,9 @@ const routeTitles: { path: string; title: string; element: ReactElement }[] = [
   { path: '/calendar', title: 'Academic Calendar', element: <CalendarPage /> },
   { path: '/fees', title: 'Fees', element: <FeesPage /> },
   { path: '/fees/:studentId', title: 'Student Fee Details', element: <StudentFeeDetailPage /> },
+  { path: '/buses', title: 'Buses', element: <BusesPage /> },
+  { path: '/bus-stops', title: 'Bus Stops', element: <BusStopsPage /> },
+  { path: '/drivers', title: 'Drivers', element: <DriversPage /> },
   { path: '/reports', title: 'Reports', element: <ReportsPage /> },
   { path: '/settings', title: 'Settings', element: <SettingsPage /> },
   { path: '/logs', title: 'System Logs', element: <SystemLogsPage /> },

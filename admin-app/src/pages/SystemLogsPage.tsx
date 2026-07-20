@@ -12,6 +12,7 @@ import {
   School,
   History,
   Receipt,
+  Bus,
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -30,6 +31,9 @@ const ICONS: Record<AuditAction, typeof UserPlus> = {
   teacher_removed: UserMinus,
   admin_created: ShieldCheck,
   admin_removed: UserMinus,
+  driver_created: UserPlus,
+  driver_removed: UserMinus,
+  bus_created: Bus,
   attendance_marked: CheckCircle2,
   notice_posted: Megaphone,
   exam_scheduled: FlaskConical,
@@ -45,6 +49,9 @@ const CATEGORY: Record<AuditAction, string> = {
   teacher_removed: 'People',
   admin_created: 'People',
   admin_removed: 'People',
+  driver_created: 'People',
+  driver_removed: 'People',
+  bus_created: 'Transport',
   attendance_marked: 'Attendance',
   notice_posted: 'Communication',
   exam_scheduled: 'Academics',
@@ -59,9 +66,10 @@ const CATEGORY_TONE: Record<string, 'primary' | 'info' | 'success' | 'violet' | 
   Fees: 'warning',
   Communication: 'violet',
   Academics: 'info',
+  Transport: 'info',
 };
 
-const FILTERS = ['All', 'People', 'Attendance', 'Communication', 'Academics', 'Fees'] as const;
+const FILTERS = ['All', 'People', 'Attendance', 'Communication', 'Academics', 'Fees', 'Transport'] as const;
 
 export function SystemLogsPage() {
   const { data: logs, loading } = useCollection<AuditLog>((cb) => repo.auditLogs.subscribeRecent(cb, 100));

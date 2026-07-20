@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppNotification } from '@/types';
 import { useHomeworkStore } from '@store/useHomeworkStore';
 import { useNoticesStore } from '@store/useNoticesStore';
+import { useBusTrackingStore } from '@store/useBusTrackingStore';
 
 const READ_NOTIFICATIONS_KEY = 'misstudent:readNotificationIds';
 
@@ -71,6 +72,14 @@ function computeNotifications(readIds: Set<string>): AppNotification[] {
     });
   }
 
+  // Bus Trip Started / Approaching Stop / Reached School / Trip Completed —
+  // fired client-side by useBusTrackingStore while the app is open (no FCM
+  // server on this project's Spark plan), collected here the same way as
+  // every other feed above.
+  for (const evt of useBusTrackingStore.getState().events) {
+    notifications.push({ ...evt, isRead: readIds.has(evt.id) });
+  }
+
   return notifications.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
@@ -113,6 +122,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       subscribed = true;
       useHomeworkStore.subscribe(recompute);
       useNoticesStore.subscribe(recompute);
+      useBusTrackingStore.subscribe(recompute);
     }
   },
 

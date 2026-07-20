@@ -7,7 +7,8 @@
       "hosting": {
         "student": ["mis-student-6yhtxk"],
         "admin": ["mis-student-admin"],
-        "teacher": ["mis-student-teacher"]
+        "teacher": ["mis-student-teacher"],
+        "driver": ["mis-student-driver"]
       }
     }
   }

@@ -10,6 +10,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import type { Unsubscribe, Timestamp } from 'firebase/firestore';
+import { ref, onValue } from 'firebase/database';
 import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -24,7 +25,7 @@ import {
   isWeekend,
   formatISO,
 } from 'date-fns';
-import { db, auth } from '@services/firebase';
+import { db, auth, rtdb } from '@services/firebase';
 import {
   Student,
   TimetablePeriod,
@@ -47,6 +48,12 @@ import {
   NoticeType,
   NoticeAudience,
   NoticePriority,
+  Bus,
+  BusStop,
+  BusRoute,
+  Trip,
+  LiveLocation,
+  SchoolLocation,
 } from '@/types';
 
 // ---- backend document shapes (mirror teacher-app/admin-app's real schema) ----
@@ -508,6 +515,55 @@ export const repo = {
   school: {
     subscribe: (cb: (school: SchoolProfile | null) => void): Unsubscribe =>
       onSnapshot(doc(db, 'settings', 'school'), (snap) => cb(snap.exists() ? (snap.data() as SchoolProfile) : null)),
+  },
+
+  // ---- Live Bus Tracking ----
+
+  buses: {
+    subscribe: (busId: string, cb: (bus: Bus | null) => void): Unsubscribe =>
+      onSnapshot(doc(db, 'buses', busId), (snap) => cb(snap.exists() ? withId<Bus>(snap) : null)),
+    get: (busId: string) => once<Bus | null>((cb) => repo.buses.subscribe(busId, cb)),
+  },
+
+  busStops: {
+    subscribeAll: (cb: (items: BusStop[]) => void): Unsubscribe =>
+      onSnapshot(collection(db, 'busStops'), (snap) => cb(snap.docs.map((d) => withId<BusStop>(d)))),
+    list: () => once<BusStop[]>((cb) => repo.busStops.subscribeAll(cb)),
+  },
+
+  routes: {
+    subscribe: (routeId: string, cb: (route: BusRoute | null) => void): Unsubscribe =>
+      onSnapshot(doc(db, 'routes', routeId), (snap) => cb(snap.exists() ? withId<BusRoute>(snap) : null)),
+    get: (routeId: string) => once<BusRoute | null>((cb) => repo.routes.subscribe(routeId, cb)),
+  },
+
+  trips: {
+    // The one "active" trip document for a bus, if any is currently running.
+    subscribeActiveForBus: (busId: string, cb: (trip: Trip | null) => void): Unsubscribe => {
+      const q = query(collection(db, 'trips'), where('busId', '==', busId), where('status', '==', 'active'));
+      return onSnapshot(q, (snap) => cb(snap.empty ? null : withId<Trip>(snap.docs[0])));
+    },
+  },
+
+  // Realtime Database, not Firestore — see LiveLocation's doc comment in
+  // src/types/index.ts for why.
+  liveLocation: {
+    subscribe: (busId: string, cb: (loc: LiveLocation | null) => void): Unsubscribe =>
+      onValue(ref(rtdb, `liveLocations/${busId}`), (snap) => cb(snap.exists() ? (snap.val() as LiveLocation) : null)),
+  },
+
+  schoolLocation: {
+    subscribe: (cb: (loc: SchoolLocation | null) => void): Unsubscribe =>
+      onSnapshot(doc(db, 'settings', 'schoolLocation'), (snap) =>
+        cb(snap.exists() ? (snap.data() as SchoolLocation) : null),
+      ),
+  },
+
+  // Realtime Database presence node the driver app maintains via
+  // onDisconnect() — see driver-app's location service.
+  driverStatus: {
+    subscribe: (driverId: string, cb: (online: boolean) => void): Unsubscribe =>
+      onValue(ref(rtdb, `driverStatus/${driverId}`), (snap) => cb(!!snap.val()?.online)),
   },
 };
 
