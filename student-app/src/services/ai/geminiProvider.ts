@@ -62,14 +62,22 @@ const MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
 const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest']);
 
 // Carries the HTTP status so callGemini can tell a transient, worth-a-retry
-// failure (429 rate-limited, 503 "high demand") apart from a hard one.
+// failure (503 "high demand") apart from a hard one.
 class GeminiHttpError extends Error {
   constructor(public readonly status: number, message: string) {
     super(message);
   }
 }
 
-const RETRYABLE_STATUS = new Set([429, 503]);
+// Only 503 gets a same-model backoff retry. A 429 here is Google's
+// RESOURCE_EXHAUSTED response, which covers two very different situations -
+// a per-minute rate limit (which needs ~60s to clear, far longer than any
+// UX-reasonable retry delay) or the account's daily/free-tier quota being
+// fully used up (which won't clear until the quota resets, sometimes
+// hours away). Neither recovers within a second or two, so retrying a 429
+// with a short backoff never actually helps - it only burns more requests
+// and adds latency before falling through to the next model anyway.
+const RETRYABLE_STATUS = new Set([503]);
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -146,10 +154,10 @@ async function callGeminiModel(
 const GENERATION_TEMPERATURE = 0.8;
 const GRADING_TEMPERATURE = 0.15;
 
-// A 503 "high demand" or 429 "rate limited" response is Google's servers
-// being briefly overloaded, not a real failure of this model - worth a
-// couple of short-backoff retries on the SAME model before writing it off
-// and falling through to the next candidate.
+// A 503 "high demand" response is Google's servers being briefly
+// overloaded, not a real failure of this model - worth a couple of short-
+// backoff retries on the SAME model before writing it off and falling
+// through to the next candidate.
 const RETRY_DELAYS_MS = [400, 1200];
 
 async function callGemini(
@@ -160,6 +168,12 @@ async function callGemini(
   const apiKey = getApiKey();
   const parts = typeof prompt === 'string' ? [{ text: prompt }] : prompt;
   let lastMessage = 'The AI provider is currently unavailable.';
+  // Tracks whether every single failure across every model was specifically
+  // a 429 quota/rate-limit response - if so, the real story isn't "every
+  // model is broken", it's "today's free-tier AI usage is used up", and the
+  // student deserves that plain-language explanation instead of a wall of
+  // raw JSON from whichever model happened to fail last.
+  let allFailuresWereQuota = true;
 
   for (const model of MODEL_CANDIDATES) {
     for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
@@ -168,6 +182,9 @@ async function callGemini(
       } catch (err) {
         if (err instanceof PaperGenerationError) throw err;
         lastMessage = err instanceof Error ? err.message : String(err);
+        if (!(err instanceof GeminiHttpError && err.status === 429)) {
+          allFailuresWereQuota = false;
+        }
         const retryable = err instanceof GeminiHttpError && RETRYABLE_STATUS.has(err.status);
         if (!retryable || attempt === RETRY_DELAYS_MS.length) break;
         await sleep(RETRY_DELAYS_MS[attempt]);
@@ -175,6 +192,12 @@ async function callGemini(
     }
   }
 
+  if (allFailuresWereQuota) {
+    throw new PaperGenerationError(
+      "The school's AI usage limit for today has been reached (this is a free-plan quota, not a bug). It resets automatically - please try again later, or ask your school admin about upgrading the plan for a higher limit.",
+      'quota-exceeded',
+    );
+  }
   throw new PaperGenerationError(`AI provider request failed on every available model. ${lastMessage}`, 'gemini-all-models-failed');
 }
 
