@@ -28,11 +28,6 @@ jobs:
           # Dedicated to this app - see NOTICE_GEMINI_API_KEY below for why
           # admin-app's Notice Writer no longer shares this same quota.
           EXPO_PUBLIC_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          # Live Bus Tracking's map (display + markers + Polyline only, no
-          # Directions/Routes/Distance Matrix calls) needs the Maps
-          # JavaScript API. Requires a Google Cloud Billing account attached
-          # to this project - restrict by HTTP referrer in Cloud Console.
-          EXPO_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: npx expo export --platform web --output-dir dist
 
       - name: Install admin-app dependencies
@@ -53,9 +48,6 @@ jobs:
           # build. Make sure this app's Hosting domain is on whichever key's
           # HTTP-referrer allowlist in Google Cloud Console.
           VITE_GEMINI_API_KEY: ${{ secrets.NOTICE_GEMINI_API_KEY || secrets.GEMINI_API_KEY }}
-          # Same Maps JS API key as student-app - admin-app only uses it to
-          # let admins click-to-place bus stops/school location on a map.
-          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: npm run build
 
       - name: Install teacher-app dependencies

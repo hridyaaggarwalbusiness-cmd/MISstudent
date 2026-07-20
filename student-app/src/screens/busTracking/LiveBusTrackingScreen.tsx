@@ -3,7 +3,7 @@ import { View, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText, Card, Badge, DetailHeader, EmptyState } from '@components/ui';
-import { GoogleMapView, MapStopMarker } from '@components/busTracking/GoogleMapView';
+import { MapView, MapStopMarker } from '@components/busTracking/MapView';
 import { colors, spacing, radius } from '@theme';
 import { useAuthStore } from '@store/useAuthStore';
 import { useBusTrackingStore, requestBusNotificationPermission } from '@store/useBusTrackingStore';
@@ -82,7 +82,7 @@ export function LiveBusTrackingScreen() {
       <DetailHeader title="Live Bus Tracking" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Card padded={false} style={styles.mapCard}>
-          <GoogleMapView
+          <MapView
             height={260}
             busPosition={
               bus?.status === 'trip_started' && liveLocation

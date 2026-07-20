@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { TextField } from '@/components/ui/FormField';
 import { Switch } from '@/components/ui/Switch';
-import { GoogleMapPicker } from '@/components/maps/GoogleMapPicker';
+import { MapPicker } from '@/components/maps/MapPicker';
 import { PageHeader } from '@/pages/PageHeader';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useToast } from '@/components/ui/Toast';
@@ -134,7 +134,7 @@ export function SettingsPage() {
               Click on the map to set the school's exact location
               {schoolLocation && schoolLocation.lat ? ` (${schoolLocation.lat.toFixed(5)}, ${schoolLocation.lng.toFixed(5)})` : ''}
             </div>
-            <GoogleMapPicker
+            <MapPicker
               height={280}
               center={schoolLocation && schoolLocation.lat ? schoolLocation : undefined}
               selected={schoolLocation && schoolLocation.lat ? schoolLocation : null}

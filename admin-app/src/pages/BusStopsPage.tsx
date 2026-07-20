@@ -9,7 +9,7 @@ import { TextField } from '@/components/ui/FormField';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
-import { GoogleMapPicker } from '@/components/maps/GoogleMapPicker';
+import { MapPicker } from '@/components/maps/MapPicker';
 import { PageHeader } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -166,7 +166,7 @@ export function BusStopsPage() {
               Click on the map to set this stop's exact location
               {form.lat != null && form.lng != null ? ` (${form.lat.toFixed(5)}, ${form.lng.toFixed(5)})` : ''}
             </div>
-            <GoogleMapPicker
+            <MapPicker
               height={320}
               center={form.lat != null && form.lng != null ? { lat: form.lat, lng: form.lng } : undefined}
               selected={form.lat != null && form.lng != null ? { lat: form.lat, lng: form.lng } : null}
