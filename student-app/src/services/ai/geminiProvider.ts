@@ -52,6 +52,20 @@ const MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
 // older models reject unrecognized generationConfig fields outright.
 const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-2.5-flash', 'gemini-flash-latest']);
 
+// Carries the HTTP status so callGemini can tell a transient, worth-a-retry
+// failure (429 rate-limited, 503 "high demand") apart from a hard one.
+class GeminiHttpError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message);
+  }
+}
+
+const RETRYABLE_STATUS = new Set([429, 503]);
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function getApiKey(): string {
   const key = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
   if (!key) {
@@ -90,7 +104,7 @@ async function callGeminiModel(
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`${model} failed (${res.status}): ${body.slice(0, 200)}`);
+    throw new GeminiHttpError(res.status, `${model} failed (${res.status}): ${body.slice(0, 200)}`);
   }
 
   const data = (await res.json()) as {
@@ -123,16 +137,27 @@ async function callGeminiModel(
 const GENERATION_TEMPERATURE = 0.8;
 const GRADING_TEMPERATURE = 0.15;
 
+// A 503 "high demand" or 429 "rate limited" response is Google's servers
+// being briefly overloaded, not a real failure of this model - worth a
+// couple of short-backoff retries on the SAME model before writing it off
+// and falling through to the next candidate.
+const RETRY_DELAYS_MS = [400, 1200];
+
 async function callGemini(prompt: string, maxOutputTokens: number, temperature: number = GENERATION_TEMPERATURE): Promise<string> {
   const apiKey = getApiKey();
   let lastMessage = 'The AI provider is currently unavailable.';
 
   for (const model of MODEL_CANDIDATES) {
-    try {
-      return await callGeminiModel(model, apiKey, prompt, maxOutputTokens, temperature);
-    } catch (err) {
-      if (err instanceof PaperGenerationError) throw err;
-      lastMessage = err instanceof Error ? err.message : String(err);
+    for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+      try {
+        return await callGeminiModel(model, apiKey, prompt, maxOutputTokens, temperature);
+      } catch (err) {
+        if (err instanceof PaperGenerationError) throw err;
+        lastMessage = err instanceof Error ? err.message : String(err);
+        const retryable = err instanceof GeminiHttpError && RETRYABLE_STATUS.has(err.status);
+        if (!retryable || attempt === RETRY_DELAYS_MS.length) break;
+        await sleep(RETRY_DELAYS_MS[attempt]);
+      }
     }
   }
 
