@@ -76,11 +76,13 @@ export interface RegenerateQuestionRequest {
   marks: number;
 }
 
+// Deliberately excludes a "model answer" - the AI grades by understanding
+// the question and the student's answer like a real examiner would, not by
+// text-matching against a canned reference key (see prompt.ts).
 export interface SubjectiveAnswerToGrade {
   questionId: string;
   questionText: string;
   maxMarks: number;
-  modelAnswer: string;
   studentAnswer: string;
 }
 
@@ -92,5 +94,8 @@ export interface GradeAnswersRequest {
 export interface SubjectiveGrade {
   questionId: string;
   marksAwarded: number;
-  feedback: string;
+  explanation: string;
+  missingConcepts: string[];
+  incorrectConcepts: string[];
+  suggestions: string;
 }

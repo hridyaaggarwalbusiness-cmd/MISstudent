@@ -139,7 +139,6 @@ function validateGradeRequest(data: unknown): GradeAnswersRequest {
       questionId: a.questionId,
       questionText: typeof a.questionText === 'string' ? a.questionText : '',
       maxMarks: a.maxMarks,
-      modelAnswer: typeof a.modelAnswer === 'string' ? a.modelAnswer : '',
       studentAnswer: typeof a.studentAnswer === 'string' ? a.studentAnswer : '',
     };
   });

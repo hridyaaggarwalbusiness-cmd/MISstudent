@@ -146,6 +146,11 @@ export function normalizeRegeneratedQuestion(
   };
 }
 
+function stringArray(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter((s): s is string => typeof s === 'string' && s.trim().length > 0).map((s) => s.trim());
+}
+
 // Grading is intentionally more forgiving than paper generation: a missing
 // or out-of-range mark for one question shouldn't fail the whole batch when
 // the other 9 graded fine, so out-of-range values are clamped rather than
@@ -163,7 +168,14 @@ export function normalizeGrades(raw: unknown, expected: SubjectiveAnswerToGrade[
     const g = byId.get(exp.questionId);
     const rawMarks = typeof g?.marksAwarded === 'number' ? g.marksAwarded : 0;
     const marksAwarded = Math.max(0, Math.min(exp.maxMarks, rawMarks));
-    const feedback = isNonEmptyString(g?.feedback) ? (g!.feedback as string).trim() : 'Graded by AI.';
-    return { questionId: exp.questionId, marksAwarded, feedback };
+    const explanation = isNonEmptyString(g?.explanation) ? (g!.explanation as string).trim() : 'Graded by AI.';
+    return {
+      questionId: exp.questionId,
+      marksAwarded,
+      explanation,
+      missingConcepts: stringArray(g?.missingConcepts),
+      incorrectConcepts: stringArray(g?.incorrectConcepts),
+      suggestions: isNonEmptyString(g?.suggestions) ? (g!.suggestions as string).trim() : '',
+    };
   });
 }

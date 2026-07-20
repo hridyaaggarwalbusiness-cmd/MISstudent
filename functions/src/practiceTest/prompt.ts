@@ -166,27 +166,40 @@ Respond with ONLY raw JSON (no markdown, no commentary) matching exactly:
 }`;
 }
 
+// Deliberately NOT a text-comparison prompt: it is never given a "model
+// answer" to diff the student's response against - see prompt.ts's sibling
+// student-app copy for the full reasoning. Kept in sync by hand.
 export function buildGradeAnswersPrompt(input: GradeAnswersRequest): string {
   const { request, answers } = input;
   const questionsBlock = answers
     .map(
-      (a, i) => `${i + 1}. [id: "${a.questionId}", max marks: ${a.maxMarks}]
+      (a, i) => `${i + 1}. [id: "${a.questionId}"]
 Question: ${a.questionText}
-Model answer: ${a.modelAnswer}
+Maximum marks: ${a.maxMarks}
 Student's answer: ${a.studentAnswer.trim() || '(left blank)'}`,
     )
     .join('\n\n');
 
-  return `You are an expert, fair CBSE examiner grading a ${DIFFICULTY_LABEL[request.difficulty]}-difficulty ${request.subject} paper for ${request.classLabel}.
+  return `You are an experienced, fair CBSE examiner evaluating answer sheets for a ${DIFFICULTY_LABEL[request.difficulty]}-difficulty ${request.subject} paper, ${request.classLabel}. You are marking from your own subject expertise, exactly as a real teacher checking a physical answer sheet would - not by comparing text against a prewritten answer key.
 
-Grade each of the following ${answers.length} student answers against its model answer. Follow these rules strictly and apply them the same way to every answer:
+For each of the following ${answers.length} answers, first understand what the student is trying to say, then evaluate the CONCEPT, REASONING, FACTS, CALCULATIONS, and CONCLUSION - never the wording or sentence structure.
 
-1. Judge MEANING, never exact wording. The model answer is a reference for what correct understanding looks like, not a script to match word-for-word. Different phrasing, synonyms, different but equivalent examples, reordered points, different units/notation for the same value, or a shorter answer that still states the key idea correctly must NOT lose marks.
-2. If the student's answer conveys everything the question requires and contains nothing factually wrong, award FULL marks - even if it's phrased completely differently from the model answer, is more concise, or adds correct extra detail.
-3. Only deduct marks for a concrete, identifiable reason: a required point that is genuinely missing, a factual error, or a claim that contradicts the correct answer. Never deduct marks just because the wording differs from the model answer.
-4. Award partial credit proportional to how many of the required key points are present when the answer is incomplete or partially correct.
-5. Award 0 marks only for answers left blank or entirely unrelated to the question.
-6. Be consistent: the same quality of answer must receive the same score every time you grade it - do not vary your standard between questions or students.
+The student is free to:
+- use different wording, sentence structure, or vocabulary than a textbook would
+- explain the idea in their own words or in simple English
+- give answer points/bullets instead of full paragraphs
+- write a shorter or longer answer than expected
+- use synonyms or different but equivalent examples
+
+None of the above may ever cost the student marks by itself.
+
+Strict grading rules - apply identically to every answer:
+1. If the student's concept, reasoning, facts, and conclusion are correct, award FULL marks - regardless of how differently it is phrased, structured, or how short/long it is.
+2. Deduct marks ONLY for a concrete, identifiable reason: a required concept/point is genuinely missing from the answer, a fact or calculation is wrong, or a claim contradicts the correct understanding of the topic. Never deduct for wording, structure, or language style alone.
+3. Never mark all-or-nothing. When some concepts are present and correct but others are missing or wrong, award partial marks proportional to how much of the complete, correct answer is actually there.
+4. Ignore grammar mistakes, spelling mistakes, punctuation, and writing style entirely, UNLESS the question itself is specifically testing language/grammar/composition skills (e.g. an English-subject writing question) - only then do those things matter.
+5. Award 0 marks only when the answer is left blank or is entirely unrelated to what the question asks.
+6. Be consistent: given the same answer quality, always arrive at the same score - apply one fixed standard across every question and every student, not a variable one.
 
 ${questionsBlock}
 
@@ -194,8 +207,11 @@ Respond with ONLY raw JSON (no markdown, no commentary) - an array with exactly 
 [
   {
     "questionId": string (copy the "id" given above),
-    "marksAwarded": number (0 to the question's max marks, may be a whole or half number),
-    "feedback": string (one short sentence - if marks were deducted, name the specific missing point or error; if full marks were awarded, briefly say why the answer is correct)
+    "marksAwarded": number (0 to that question's maximum marks, may be a whole or half number),
+    "explanation": string (1-2 sentences: what the student got right, in your own words - why this many marks),
+    "missingConcepts": string[] (specific concepts/points required by the question that the answer did not cover; empty array if nothing is missing),
+    "incorrectConcepts": string[] (specific facts, claims, or calculations in the answer that are wrong; empty array if none),
+    "suggestions": string (one short, concrete, actionable sentence on how the student could improve this answer; empty string if the answer already earned full marks)
   }
 ]`;
 }

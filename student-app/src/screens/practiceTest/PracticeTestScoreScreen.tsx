@@ -165,7 +165,7 @@ function ReviewCard({ result, questionText, questionNumber }: { result: Question
       {!result.correct && (
         <View style={styles.answerRow}>
           <AppText variant="tiny" color={colors.successStrong}>
-            CORRECT ANSWER
+            {result.method === 'ai' ? 'SAMPLE FULL-MARKS ANSWER' : 'CORRECT ANSWER'}
           </AppText>
           <AppText variant="caption" color={colors.textPrimary} style={{ marginTop: 2 }}>
             {result.correctAnswerText}
@@ -173,12 +173,45 @@ function ReviewCard({ result, questionText, questionNumber }: { result: Question
         </View>
       )}
 
-      {result.feedback && (
-        <AppText variant="tiny" color={colors.textTertiary} style={{ marginTop: 6, fontStyle: 'italic' }}>
-          {result.feedback}
-        </AppText>
+      {result.method === 'ai' && (result.explanation || result.missingConcepts?.length || result.incorrectConcepts?.length || result.suggestions) && (
+        <View style={styles.answerRow}>
+          <AppText variant="tiny" color={colors.textTertiary}>
+            EXAMINER'S NOTES
+          </AppText>
+          {result.explanation && (
+            <AppText variant="caption" color={colors.textPrimary} style={{ marginTop: 4 }}>
+              {result.explanation}
+            </AppText>
+          )}
+          {!!result.missingConcepts?.length && (
+            <ConceptList label="Missing" color={colors.warningStrong} items={result.missingConcepts} />
+          )}
+          {!!result.incorrectConcepts?.length && (
+            <ConceptList label="Incorrect" color={colors.dangerStrong} items={result.incorrectConcepts} />
+          )}
+          {result.suggestions && (
+            <AppText variant="tiny" color={colors.primary} style={{ marginTop: 6, fontStyle: 'italic' }}>
+              💡 {result.suggestions}
+            </AppText>
+          )}
+        </View>
       )}
     </Card>
+  );
+}
+
+function ConceptList({ label, color, items }: { label: string; color: string; items: string[] }) {
+  return (
+    <View style={{ marginTop: 4 }}>
+      <AppText variant="tiny" color={color} style={{ fontWeight: '700' }}>
+        {label}:
+      </AppText>
+      {items.map((item, i) => (
+        <AppText key={i} variant="tiny" color={colors.textSecondary} style={{ marginTop: 1 }}>
+          • {item}
+        </AppText>
+      ))}
+    </View>
   );
 }
 

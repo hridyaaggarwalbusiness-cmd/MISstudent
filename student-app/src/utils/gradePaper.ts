@@ -176,11 +176,14 @@ export async function gradeAttempt(paper: GeneratedPaper, answers: AttemptAnswer
 
   let subjectiveGrades: SubjectiveGrade[] = [];
   if (subjectiveQuestions.length > 0) {
+    // No "model answer" is sent here on purpose - the AI evaluates the
+    // student's understanding against the question itself, the way a real
+    // examiner does, rather than diffing text against a reference key. See
+    // promptBuilder.ts for the full reasoning.
     const subjectiveAnswers = subjectiveQuestions.map((q) => ({
       questionId: q.id,
       questionText: q.text,
       maxMarks: q.marks,
-      modelAnswer: q.answer,
       studentAnswer: answerById.get(q.id)?.response ?? '',
     }));
     try {
@@ -201,7 +204,7 @@ export async function gradeAttempt(paper: GeneratedPaper, answers: AttemptAnswer
       // A student waiting on their score should never be blocked by an AI
       // hiccup - fall back to a conservative provisional estimate (half
       // marks for a substantive attempt, 0 for blank/trivial ones) rather
-      // than surfacing an error. This is clearly labeled in the feedback
+      // than surfacing an error. This is clearly labeled in the explanation
       // so it reads as provisional, not a final AI-reviewed grade.
       subjectiveGrades = subjectiveAnswers.map((a) => {
         const wordCount = a.studentAnswer.trim().split(/\s+/).filter(Boolean).length;
@@ -209,9 +212,12 @@ export async function gradeAttempt(paper: GeneratedPaper, answers: AttemptAnswer
         return {
           questionId: a.questionId,
           marksAwarded,
-          feedback: wordCount >= 3
+          explanation: wordCount >= 3
             ? 'Provisional score - AI grading was unavailable, so this is an estimate. Ask your teacher to review this answer.'
             : 'No answer provided.',
+          missingConcepts: [],
+          incorrectConcepts: [],
+          suggestions: '',
         };
       });
     }
@@ -229,7 +235,10 @@ export async function gradeAttempt(paper: GeneratedPaper, answers: AttemptAnswer
       correct: (g?.marksAwarded ?? 0) >= q.marks,
       studentAnswerText: response || '(not attempted)',
       correctAnswerText: q.answer,
-      feedback: g?.feedback,
+      explanation: g?.explanation,
+      missingConcepts: g?.missingConcepts,
+      incorrectConcepts: g?.incorrectConcepts,
+      suggestions: g?.suggestions,
     };
   });
 

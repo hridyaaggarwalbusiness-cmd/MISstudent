@@ -369,7 +369,12 @@ export interface QuestionResult {
   correct: boolean;
   studentAnswerText: string;
   correctAnswerText: string;
-  feedback?: string;
+  // Populated only for AI-graded (subjective) questions - the examiner's
+  // concept-level breakdown of the score, not a text-match verdict.
+  explanation?: string;
+  missingConcepts?: string[];
+  incorrectConcepts?: string[];
+  suggestions?: string;
 }
 
 export interface PaperAttemptResult {
@@ -381,11 +386,13 @@ export interface PaperAttemptResult {
   gradedAt: string;
 }
 
+// Deliberately excludes a "model answer" - the AI grades by understanding
+// the question and the student's answer like a real examiner would, not by
+// text-matching against a canned reference key (see promptBuilder.ts).
 export interface SubjectiveAnswerToGrade {
   questionId: string;
   questionText: string;
   maxMarks: number;
-  modelAnswer: string;
   studentAnswer: string;
 }
 
@@ -397,5 +404,8 @@ export interface GradeAnswersRequest {
 export interface SubjectiveGrade {
   questionId: string;
   marksAwarded: number;
-  feedback: string;
+  explanation: string;
+  missingConcepts: string[];
+  incorrectConcepts: string[];
+  suggestions: string;
 }
