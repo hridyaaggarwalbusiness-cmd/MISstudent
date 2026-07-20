@@ -2,7 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
 import { llmProvider, ANTHROPIC_API_KEY } from '../ai';
 import { buildGeneratePrompt, buildGradeAnswersPrompt, buildRegenerateQuestionPrompt } from './prompt';
-import { extractJson, normalizeGrades, normalizePaper, normalizeRegeneratedQuestion, PaperValidationError } from './schema';
+import { extractJson, getSyllabusMismatchMessage, normalizeGrades, normalizePaper, normalizeRegeneratedQuestion, PaperValidationError } from './schema';
 import {
   GeneratedPaper,
   GradeAnswersRequest,
@@ -69,8 +69,16 @@ async function generateValidatedPaper(request: PracticeTestRequest): Promise<Gen
     try {
       const raw = await llmProvider.complete(prompt + correction, { maxTokens: 8000 });
       const parsed = extractJson(raw);
+      // A deliberate "this topic isn't in this class's syllabus" response
+      // (see prompt.ts's STEP 1) is not a malformed-paper failure worth
+      // retrying - surface it immediately as-is.
+      const mismatch = getSyllabusMismatchMessage(parsed);
+      if (mismatch) {
+        throw new HttpsError('failed-precondition', mismatch);
+      }
       return normalizePaper(parsed, request);
     } catch (err) {
+      if (err instanceof HttpsError) throw err;
       lastError = err instanceof Error ? err : new Error(String(err));
     }
   }

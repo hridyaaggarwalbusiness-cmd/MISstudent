@@ -1,6 +1,6 @@
 import { GeneratedPaper, GradeAnswersRequest, PaperQuestion, PracticeTestRequest, RegenerateQuestionRequest, SubjectiveGrade } from '@/types';
 import { buildGeneratePrompt, buildGradeAnswersPrompt, buildRegenerateQuestionPrompt } from './promptBuilder';
-import { extractJson, normalizeGrades, normalizePaper, normalizeRegeneratedQuestion, PaperValidationError } from './paperSchema';
+import { extractJson, getSyllabusMismatchMessage, normalizeGrades, normalizePaper, normalizeRegeneratedQuestion, PaperValidationError } from './paperSchema';
 import { PaperGenerationError, PaperProvider } from './paperProvider';
 
 // This is the ONLY provider that can run on Firebase's free Spark plan: no
@@ -206,6 +206,10 @@ async function generateValidatedPaper(request: PracticeTestRequest): Promise<Gen
     try {
       const raw = await callGemini(prompt + correction, maxOutputTokens);
       const parsed = extractJson(raw);
+      const mismatch = getSyllabusMismatchMessage(parsed);
+      if (mismatch) {
+        throw new PaperGenerationError(mismatch, 'topic-not-in-syllabus');
+      }
       return normalizePaper(parsed, request);
     } catch (err) {
       if (err instanceof PaperGenerationError) throw err;

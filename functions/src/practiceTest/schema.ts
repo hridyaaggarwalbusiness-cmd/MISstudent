@@ -98,6 +98,21 @@ function normalizeSection(raw: unknown, index: number): PaperSection {
   };
 }
 
+// The model is instructed (see prompt.ts's STEP 1) to respond with
+// { "error": "topic_not_in_syllabus", "message": ... } instead of a paper
+// when the requested topic doesn't actually belong to the selected class's
+// CBSE syllabus. Callers should check this BEFORE handing the response to
+// normalizePaper, which would otherwise just reject it as a malformed paper
+// and trigger a pointless retry instead of surfacing the real reason.
+export function getSyllabusMismatchMessage(raw: unknown): string | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const obj = raw as Record<string, unknown>;
+  if (obj.error !== 'topic_not_in_syllabus') return null;
+  return isNonEmptyString(obj.message)
+    ? obj.message.trim()
+    : "This topic doesn't appear to belong to the selected class's CBSE syllabus. Please double-check the class and topic.";
+}
+
 export function normalizePaper(raw: unknown, request: PracticeTestRequest): GeneratedPaper {
   const obj = raw as Record<string, unknown>;
   if (!obj || typeof obj !== 'object') throw new PaperValidationError('AI response is not a JSON object.');

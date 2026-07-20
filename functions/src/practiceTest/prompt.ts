@@ -61,6 +61,16 @@ const SCHEMA_BLOCK = `{
   ]
 }`;
 
+// The alternate shape the model must respond with when the requested
+// topic(s) turn out not to belong to the selected class's syllabus at all
+// (see the SYLLABUS VERIFICATION step in buildGeneratePrompt). Kept
+// separate from SCHEMA_BLOCK so a caller can check for "error" before
+// treating the response as a paper.
+const SYLLABUS_ERROR_SCHEMA_BLOCK = `{
+  "error": "topic_not_in_syllabus",
+  "message": string (one or two short, polite sentences explaining specifically which class/subject the topic actually belongs to instead, e.g. "Trigonometric Identities is a Class 10 CBSE topic, not part of the Class 8 syllabus. Please pick a Class 8 topic, or switch the class to Class 10.")
+}`;
+
 function topicsLine(topics: string[]): string {
   return topics.length > 1 ? topics.map((t, i) => `${i + 1}. ${t}`).join('\n') : topics[0] ?? '';
 }
@@ -82,7 +92,10 @@ export function buildGeneratePrompt(request: PracticeTestRequest): string {
       ? `Cover ALL of the following ${topics.length} topics in this one paper, with a roughly balanced spread of marks across them (no single topic should dominate unless the mark total makes an even split impossible) - clearly this is a combined/multi-topic paper, not just the first topic:\n${topicsLine(topics)}`
       : `Only include content genuinely relevant to "${topics[0]}" within ${subject} for ${classLabel} under the CBSE syllabus. Do not drift into unrelated chapters or topics.`;
 
-  return `You are an expert CBSE (Central Board of Secondary Education, India) school examiner and question paper setter with 20 years of experience.
+  const classAppropriateFormats =
+    'Very young/primary classes (roughly Class 1-5) should lean almost entirely on MCQ, Fill in the Blanks, True/False, Match the Following, and Very Short Answer - avoid Case Study, Assertion-Reason, and heavy Long Answer/essay-style questions, which are not part of how CBSE examines that age group. Middle school (roughly Class 6-8) can add Short Answer and light Long Answer, but Case Study and Assertion-Reason still only belong from Class 9 onward as CBSE actually introduces them. Secondary and senior secondary (Class 9-12) can use the full range including Case Study, Assertion-Reason, and (where the subject involves calculation) Numericals.';
+
+  return `You are an expert CBSE (Central Board of Secondary Education, India) school examiner and question paper setter with 20 years of experience, deeply familiar with the NCERT textbooks and the exact chapter-by-chapter CBSE syllabus for every class.
 
 Generate one complete, syllabus-accurate CBSE question paper using ONLY the details below. Do not use any class, subject, or topic other than the ones specified here.
 
@@ -95,9 +108,17 @@ Difficulty: ${DIFFICULTY_LABEL[difficulty]}
 Language: ${languageLabel}. ${languageInstruction}
 ${durationLine}
 
-Rules:
-1. ${coverageRule}
-2. Structure the paper into sections appropriate for the paper type and class level, choosing only from these formats where they genuinely fit - never force one that doesn't:
+STEP 1 - SYLLABUS VERIFICATION (do this silently before writing any question, this is the highest-priority step):
+Check whether every one of the given ${topicWord.toLowerCase()} genuinely belongs to the NCERT-based CBSE syllabus for "${subject}" at "${classLabel}" specifically - not a class above it, not a class below it. If ANY given topic is actually taught in a different class (e.g. it's a Class 10 topic but "${classLabel}" was selected, or it's a Class 6 topic revisited at a higher class in more depth than requested), STOP and do not generate a paper at all. Instead respond with ONLY this JSON object and nothing else:
+
+${SYLLABUS_ERROR_SCHEMA_BLOCK}
+
+Only proceed to STEP 2 if every topic genuinely belongs to "${classLabel}"'s syllabus.
+
+STEP 2 - GENERATE THE PAPER, following these rules:
+1. ${coverageRule} Reference the actual NCERT textbook content for "${classLabel}" ${subject} as your source of truth for what is in-syllabus - the style, terminology, and depth of every question must closely resemble a real CBSE/NCERT school exam for this exact class, not a simplified or advanced version of it.
+2. HIGHEST PRIORITY - SYLLABUS ACCURACY OVER QUANTITY: never include a concept, formula, term, or fact that belongs to a class ABOVE "${classLabel}" (too advanced for these students) or a class BELOW it (already-covered, more basic content that isn't what this class is being examined on). If you find yourself unsure whether a specific fact/formula belongs to this exact class, leave it out rather than risk including off-syllabus content - it is far better to produce a paper with fewer but completely accurate questions than to pad it with anything even slightly off-syllabus.
+3. Structure the paper into sections appropriate for the paper type and class level, choosing only from these formats where they genuinely fit - never force one that doesn't:
    - Multiple Choice Questions (MCQs, usually 1 mark each, exactly 4 options)
    - Fill in the Blanks
    - True / False
@@ -108,16 +129,17 @@ Rules:
    - Case Study Questions (ONLY for Class 9 and above, and only when a topic genuinely supports a case-based passage)
    - Assertion-Reason Questions (ONLY for Class 9 and above, when appropriate) - these MUST follow the standard CBSE format: "caseText" holds "Assertion (A): ..." on one line and "Reason (R): ..." on the next, "text" asks the student to choose the correct relationship, and "options" is EXACTLY these four fixed choices in this order: "Both A and R are true and R is the correct explanation of A.", "Both A and R are true but R is NOT the correct explanation of A.", "A is true but R is false.", "A is false but R is true." - "answer" must be the exact text of the correct one of those four.
    - Numerical Problems (ONLY for Mathematics, Physics, Chemistry, or Science subjects where a topic involves calculation)
-3. See the Assertion-Reason format requirement above - do not deviate from it when using that question type.
-4. Every single question object must state the exact marks it is worth, and section/paper totals must be internally consistent with rule 1 above (or rule 1's multi-topic spread, when there is more than one topic).
-5. Never repeat, or lightly reword, the same question within the paper - every question must be genuinely distinct.
-6. Apply "${DIFFICULTY_LABEL[difficulty]}" difficulty consistently across the paper.
-7. Every question needs a correct "answer": for MCQ/assertion-reason it must be the exact text of the correct option; for fill-blank/true-false/match/numerical it must be short and unambiguous; for short/long-answer/case-study questions give the key expected points in 2-4 sentences, not a full essay.
-8. Write 3-6 short, natural general exam instructions in "generalInstructions" (e.g. "All questions are compulsory.", "Marks are indicated against each question.").
-9. Give the paper a professional title in the form "${subject} — ${topicsForTitle} — ${PAPER_TYPE_LABEL[paperType]}".
-10. Number every question sequentially across the WHOLE paper (1, 2, 3, ...), continuing the count across sections - never restart numbering per section.
+   ${classAppropriateFormats}
+4. See the Assertion-Reason format requirement above - do not deviate from it when using that question type.
+5. Every single question object must state the exact marks it is worth, and section/paper totals must be internally consistent with rule 1 above (or rule 1's multi-topic spread, when there is more than one topic).
+6. Never repeat, or lightly reword, the same question within the paper - every question must be genuinely distinct.
+7. Apply "${DIFFICULTY_LABEL[difficulty]}" difficulty consistently across the paper, and keep that difficulty itself appropriate for "${classLabel}" - "hard" for this class still means hard-but-fair for this class's actual syllabus, never content borrowed from a senior class to make it harder.
+8. Every question needs a correct "answer": for MCQ/assertion-reason it must be the exact text of the correct option; for fill-blank/true-false/match/numerical it must be short and unambiguous; for short/long-answer/case-study questions give the key expected points in 2-4 sentences, not a full essay.
+9. Write 3-6 short, natural general exam instructions in "generalInstructions" (e.g. "All questions are compulsory.", "Marks are indicated against each question.").
+10. Give the paper a professional title in the form "${subject} — ${topicsForTitle} — ${PAPER_TYPE_LABEL[paperType]}".
+11. Number every question sequentially across the WHOLE paper (1, 2, 3, ...), continuing the count across sections - never restart numbering per section.
 
-Respond with ONLY raw JSON (no markdown code fences, no commentary before or after it) matching EXACTLY this shape:
+Respond with ONLY raw JSON (no markdown code fences, no commentary before or after it) - either the syllabus-mismatch object from STEP 1 if applicable, otherwise a paper matching EXACTLY this shape:
 
 ${SCHEMA_BLOCK}`;
 }
