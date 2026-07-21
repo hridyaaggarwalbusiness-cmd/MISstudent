@@ -156,7 +156,7 @@ async function callGemini(prompt: string, maxOutputTokens: number): Promise<stri
   if (invalidKeyIndex !== undefined) {
     const which = apiKeys.length > 1 ? `key #${invalidKeyIndex} of ${apiKeys.length} configured` : 'the configured key';
     throw new NoticeGenerationError(
-      `${which} is invalid or malformed - Gemini rejected it outright (not a quota or overload issue). Double-check it was copied correctly into VITE_GEMINI_API_KEY / VITE_GEMINI_API_KEYS_EXTRA - a real Gemini API key from Google AI Studio starts with "AIzaSy".`,
+      `${which} is invalid or malformed - Gemini rejected it outright with "API key not valid" (not a quota or overload issue). Double-check it was copied in full from Google AI Studio's "Get API key" page into VITE_GEMINI_API_KEY / VITE_GEMINI_API_KEYS_EXTRA, with no missing characters, extra whitespace, or stray line breaks.`,
       'invalid-api-key',
     );
   }
