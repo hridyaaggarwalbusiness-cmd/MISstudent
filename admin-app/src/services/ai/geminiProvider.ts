@@ -28,15 +28,25 @@ const MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
 // notice text.
 const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-2.5-flash', 'gemini-flash-latest']);
 
-function getApiKey(): string {
-  const key = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
-  if (!key) {
+// Each free-tier Gemini API key (from its own Google Cloud project) has an
+// independent daily quota, small enough that a handful of AI notices can
+// exhaust it. This rotates through every configured key in order -
+// callGemini falls through to the next key once the current one's models
+// are all failing, effectively stacking each key's daily budget on top of
+// the others.
+function getApiKeys(): string[] {
+  const primary = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+  const extra = import.meta.env.VITE_GEMINI_API_KEYS_EXTRA as string | undefined;
+  const keys = [primary, ...(extra ? extra.split(',') : [])]
+    .map((k) => k?.trim())
+    .filter((k): k is string => !!k);
+  if (keys.length === 0) {
     throw new NoticeGenerationError(
       'AI notice generation isn’t set up yet — the Gemini API key hasn’t been configured for this app.',
       'missing-api-key',
     );
   }
-  return key;
+  return keys;
 }
 
 async function callGeminiModel(model: string, apiKey: string, prompt: string, requestedMaxOutputTokens: number): Promise<string> {
@@ -80,15 +90,17 @@ async function callGeminiModel(model: string, apiKey: string, prompt: string, re
 }
 
 async function callGemini(prompt: string, maxOutputTokens: number): Promise<string> {
-  const apiKey = getApiKey();
+  const apiKeys = getApiKeys();
   let lastMessage = 'The AI provider is currently unavailable.';
 
-  for (const model of MODEL_CANDIDATES) {
-    try {
-      return await callGeminiModel(model, apiKey, prompt, maxOutputTokens);
-    } catch (err) {
-      if (err instanceof NoticeGenerationError) throw err;
-      lastMessage = err instanceof Error ? err.message : String(err);
+  for (const apiKey of apiKeys) {
+    for (const model of MODEL_CANDIDATES) {
+      try {
+        return await callGeminiModel(model, apiKey, prompt, maxOutputTokens);
+      } catch (err) {
+        if (err instanceof NoticeGenerationError) throw err;
+        lastMessage = err instanceof Error ? err.message : String(err);
+      }
     }
   }
 

@@ -83,15 +83,25 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function getApiKey(): string {
-  const key = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-  if (!key) {
+// Each free-tier Gemini API key (from its own Google Cloud project) has an
+// independent daily quota. A single key's quota is small enough that a
+// handful of practice-test generations can exhaust it, so this rotates
+// through every configured key in order - callGemini falls through to the
+// next key once the current one's models are all failing, effectively
+// stacking each key's daily budget on top of the others.
+function getApiKeys(): string[] {
+  const primary = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+  const extra = process.env.EXPO_PUBLIC_GEMINI_API_KEYS_EXTRA;
+  const keys = [primary, ...(extra ? extra.split(',') : [])]
+    .map((k) => k?.trim())
+    .filter((k): k is string => !!k);
+  if (keys.length === 0) {
     throw new PaperGenerationError(
       'AI paper generation isn’t set up yet - ask your school admin to configure the Gemini API key.',
       'missing-api-key',
     );
   }
-  return key;
+  return keys;
 }
 
 async function callGeminiModel(
@@ -165,29 +175,32 @@ async function callGemini(
   maxOutputTokens: number,
   temperature: number = GENERATION_TEMPERATURE,
 ): Promise<string> {
-  const apiKey = getApiKey();
+  const apiKeys = getApiKeys();
   const parts = typeof prompt === 'string' ? [{ text: prompt }] : prompt;
   let lastMessage = 'The AI provider is currently unavailable.';
-  // Tracks whether every single failure across every model was specifically
-  // a 429 quota/rate-limit response - if so, the real story isn't "every
-  // model is broken", it's "today's free-tier AI usage is used up", and the
-  // student deserves that plain-language explanation instead of a wall of
-  // raw JSON from whichever model happened to fail last.
+  // Tracks whether every single failure across every key and every model was
+  // specifically a 429 quota/rate-limit response - if so, the real story
+  // isn't "every model is broken", it's "today's free-tier AI usage is used
+  // up on every configured key", and the student deserves that plain-
+  // language explanation instead of a wall of raw JSON from whichever
+  // model happened to fail last.
   let allFailuresWereQuota = true;
 
-  for (const model of MODEL_CANDIDATES) {
-    for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
-      try {
-        return await callGeminiModel(model, apiKey, parts, maxOutputTokens, temperature);
-      } catch (err) {
-        if (err instanceof PaperGenerationError) throw err;
-        lastMessage = err instanceof Error ? err.message : String(err);
-        if (!(err instanceof GeminiHttpError && err.status === 429)) {
-          allFailuresWereQuota = false;
+  for (const apiKey of apiKeys) {
+    for (const model of MODEL_CANDIDATES) {
+      for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+        try {
+          return await callGeminiModel(model, apiKey, parts, maxOutputTokens, temperature);
+        } catch (err) {
+          if (err instanceof PaperGenerationError) throw err;
+          lastMessage = err instanceof Error ? err.message : String(err);
+          if (!(err instanceof GeminiHttpError && err.status === 429)) {
+            allFailuresWereQuota = false;
+          }
+          const retryable = err instanceof GeminiHttpError && RETRYABLE_STATUS.has(err.status);
+          if (!retryable || attempt === RETRY_DELAYS_MS.length) break;
+          await sleep(RETRY_DELAYS_MS[attempt]);
         }
-        const retryable = err instanceof GeminiHttpError && RETRYABLE_STATUS.has(err.status);
-        if (!retryable || attempt === RETRY_DELAYS_MS.length) break;
-        await sleep(RETRY_DELAYS_MS[attempt]);
       }
     }
   }
