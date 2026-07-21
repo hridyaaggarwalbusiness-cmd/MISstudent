@@ -33,13 +33,17 @@ const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-2.5-flash', 'gemini-2.5-fla
 // out - see callGemini below.
 const REQUEST_TIMEOUT_MS = 12000;
 
-// Google returns 400 INVALID_ARGUMENT with this exact wording when the API
-// key itself is malformed or doesn't exist - as opposed to a valid key
-// that's merely out of quota or a model that's overloaded. Detecting this
-// specifically matters because it's a config mistake (a mistyped or
-// wrong-format key), not a transient AI-provider problem.
+// Google rejects a `?key=` value it doesn't recognize as a real API key in
+// two different ways depending on what was actually sent: a malformed-but-
+// key-shaped string gets 400 INVALID_ARGUMENT ("API key not valid"), while a
+// value that isn't a key at all - an OAuth token, a session cookie, anything
+// else - gets 401 UNAUTHENTICATED ("Request had invalid authentication
+// credentials. Expected OAuth 2 access token, login cookie or other valid
+// authentication credential"). Both mean the same thing here: whatever is
+// configured isn't a usable Generative Language API key - a config mistake,
+// not a transient AI-provider problem.
 function isInvalidKeyError(body: string): boolean {
-  return /API key not valid|API_KEY_INVALID/i.test(body);
+  return /API key not valid|API_KEY_INVALID|invalid authentication credentials|UNAUTHENTICATED/i.test(body);
 }
 
 // Each free-tier Gemini API key (from its own Google Cloud project) has an
