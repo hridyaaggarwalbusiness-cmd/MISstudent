@@ -61,6 +61,7 @@ import type {
   DriverProfile,
   Trip,
   SchoolLocation,
+  PeriodSchedule,
 } from '@/types';
 
 function withId<T>(d: { id: string; data: () => unknown }): T {
@@ -238,6 +239,23 @@ export const repo = {
     },
     upsert: (period: TimetablePeriod) => setDoc(doc(db, 'timetable', period.id), period, { merge: true }),
     remove: (id: string) => deleteDoc(doc(db, 'timetable', id)),
+  },
+
+  // The school-wide period/break row structure - one doc, shared by every
+  // class's timetable grid.
+  periodSchedule: {
+    subscribe: (cb: (schedule: PeriodSchedule) => void): Unsubscribe =>
+      onSnapshot(doc(db, 'settings', 'periodSchedule'), (snap) =>
+        cb(snap.exists() ? (snap.data() as PeriodSchedule) : { slots: [] }),
+      ),
+    update: (schedule: PeriodSchedule) => setDoc(doc(db, 'settings', 'periodSchedule'), schedule, { merge: true }),
+    // Applies a period's new start/end time to every already-saved cell for
+    // that period number, across every class - so "period 1 has this time
+    // every day" takes effect immediately instead of only on future edits.
+    propagateTime: async (periodNumber: number, startTime: string, endTime: string) => {
+      const snap = await getDocs(query(collection(db, 'timetable'), where('periodNumber', '==', periodNumber)));
+      await Promise.all(snap.docs.map((d) => updateDoc(d.ref, { startTime, endTime })));
+    },
   },
 
   homework: {
