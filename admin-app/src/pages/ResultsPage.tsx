@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { BarChart3, TrendingUp, FlaskConical, AlertTriangle } from 'lucide-react';
+import { BarChart3, TrendingUp, FlaskConical, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { StatStrip } from '@/components/ui/StatStrip';
@@ -26,6 +26,15 @@ const gradeBarColor: Record<ReturnType<typeof gradeTone>, string> = {
   danger: 'var(--color-danger)',
 };
 
+function gradeFor(pct: number): string {
+  if (pct >= 90) return 'A+';
+  if (pct >= 80) return 'A';
+  if (pct >= 70) return 'B+';
+  if (pct >= 60) return 'B';
+  if (pct >= 50) return 'C';
+  return 'D';
+}
+
 export function ResultsPage() {
   const { data: results, loading } = useCollection<ExamResult>((cb) => repo.results.subscribeAll(cb));
   const { data: classes } = useCollection<SchoolClass>((cb) => repo.classes.subscribeAll(cb));
@@ -39,6 +48,8 @@ export function ResultsPage() {
 
   const studentName = (id: string) => students.find((s) => s.id === id)?.name ?? id;
 
+  // Kept only to feed the "Exams Recorded" stat below - the results
+  // themselves are now grouped by student, not by exam.
   const grouped = useMemo(() => {
     const map = new Map<string, ExamResult[]>();
     for (const r of filtered) {
@@ -46,10 +57,40 @@ export function ResultsPage() {
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(r);
     }
-    return Array.from(map.entries())
-      .map(([key, rows]) => ({ key, rows, examName: rows[0].examName, date: rows[0].date }))
-      .sort((a, b) => b.date.localeCompare(a.date));
+    return Array.from(map.values());
   }, [filtered]);
+
+  const byStudent = useMemo(() => {
+    const map = new Map<string, ExamResult[]>();
+    for (const r of filtered) {
+      if (!map.has(r.studentId)) map.set(r.studentId, []);
+      map.get(r.studentId)!.push(r);
+    }
+    return Array.from(map.entries())
+      .map(([studentId, rows]) => {
+        const totalObtained = rows.reduce((s, r) => s + r.marksObtained, 0);
+        const totalMax = rows.reduce((s, r) => s + r.maxMarks, 0);
+        const pct = totalMax > 0 ? Math.round((totalObtained / totalMax) * 1000) / 10 : 0;
+        return {
+          studentId,
+          name: studentName(studentId),
+          rows: [...rows].sort((a, b) => a.subject.localeCompare(b.subject)),
+          pct,
+          grade: gradeFor(pct),
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [filtered, students]);
+
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  function toggle(studentId: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(studentId)) next.delete(studentId);
+      else next.add(studentId);
+      return next;
+    });
+  }
 
   const avgPct = filtered.length
     ? Math.round((filtered.reduce((s, r) => s + (r.marksObtained / (r.maxMarks || 1)) * 100, 0) / filtered.length) * 10) / 10
@@ -91,34 +132,45 @@ export function ResultsPage() {
           <EmptyState icon={<BarChart3 size={32} />} title="No results yet" description="Results entered by teachers will appear here in real time." />
         </Card>
       ) : (
-        grouped.map((group) => (
-          <div key={group.key} className={styles.examGroup}>
-            <div className={styles.examHeader}>
-              <span className={styles.examName}>{group.examName}</span>
-              <span className={styles.examMeta}>
-                {group.rows.length} result{group.rows.length === 1 ? '' : 's'} · {group.date}
-              </span>
-            </div>
-            <Card padded={false}>
-              {group.rows.map((r) => {
-                const pct = Math.round((r.marksObtained / (r.maxMarks || 1)) * 100);
-                const tone = gradeTone(r.grade);
-                return (
-                  <div key={r.id} className={styles.resultRow}>
-                    <span className={styles.studentName}>{studentName(r.studentId)}</span>
-                    <span className={styles.subject}>{r.subject}</span>
-                    <ProgressBar value={pct} color={gradeBarColor[tone]} />
-                    <span className={styles.marks}>
-                      {r.marksObtained}/{r.maxMarks} ({pct}%)
-                    </span>
-                    <Badge label={r.grade} tone={tone} />
-                    <span className={styles.remark}>{r.teacherRemark || '—'}</span>
+        <Card padded={false}>
+          {byStudent.map((s) => {
+            const isOpen = expanded.has(s.studentId);
+            const tone = gradeTone(s.grade);
+            return (
+              <div key={s.studentId} className={styles.studentGroup}>
+                <button type="button" className={styles.studentHeader} onClick={() => toggle(s.studentId)}>
+                  {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  <span className={styles.studentName}>{s.name}</span>
+                  <span className={styles.studentMeta}>
+                    {s.rows.length} subject{s.rows.length === 1 ? '' : 's'}
+                  </span>
+                  <ProgressBar value={s.pct} color={gradeBarColor[tone]} />
+                  <span className={styles.marks}>{s.pct}%</span>
+                  <Badge label={s.grade} tone={tone} />
+                </button>
+                {isOpen && (
+                  <div className={styles.subjectList}>
+                    {s.rows.map((r) => {
+                      const pct = Math.round((r.marksObtained / (r.maxMarks || 1)) * 100);
+                      const rTone = gradeTone(r.grade);
+                      return (
+                        <div key={r.id} className={styles.subjectRow}>
+                          <span className={styles.subject}>{r.subject}</span>
+                          <ProgressBar value={pct} color={gradeBarColor[rTone]} />
+                          <span className={styles.marks}>
+                            {r.marksObtained}/{r.maxMarks} ({pct}%)
+                          </span>
+                          <Badge label={r.grade} tone={rTone} />
+                          <span className={styles.remark}>{r.teacherRemark || '—'}</span>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </Card>
-          </div>
-        ))
+                )}
+              </div>
+            );
+          })}
+        </Card>
       )}
     </div>
   );

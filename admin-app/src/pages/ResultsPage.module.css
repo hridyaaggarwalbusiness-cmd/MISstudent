@@ -1,35 +1,49 @@
-.examGroup {
-  margin-bottom: 18px;
-}
-
-.examHeader {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 4px 4px 10px;
-}
-
-.examName {
-  font-family: var(--font-display);
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
-
-.examMeta {
-  font-size: 12.5px;
-  color: var(--color-text-tertiary);
-}
-
-.resultRow {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px 18px;
+.studentGroup {
   border-bottom: 1px solid var(--color-border-soft);
 }
 
-.resultRow:last-child {
+.studentGroup:last-child {
+  border-bottom: none;
+}
+
+.studentHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 18px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: var(--color-text-tertiary);
+}
+
+.studentHeader:hover {
+  background: var(--color-surface-alt);
+}
+
+.studentMeta {
+  width: 90px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.subjectList {
+  background: var(--color-surface-alt);
+}
+
+.subjectRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px 12px 48px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.subjectRow:last-child {
   border-bottom: none;
 }
 
