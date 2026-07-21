@@ -31,16 +31,22 @@ const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 // billing/quota bucket shared with 2.5-flash, and a noticeably higher free-
 // tier daily request cap - so once 2.5-flash's own daily quota is used up,
 // this keeps the app working for the rest of the day instead of failing.
-// gemini-flash-latest is a final catch-all alias in case Google renames the
-// current flagship flash model again. The older gemini-2.0-flash,
-// gemini-1.5-flash, and gemini-1.5-flash-8b model IDs have all been
-// permanently retired by Google (shut down / returning 404) as of 2026 -
-// keeping them in this list would only waste an attempt on every request,
-// so they've been removed. Google's model lineup and rate limits do
-// continue to shift periodically; if requests start failing on every
-// candidate, check https://ai.google.dev/gemini-api/docs/models for the
-// current model IDs.
-const MODEL_CANDIDATES = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest'];
+// Deliberately NOT including "gemini-flash-latest" (a moving alias Google
+// repoints to whatever its current flagship flash model is): it has been
+// the source of every single failure this list has produced in practice -
+// intermittently rejecting requests with a bare 400 INVALID_ARGUMENT,
+// almost certainly because whatever it's currently aliased to doesn't
+// support one of the fields in generationConfig (see
+// MODELS_WITH_THINKING_CONFIG below). Both gemini-2.5-flash and
+// gemini-2.5-flash-lite are pinned, versioned model IDs - their supported
+// fields don't shift under this app - so sticking to just these two is
+// more reliable than chasing a moving target for one extra fallback. The
+// older gemini-2.0-flash, gemini-1.5-flash, and gemini-1.5-flash-8b model
+// IDs have all been permanently retired by Google (shut down / returning
+// 404) as of 2026, so they're not candidates either. If requests start
+// failing on every remaining candidate, check
+// https://ai.google.dev/gemini-api/docs/models for current model IDs.
+const MODEL_CANDIDATES = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 
 // Each model's real output-token ceiling - requests above this are just
 // wasted budget (or rejected outright by some models), so the requested
@@ -48,7 +54,6 @@ const MODEL_CANDIDATES = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-f
 const MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
   'gemini-2.5-flash': 24000,
   'gemini-2.5-flash-lite': 8000,
-  'gemini-flash-latest': 8000,
 };
 
 // The 2.5-generation models "think" before answering by default, and those
@@ -59,7 +64,7 @@ const MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
 // Setting thinkingBudget: 0 turns thinking off so the full budget goes to
 // the response. Only send this to models that actually understand it -
 // older models reject unrecognized generationConfig fields outright.
-const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest']);
+const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-2.5-flash', 'gemini-2.5-flash-lite']);
 
 // Carries the HTTP status (and whether this specifically means "the API key
 // itself is malformed/invalid") so callGemini can decide what to tell the
@@ -192,7 +197,12 @@ async function callGemini(
   const controllers = MODEL_CANDIDATES.map(() => new AbortController());
   const timeoutId = setTimeout(() => controllers.forEach((c) => c.abort()), REQUEST_TIMEOUT_MS);
 
-  let lastMessage = 'The AI provider is currently unavailable.';
+  // Every model's own distinct failure message, not just whichever one
+  // happened to be last in the race - a total failure almost never means
+  // every model broke for the same reason, and showing only the last one
+  // hides the other models' real errors, making this impossible to debug
+  // from the outside.
+  const messagesByModel = new Map<string, string>();
   // Tracks whether every single failure across every model was specifically
   // a 429 quota/rate-limit response - if so, the real story isn't "every
   // model is broken", it's "today's free-tier AI usage is used up", and the
@@ -212,16 +222,16 @@ async function callGemini(
     );
   } catch (aggregate) {
     const errors = aggregate instanceof AggregateError ? aggregate.errors : [aggregate];
-    for (const err of errors) {
+    errors.forEach((err, i) => {
       if (err instanceof PaperGenerationError) throw err;
-      lastMessage = err instanceof Error ? err.message : String(err);
+      messagesByModel.set(MODEL_CANDIDATES[i] ?? `model ${i}`, err instanceof Error ? err.message : String(err));
       if (!(err instanceof GeminiHttpError && err.status === 429)) {
         allFailuresWereQuota = false;
       }
       if (err instanceof GeminiHttpError && err.invalidKey) {
         sawInvalidKey = true;
       }
-    }
+    });
   } finally {
     clearTimeout(timeoutId);
     controllers.forEach((c) => c.abort());
@@ -239,7 +249,8 @@ async function callGemini(
       'quota-exceeded',
     );
   }
-  throw new PaperGenerationError(`AI provider request failed on every available model. ${lastMessage}`, 'gemini-all-models-failed');
+  const allMessages = Array.from(messagesByModel.values()).join(' | ');
+  throw new PaperGenerationError(`AI provider request failed on every available model. ${allMessages}`, 'gemini-all-models-failed');
 }
 
 // A bigger paper needs proportionally more room to write out every

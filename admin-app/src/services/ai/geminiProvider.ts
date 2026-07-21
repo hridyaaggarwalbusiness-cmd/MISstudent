@@ -13,21 +13,27 @@ const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 // gemini-2.0-flash, gemini-1.5-flash, and gemini-1.5-flash-8b have all been
 // permanently retired by Google (shut down / returning 404) as of 2026 - see
 // student-app/src/services/ai/geminiProvider.ts for the same note.
-const MODEL_CANDIDATES = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest'];
+// Deliberately NOT including "gemini-flash-latest" either - a moving alias
+// Google repoints to whatever its current flagship flash model is, which in
+// practice has intermittently rejected requests with a bare 400
+// INVALID_ARGUMENT, almost certainly because whatever it's aliased to right
+// now doesn't support one of the generationConfig fields below. Both
+// gemini-2.5-flash and gemini-2.5-flash-lite are pinned, versioned model
+// IDs that don't have this problem.
+const MODEL_CANDIDATES = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 
 // A notice is a few short paragraphs, nowhere near the token budgets the
 // practice-test generator needs - these are deliberately small.
 const MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
   'gemini-2.5-flash': 4000,
   'gemini-2.5-flash-lite': 2000,
-  'gemini-flash-latest': 2000,
 };
 
 // The 2.5-generation models "think" before answering by default, and those
 // invisible reasoning tokens draw from the same maxOutputTokens budget as
 // the visible response - disabling it keeps the full budget for the actual
 // notice text.
-const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest']);
+const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-2.5-flash', 'gemini-2.5-flash-lite']);
 
 // Every candidate model gets this long to answer before it's raced out -
 // see callGemini below.
@@ -122,7 +128,10 @@ async function callGemini(prompt: string, maxOutputTokens: number): Promise<stri
   const apiKey = getApiKey();
   const controllers = MODEL_CANDIDATES.map(() => new AbortController());
   const timeoutId = setTimeout(() => controllers.forEach((c) => c.abort()), REQUEST_TIMEOUT_MS);
-  let lastMessage = 'The AI provider is currently unavailable.';
+  // Every model's own distinct failure message, not just whichever one
+  // happened to be last in the race - see student-app's geminiProvider.ts
+  // for the full reasoning.
+  const messagesByModel = new Map<string, string>();
   let sawInvalidKey = false;
 
   try {
@@ -131,13 +140,13 @@ async function callGemini(prompt: string, maxOutputTokens: number): Promise<stri
     );
   } catch (aggregate) {
     const errors = aggregate instanceof AggregateError ? aggregate.errors : [aggregate];
-    for (const err of errors) {
+    errors.forEach((err, i) => {
       if (err instanceof NoticeGenerationError) throw err;
-      lastMessage = err instanceof Error ? err.message : String(err);
+      messagesByModel.set(MODEL_CANDIDATES[i] ?? `model ${i}`, err instanceof Error ? err.message : String(err));
       if (err instanceof Error && (err as Error & { invalidKey?: boolean }).invalidKey) {
         sawInvalidKey = true;
       }
-    }
+    });
   } finally {
     clearTimeout(timeoutId);
     controllers.forEach((c) => c.abort());
@@ -149,7 +158,8 @@ async function callGemini(prompt: string, maxOutputTokens: number): Promise<stri
       'invalid-api-key',
     );
   }
-  throw new NoticeGenerationError(`AI provider request failed on every available model. ${lastMessage}`, 'gemini-all-models-failed');
+  const allMessages = Array.from(messagesByModel.values()).join(' | ');
+  throw new NoticeGenerationError(`AI provider request failed on every available model. ${allMessages}`, 'gemini-all-models-failed');
 }
 
 // Retries once with the validation failure fed back to the model, same
