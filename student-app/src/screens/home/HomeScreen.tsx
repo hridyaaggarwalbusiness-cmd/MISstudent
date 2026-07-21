@@ -270,18 +270,14 @@ export function HomeScreen() {
       bg: '#FFEEEE',
       onPress: () => navigation.navigate('AcademicCalendar'),
     },
-    ...(student?.assignedBusId
-      ? [
-          {
-            key: 'bus',
-            label: 'Live Bus',
-            icon: 'bus' as const,
-            color: '#0876AE',
-            bg: '#EAF7FF',
-            onPress: () => navigation.navigate('LiveBusTracking'),
-          },
-        ]
-      : []),
+    {
+      key: 'bus',
+      label: 'Live Bus',
+      icon: 'bus' as const,
+      color: '#0876AE',
+      bg: '#EAF7FF',
+      onPress: () => navigation.navigate('LiveBusTracking'),
+    },
     {
       key: 'more',
       label: 'More',

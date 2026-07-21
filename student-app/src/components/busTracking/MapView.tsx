@@ -48,7 +48,16 @@ export function MapView({ busPosition, schoolLocation, stops, height = 320 }: Ma
     mapRef.current = map;
     setReady(true);
 
+    // This screen is pushed with a slide-in transform (see RootNavigator's
+    // animation: 'slide_from_right'), which is still animating when this
+    // map is created - Leaflet reads the container's geometry at creation
+    // time, so a transform still in flight leaves its drag/pan math
+    // permanently misaligned even though zoom buttons keep working.
+    // Recalculating once the transition has settled fixes it.
+    const fixTimers = [100, 350, 600].map((ms) => setTimeout(() => map.invalidateSize(), ms));
+
     return () => {
+      fixTimers.forEach((t) => clearTimeout(t));
       map.remove();
       mapRef.current = null;
       setReady(false);

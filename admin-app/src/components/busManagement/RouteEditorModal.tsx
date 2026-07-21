@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ArrowUp, ArrowDown, X, Plus } from 'lucide-react';
+import { ArrowUp, ArrowDown, X } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
-import { SelectField } from '@/components/ui/FormField';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
+import { RouteStopMap } from './RouteStopMap';
 import { useToast } from '@/components/ui/Toast';
 import { repo, cryptoId } from '@/data/repositories';
 import { getErrorMessage } from '@/utils/errors';
@@ -21,7 +21,6 @@ interface RouteEditorModalProps {
 
 export function RouteEditorModal({ open, onClose, bus, type, stops, existingRoute }: RouteEditorModalProps) {
   const [orderedStopIds, setOrderedStopIds] = useState<string[]>([]);
-  const [addStopId, setAddStopId] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const { show } = useToast();
@@ -37,12 +36,9 @@ export function RouteEditorModal({ open, onClose, bus, type, stops, existingRout
   if (!bus) return null;
 
   const stopById = new Map(stops.map((s) => [s.id, s]));
-  const availableStops = stops.filter((s) => !orderedStopIds.includes(s.id));
 
-  function addStop() {
-    if (!addStopId) return;
-    setOrderedStopIds((ids) => [...ids, addStopId]);
-    setAddStopId('');
+  function toggleStop(stopId: string) {
+    setOrderedStopIds((ids) => (ids.includes(stopId) ? ids.filter((id) => id !== stopId) : [...ids, stopId]));
   }
 
   function removeStop(stopId: string) {
@@ -90,7 +86,7 @@ export function RouteEditorModal({ open, onClose, bus, type, stops, existingRout
     <Modal
       open={open}
       title={`${bus.busNumber} — ${type === 'morning' ? 'Morning' : 'Afternoon'} Route`}
-      width={560}
+      width={640}
       onClose={onClose}
       footer={
         <>
@@ -105,48 +101,47 @@ export function RouteEditorModal({ open, onClose, bus, type, stops, existingRout
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {error && <ErrorBanner message={error} />}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-          <div style={{ flex: 1 }}>
-            <SelectField label="Add a stop" value={addStopId} onChange={(e) => setAddStopId(e.target.value)}>
-              <option value="">Select a stop…</option>
-              {availableStops.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </SelectField>
-          </div>
-          <Button variant="outline" onClick={addStop} icon={<Plus size={16} />} disabled={!addStopId}>
-            Add
-          </Button>
-        </div>
 
-        {orderedStopIds.length === 0 ? (
-          <div style={{ fontSize: 13, color: 'var(--color-text-tertiary)' }}>
-            No stops added yet — pick stops above in the order the bus should visit them.
-          </div>
+        {stops.length === 0 ? (
+          <ErrorBanner message="No bus stops exist yet — add stops on the Bus Stops page first, then come back here to build the route." />
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {orderedStopIds.map((stopId, i) => (
-              <div
-                key={stopId}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '8px 10px',
-                  borderRadius: 8,
-                  background: 'var(--color-surface-alt, #f5f5f7)',
-                }}
-              >
-                <span style={{ fontSize: 12, fontWeight: 600, width: 20, color: 'var(--color-text-tertiary)' }}>{i + 1}</span>
-                <span style={{ flex: 1, fontSize: 14 }}>{stopById.get(stopId)?.name ?? stopId}</span>
-                <IconButton icon={ArrowUp} onClick={() => move(i, -1)} aria-label="Move up" />
-                <IconButton icon={ArrowDown} onClick={() => move(i, 1)} aria-label="Move down" />
-                <IconButton icon={X} tone="danger" onClick={() => removeStop(stopId)} aria-label="Remove stop" />
+          <>
+            <div>
+              <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 6 }}>
+                Click a stop on the map to add it to the route in order (orange numbered pins = in this route). Click a
+                numbered pin again to remove it.
               </div>
-            ))}
-          </div>
+              <RouteStopMap stops={stops} selectedStopIds={orderedStopIds} onToggleStop={toggleStop} height={320} />
+            </div>
+
+            {orderedStopIds.length === 0 ? (
+              <div style={{ fontSize: 13, color: 'var(--color-text-tertiary)' }}>
+                No stops added yet — click stops on the map above in the order the bus should visit them.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {orderedStopIds.map((stopId, i) => (
+                  <div
+                    key={stopId}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 10px',
+                      borderRadius: 8,
+                      background: 'var(--color-surface-alt, #f5f5f7)',
+                    }}
+                  >
+                    <span style={{ fontSize: 12, fontWeight: 600, width: 20, color: 'var(--color-text-tertiary)' }}>{i + 1}</span>
+                    <span style={{ flex: 1, fontSize: 14 }}>{stopById.get(stopId)?.name ?? stopId}</span>
+                    <IconButton icon={ArrowUp} onClick={() => move(i, -1)} aria-label="Move up" />
+                    <IconButton icon={ArrowDown} onClick={() => move(i, 1)} aria-label="Move down" />
+                    <IconButton icon={X} tone="danger" onClick={() => removeStop(stopId)} aria-label="Remove stop" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </Modal>

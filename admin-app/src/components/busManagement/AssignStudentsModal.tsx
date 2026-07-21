@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
@@ -24,6 +24,16 @@ export function AssignStudentsModal({ open, onClose, bus, students, stops, route
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const { show } = useToast();
+
+  // Without this, toggles left unsaved for one bus (e.g. Cancel was
+  // clicked) would silently carry over and apply to the next bus opened.
+  useEffect(() => {
+    if (open) {
+      setPending({});
+      setSearch('');
+      setError('');
+    }
+  }, [open, bus?.id]);
 
   const busStopOptions = useMemo(() => {
     if (!bus) return [];
@@ -109,18 +119,23 @@ export function AssignStudentsModal({ open, onClose, bus, students, stops, route
             return (
               <div
                 key={student.id}
+                onClick={() => setState(student.id, { assigned: !state.assigned, stopId: state.stopId })}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: 10,
                   padding: '8px 4px',
                   borderBottom: '1px solid var(--color-border-soft, #eee)',
+                  cursor: 'pointer',
+                  background: state.assigned ? 'var(--color-primary-soft, #eef2ff)' : undefined,
+                  borderRadius: 6,
                 }}
               >
                 <input
                   type="checkbox"
                   checked={state.assigned}
-                  onChange={(e) => setState(student.id, { assigned: e.target.checked, stopId: state.stopId })}
+                  readOnly
+                  style={{ width: 16, height: 16, pointerEvents: 'none' }}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 500 }}>{student.name}</div>
@@ -128,7 +143,7 @@ export function AssignStudentsModal({ open, onClose, bus, students, stops, route
                     {student.className} - {student.section}
                   </div>
                 </div>
-                <div style={{ width: 200 }}>
+                <div style={{ width: 200 }} onClick={(e) => e.stopPropagation()}>
                   <select
                     disabled={!state.assigned}
                     value={state.stopId}
