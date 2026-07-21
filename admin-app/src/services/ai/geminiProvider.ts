@@ -33,6 +33,15 @@ const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-2.5-flash', 'gemini-2.5-fla
 // out - see callGemini below.
 const REQUEST_TIMEOUT_MS = 12000;
 
+// Google returns 400 INVALID_ARGUMENT with this exact wording when the API
+// key itself is malformed or doesn't exist - as opposed to a valid key
+// that's merely out of quota or a model that's overloaded. Detecting this
+// specifically matters because it's a config mistake (a mistyped or
+// wrong-format key), not a transient AI-provider problem.
+function isInvalidKeyError(body: string): boolean {
+  return /API key not valid|API_KEY_INVALID/i.test(body);
+}
+
 // Each free-tier Gemini API key (from its own Google Cloud project) has an
 // independent daily quota, small enough that a handful of AI notices can
 // exhaust it. This rotates through every configured key in order -
@@ -88,7 +97,9 @@ async function callGeminiModel(
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`${model} failed (${res.status}): ${body.slice(0, 200)}`);
+    const err = new Error(`${model} failed (${res.status}): ${body.slice(0, 200)}`) as Error & { invalidKey?: boolean };
+    err.invalidKey = isInvalidKeyError(body);
+    throw err;
   }
 
   const data = (await res.json()) as {
@@ -119,6 +130,10 @@ async function callGemini(prompt: string, maxOutputTokens: number): Promise<stri
   const controllers = combos.map(() => new AbortController());
   const timeoutId = setTimeout(() => controllers.forEach((c) => c.abort()), REQUEST_TIMEOUT_MS);
   let lastMessage = 'The AI provider is currently unavailable.';
+  // Which configured key (1-indexed into apiKeys) came back invalid, if any -
+  // surfaced ahead of every other failure since it's an actionable config
+  // mistake, not "the AI is having a bad day".
+  let invalidKeyIndex: number | undefined;
 
   try {
     return await Promise.any(
@@ -126,15 +141,25 @@ async function callGemini(prompt: string, maxOutputTokens: number): Promise<stri
     );
   } catch (aggregate) {
     const errors = aggregate instanceof AggregateError ? aggregate.errors : [aggregate];
-    for (const err of errors) {
+    errors.forEach((err, i) => {
       if (err instanceof NoticeGenerationError) throw err;
       lastMessage = err instanceof Error ? err.message : String(err);
-    }
+      if (err instanceof Error && (err as Error & { invalidKey?: boolean }).invalidKey && invalidKeyIndex === undefined) {
+        invalidKeyIndex = Math.floor(i / MODEL_CANDIDATES.length) + 1;
+      }
+    });
   } finally {
     clearTimeout(timeoutId);
     controllers.forEach((c) => c.abort());
   }
 
+  if (invalidKeyIndex !== undefined) {
+    const which = apiKeys.length > 1 ? `key #${invalidKeyIndex} of ${apiKeys.length} configured` : 'the configured key';
+    throw new NoticeGenerationError(
+      `${which} is invalid or malformed - Gemini rejected it outright (not a quota or overload issue). Double-check it was copied correctly into VITE_GEMINI_API_KEY / VITE_GEMINI_API_KEYS_EXTRA - a real Gemini API key from Google AI Studio starts with "AIzaSy".`,
+      'invalid-api-key',
+    );
+  }
   throw new NoticeGenerationError(`AI provider request failed on every available model. ${lastMessage}`, 'gemini-all-models-failed');
 }
 

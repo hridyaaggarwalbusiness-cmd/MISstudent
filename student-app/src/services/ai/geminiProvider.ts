@@ -61,12 +61,27 @@ const MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
 // older models reject unrecognized generationConfig fields outright.
 const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest']);
 
-// Carries the HTTP status so callGemini can tell apart a quota response
-// (429) from everything else when deciding what to tell the student.
+// Carries the HTTP status (and whether this specifically means "the API key
+// itself is malformed/invalid") so callGemini can decide what to tell the
+// student instead of showing whichever raw error happened to come back last.
 class GeminiHttpError extends Error {
-  constructor(public readonly status: number, message: string) {
+  constructor(
+    public readonly status: number,
+    message: string,
+    public readonly invalidKey: boolean = false,
+  ) {
     super(message);
   }
+}
+
+// Google returns 400 INVALID_ARGUMENT with this exact wording when the API
+// key itself is malformed or doesn't exist - as opposed to a valid key that's
+// merely out of quota (429) or a model that's overloaded (503). Detecting
+// this specifically matters because it's a config mistake (a mistyped or
+// wrong-format key in GEMINI_API_KEYS_EXTRA), not a transient AI-provider
+// problem, and deserves a completely different, actionable message.
+function isInvalidKeyError(body: string): boolean {
+  return /API key not valid|API_KEY_INVALID/i.test(body);
 }
 
 // Every key/model combination gets this long to answer before it's treated
@@ -132,7 +147,7 @@ async function callGeminiModel(
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new GeminiHttpError(res.status, `${model} failed (${res.status}): ${body.slice(0, 200)}`);
+    throw new GeminiHttpError(res.status, `${model} failed (${res.status}): ${body.slice(0, 200)}`, isInvalidKeyError(body));
   }
 
   const data = (await res.json()) as {
@@ -193,6 +208,10 @@ async function callGemini(
   // language explanation instead of a wall of raw JSON from whichever
   // model happened to fail last.
   let allFailuresWereQuota = true;
+  // Which configured key (1-indexed into apiKeys) came back invalid, if any -
+  // surfaced ahead of every other failure below since it's an actionable
+  // config mistake, not "the AI is having a bad day".
+  let invalidKeyIndex: number | undefined;
 
   try {
     return await Promise.any(
@@ -202,18 +221,28 @@ async function callGemini(
     );
   } catch (aggregate) {
     const errors = aggregate instanceof AggregateError ? aggregate.errors : [aggregate];
-    for (const err of errors) {
+    errors.forEach((err, i) => {
       if (err instanceof PaperGenerationError) throw err;
       lastMessage = err instanceof Error ? err.message : String(err);
       if (!(err instanceof GeminiHttpError && err.status === 429)) {
         allFailuresWereQuota = false;
       }
-    }
+      if (err instanceof GeminiHttpError && err.invalidKey && invalidKeyIndex === undefined) {
+        invalidKeyIndex = Math.floor(i / MODEL_CANDIDATES.length) + 1;
+      }
+    });
   } finally {
     clearTimeout(timeoutId);
     controllers.forEach((c) => c.abort());
   }
 
+  if (invalidKeyIndex !== undefined) {
+    const which = apiKeys.length > 1 ? `key #${invalidKeyIndex} of ${apiKeys.length} configured` : 'the configured key';
+    throw new PaperGenerationError(
+      `${which} is invalid or malformed - Gemini rejected it outright (not a quota or overload issue). Double-check it was copied correctly into GEMINI_API_KEY / GEMINI_API_KEYS_EXTRA - a real Gemini API key from Google AI Studio starts with "AIzaSy".`,
+      'invalid-api-key',
+    );
+  }
   if (allFailuresWereQuota) {
     throw new PaperGenerationError(
       "The school's AI usage limit for today has been reached (this is a free-plan quota, not a bug). It resets automatically - please try again later, or ask your school admin about upgrading the plan for a higher limit.",
