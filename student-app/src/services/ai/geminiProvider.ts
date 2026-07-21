@@ -89,30 +89,20 @@ function isInvalidKeyError(body: string): boolean {
   return /API key not valid|API_KEY_INVALID|invalid authentication credentials|UNAUTHENTICATED/i.test(body);
 }
 
-// Every key/model combination gets this long to answer before it's treated
-// as failed and raced out - see callGemini below for why racing (not trying
+// Every candidate model gets this long to answer before it's treated as
+// failed and raced out - see callGemini below for why racing (not trying
 // one at a time) is what actually keeps this under 30s.
 const REQUEST_TIMEOUT_MS = 12000;
 
-// Each free-tier Gemini API key (from its own Google Cloud project) has an
-// independent daily quota. A single key's quota is small enough that a
-// handful of practice-test generations can exhaust it, so this rotates
-// through every configured key in order - callGemini falls through to the
-// next key once the current one's models are all failing, effectively
-// stacking each key's daily budget on top of the others.
-function getApiKeys(): string[] {
-  const primary = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-  const extra = process.env.EXPO_PUBLIC_GEMINI_API_KEYS_EXTRA;
-  const keys = [primary, ...(extra ? extra.split(',') : [])]
-    .map((k) => k?.trim())
-    .filter((k): k is string => !!k);
-  if (keys.length === 0) {
+function getApiKey(): string {
+  const key = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+  if (!key) {
     throw new PaperGenerationError(
       'AI paper generation isn’t set up yet - ask your school admin to configure the Gemini API key.',
       'missing-api-key',
     );
   }
-  return keys;
+  return key;
 }
 
 async function callGeminiModel(
@@ -185,66 +175,61 @@ async function callGeminiModel(
 const GENERATION_TEMPERATURE = 0.8;
 const GRADING_TEMPERATURE = 0.15;
 
-// Every configured key × candidate model is fired at once and raced,
-// instead of tried one at a time with sleep-based retries in between. With
-// several keys now in play (see getApiKeys), trying every combination
-// sequentially - even with short backoffs - could add up to minutes before
-// giving up, which is exactly what made generation look "stuck". Racing
-// them bounds the whole call to roughly one request's round trip (or
-// REQUEST_TIMEOUT_MS if every single combo is genuinely down), and the
-// moment one succeeds every other in-flight request is aborted so it isn't
-// silently burning quota for an answer nobody needs.
+// Every candidate model is fired at once and raced, instead of tried one at
+// a time with sleep-based retries in between - that sequential approach
+// could add up to tens of seconds before giving up, which is what made
+// generation look "stuck". Racing them bounds the whole call to roughly one
+// request's round trip (or REQUEST_TIMEOUT_MS if every model is genuinely
+// down), and the moment one succeeds every other in-flight request is
+// aborted so it isn't silently burning quota for an answer nobody needs.
 async function callGemini(
   prompt: string | GradePromptPart[],
   maxOutputTokens: number,
   temperature: number = GENERATION_TEMPERATURE,
 ): Promise<string> {
-  const apiKeys = getApiKeys();
+  const apiKey = getApiKey();
   const parts = typeof prompt === 'string' ? [{ text: prompt }] : prompt;
-  const combos = apiKeys.flatMap((apiKey) => MODEL_CANDIDATES.map((model) => ({ apiKey, model })));
-  const controllers = combos.map(() => new AbortController());
+  const controllers = MODEL_CANDIDATES.map(() => new AbortController());
   const timeoutId = setTimeout(() => controllers.forEach((c) => c.abort()), REQUEST_TIMEOUT_MS);
 
   let lastMessage = 'The AI provider is currently unavailable.';
-  // Tracks whether every single failure across every key and every model was
-  // specifically a 429 quota/rate-limit response - if so, the real story
-  // isn't "every model is broken", it's "today's free-tier AI usage is used
-  // up on every configured key", and the student deserves that plain-
-  // language explanation instead of a wall of raw JSON from whichever
-  // model happened to fail last.
+  // Tracks whether every single failure across every model was specifically
+  // a 429 quota/rate-limit response - if so, the real story isn't "every
+  // model is broken", it's "today's free-tier AI usage is used up", and the
+  // student deserves that plain-language explanation instead of a wall of
+  // raw JSON from whichever model happened to fail last.
   let allFailuresWereQuota = true;
-  // Which configured key (1-indexed into apiKeys) came back invalid, if any -
-  // surfaced ahead of every other failure below since it's an actionable
-  // config mistake, not "the AI is having a bad day".
-  let invalidKeyIndex: number | undefined;
+  // Whether the key itself came back invalid, surfaced ahead of every other
+  // failure since it's an actionable config mistake, not "the AI is having a
+  // bad day".
+  let sawInvalidKey = false;
 
   try {
     return await Promise.any(
-      combos.map(({ apiKey, model }, i) =>
+      MODEL_CANDIDATES.map((model, i) =>
         callGeminiModel(model, apiKey, parts, maxOutputTokens, temperature, controllers[i].signal),
       ),
     );
   } catch (aggregate) {
     const errors = aggregate instanceof AggregateError ? aggregate.errors : [aggregate];
-    errors.forEach((err, i) => {
+    for (const err of errors) {
       if (err instanceof PaperGenerationError) throw err;
       lastMessage = err instanceof Error ? err.message : String(err);
       if (!(err instanceof GeminiHttpError && err.status === 429)) {
         allFailuresWereQuota = false;
       }
-      if (err instanceof GeminiHttpError && err.invalidKey && invalidKeyIndex === undefined) {
-        invalidKeyIndex = Math.floor(i / MODEL_CANDIDATES.length) + 1;
+      if (err instanceof GeminiHttpError && err.invalidKey) {
+        sawInvalidKey = true;
       }
-    });
+    }
   } finally {
     clearTimeout(timeoutId);
     controllers.forEach((c) => c.abort());
   }
 
-  if (invalidKeyIndex !== undefined) {
-    const which = apiKeys.length > 1 ? `key #${invalidKeyIndex} of ${apiKeys.length} configured` : 'the configured key';
+  if (sawInvalidKey) {
     throw new PaperGenerationError(
-      `${which} is invalid or malformed - Gemini rejected it outright with "API key not valid" (not a quota or overload issue). Double-check it was copied in full from Google AI Studio's "Get API key" page into GEMINI_API_KEY / GEMINI_API_KEYS_EXTRA, with no missing characters, extra whitespace, or stray line breaks.`,
+      'The configured Gemini API key is invalid or malformed - Gemini rejected it outright (not a quota or overload issue). Double-check it was copied in full from Google Cloud Console / AI Studio into GEMINI_API_KEY, with no missing characters, extra whitespace, or stray line breaks.',
       'invalid-api-key',
     );
   }

@@ -28,14 +28,6 @@ jobs:
           # Dedicated to this app - see NOTICE_GEMINI_API_KEY below for why
           # admin-app's Notice Writer no longer shares this same quota.
           EXPO_PUBLIC_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          # Optional: a comma-separated list of additional free-tier Gemini
-          # API keys (from separate Google Cloud projects, each with its own
-          # independent free quota). geminiProvider.ts rotates through
-          # GEMINI_API_KEY first, then each of these in order, whenever a
-          # key's quota is exhausted - multiplying the effective daily
-          # request budget without needing to enable billing. Safe to leave
-          # unset; the app still works on the single GEMINI_API_KEY alone.
-          EXPO_PUBLIC_GEMINI_API_KEYS_EXTRA: ${{ secrets.GEMINI_API_KEYS_EXTRA }}
         run: npx expo export --platform web --output-dir dist
 
       - name: Install admin-app dependencies
@@ -56,12 +48,6 @@ jobs:
           # build. Make sure this app's Hosting domain is on whichever key's
           # HTTP-referrer allowlist in Google Cloud Console.
           VITE_GEMINI_API_KEY: ${{ secrets.NOTICE_GEMINI_API_KEY || secrets.GEMINI_API_KEY }}
-          # Optional: comma-separated additional free-tier Gemini keys for
-          # this app's own rotation pool - same mechanism as student-app's
-          # EXPO_PUBLIC_GEMINI_API_KEYS_EXTRA above, kept as a separate
-          # secret so Notice Writer's key pool doesn't overlap with the
-          # Practice Test Generator's.
-          VITE_GEMINI_API_KEYS_EXTRA: ${{ secrets.NOTICE_GEMINI_API_KEYS_EXTRA }}
         run: npm run build
 
       - name: Install teacher-app dependencies

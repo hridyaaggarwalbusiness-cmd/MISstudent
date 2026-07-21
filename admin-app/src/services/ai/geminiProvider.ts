@@ -29,8 +29,8 @@ const MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
 // notice text.
 const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest']);
 
-// Every key/model combination gets this long to answer before it's raced
-// out - see callGemini below.
+// Every candidate model gets this long to answer before it's raced out -
+// see callGemini below.
 const REQUEST_TIMEOUT_MS = 12000;
 
 // Google rejects a `?key=` value it doesn't recognize as a real API key in
@@ -46,25 +46,15 @@ function isInvalidKeyError(body: string): boolean {
   return /API key not valid|API_KEY_INVALID|invalid authentication credentials|UNAUTHENTICATED/i.test(body);
 }
 
-// Each free-tier Gemini API key (from its own Google Cloud project) has an
-// independent daily quota, small enough that a handful of AI notices can
-// exhaust it. This rotates through every configured key in order -
-// callGemini falls through to the next key once the current one's models
-// are all failing, effectively stacking each key's daily budget on top of
-// the others.
-function getApiKeys(): string[] {
-  const primary = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
-  const extra = import.meta.env.VITE_GEMINI_API_KEYS_EXTRA as string | undefined;
-  const keys = [primary, ...(extra ? extra.split(',') : [])]
-    .map((k) => k?.trim())
-    .filter((k): k is string => !!k);
-  if (keys.length === 0) {
+function getApiKey(): string {
+  const key = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+  if (!key) {
     throw new NoticeGenerationError(
       'AI notice generation isn’t set up yet — the Gemini API key hasn’t been configured for this app.',
       'missing-api-key',
     );
   }
-  return keys;
+  return key;
 }
 
 async function callGeminiModel(
@@ -124,43 +114,38 @@ async function callGeminiModel(
   return text;
 }
 
-// Every key/model combination is raced at once rather than tried one at a
-// time, same reasoning as student-app's practice-test generator: bounds the
-// whole call to roughly one request's round trip instead of the sum of
-// every sequential attempt, and aborts the losers the moment one succeeds.
+// Every candidate model is raced at once rather than tried one at a time,
+// same reasoning as student-app's practice-test generator: bounds the whole
+// call to roughly one request's round trip instead of the sum of every
+// sequential attempt, and aborts the losers the moment one succeeds.
 async function callGemini(prompt: string, maxOutputTokens: number): Promise<string> {
-  const apiKeys = getApiKeys();
-  const combos = apiKeys.flatMap((apiKey) => MODEL_CANDIDATES.map((model) => ({ apiKey, model })));
-  const controllers = combos.map(() => new AbortController());
+  const apiKey = getApiKey();
+  const controllers = MODEL_CANDIDATES.map(() => new AbortController());
   const timeoutId = setTimeout(() => controllers.forEach((c) => c.abort()), REQUEST_TIMEOUT_MS);
   let lastMessage = 'The AI provider is currently unavailable.';
-  // Which configured key (1-indexed into apiKeys) came back invalid, if any -
-  // surfaced ahead of every other failure since it's an actionable config
-  // mistake, not "the AI is having a bad day".
-  let invalidKeyIndex: number | undefined;
+  let sawInvalidKey = false;
 
   try {
     return await Promise.any(
-      combos.map(({ apiKey, model }, i) => callGeminiModel(model, apiKey, prompt, maxOutputTokens, controllers[i].signal)),
+      MODEL_CANDIDATES.map((model, i) => callGeminiModel(model, apiKey, prompt, maxOutputTokens, controllers[i].signal)),
     );
   } catch (aggregate) {
     const errors = aggregate instanceof AggregateError ? aggregate.errors : [aggregate];
-    errors.forEach((err, i) => {
+    for (const err of errors) {
       if (err instanceof NoticeGenerationError) throw err;
       lastMessage = err instanceof Error ? err.message : String(err);
-      if (err instanceof Error && (err as Error & { invalidKey?: boolean }).invalidKey && invalidKeyIndex === undefined) {
-        invalidKeyIndex = Math.floor(i / MODEL_CANDIDATES.length) + 1;
+      if (err instanceof Error && (err as Error & { invalidKey?: boolean }).invalidKey) {
+        sawInvalidKey = true;
       }
-    });
+    }
   } finally {
     clearTimeout(timeoutId);
     controllers.forEach((c) => c.abort());
   }
 
-  if (invalidKeyIndex !== undefined) {
-    const which = apiKeys.length > 1 ? `key #${invalidKeyIndex} of ${apiKeys.length} configured` : 'the configured key';
+  if (sawInvalidKey) {
     throw new NoticeGenerationError(
-      `${which} is invalid or malformed - Gemini rejected it outright with "API key not valid" (not a quota or overload issue). Double-check it was copied in full from Google AI Studio's "Get API key" page into VITE_GEMINI_API_KEY / VITE_GEMINI_API_KEYS_EXTRA, with no missing characters, extra whitespace, or stray line breaks.`,
+      'The configured Gemini API key is invalid or malformed - Gemini rejected it outright (not a quota or overload issue). Double-check it was copied in full from Google Cloud Console / AI Studio into VITE_GEMINI_API_KEY, with no missing characters, extra whitespace, or stray line breaks.',
       'invalid-api-key',
     );
   }
