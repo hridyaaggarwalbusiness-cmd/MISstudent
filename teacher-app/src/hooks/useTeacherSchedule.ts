@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { repo } from '@data/repositories';
 import { useAuthStore } from '@store/useAuthStore';
-import { DayOfWeek, TimetablePeriod } from '@/types';
+import { DayOfWeek, PeriodSchedule, TimetablePeriod } from '@/types';
 
 export interface ScheduleSlot {
+  id: string;
+  type: 'period' | 'break';
   day: DayOfWeek;
-  periodNumber: number;
+  label: string;
+  periodNumber: number | null;
   startTime: string;
   endTime: string;
   taught: TimetablePeriod | null;
@@ -13,45 +16,61 @@ export interface ScheduleSlot {
 
 const DAY_ORDER: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-// Derives a teacher's own cross-class schedule straight from the whole
-// school's timetable: a slot is "taught" if this teacher is assigned to it
-// in any class, otherwise it's a free period. The slot universe (which
-// periods exist on a given day, and their times) is the union of whatever
-// any class's timetable defines for that day/periodNumber, since period
-// timing isn't guaranteed identical across every class's individual cells.
+// Derives a teacher's own cross-class schedule from the admin-authored
+// PeriodSchedule (the same row structure - and period numbering - every
+// class's timetable follows), overlaying which of those rows this teacher
+// teaches. Break/recess rows are included so a teacher's day reads the same
+// as every other timetable surface, but they never carry a period number.
 export function useTeacherSchedule() {
   const { teacher } = useAuthStore();
   const [periods, setPeriods] = useState<TimetablePeriod[] | null>(null);
+  const [schedule, setSchedule] = useState<PeriodSchedule | null>(null);
 
   useEffect(() => repo.timetable.subscribeAll(setPeriods), []);
+  useEffect(() => repo.periodSchedule.subscribe(setSchedule), []);
 
   const slotsByDay = useMemo<Record<DayOfWeek, ScheduleSlot[]> | null>(() => {
-    if (!periods) return null;
+    if (!periods || !schedule) return null;
     const teaching = periods.filter((p) => !p.isBreak);
-
-    const slotMap = new Map<string, { day: DayOfWeek; periodNumber: number; startTime: string; endTime: string }>();
-    teaching.forEach((p) => {
-      const key = `${p.day}-${p.periodNumber}`;
-      if (!slotMap.has(key)) {
-        slotMap.set(key, { day: p.day, periodNumber: p.periodNumber, startTime: p.startTime, endTime: p.endTime });
-      }
-    });
+    const sortedSlots = [...schedule.slots].sort((a, b) => a.order - b.order);
 
     const result = Object.fromEntries(DAY_ORDER.map((d) => [d, [] as ScheduleSlot[]])) as Record<
       DayOfWeek,
       ScheduleSlot[]
     >;
-    Array.from(slotMap.values())
-      .sort((a, b) => a.periodNumber - b.periodNumber)
-      .forEach((slot) => {
+
+    DAY_ORDER.forEach((day) => {
+      sortedSlots.forEach((slot) => {
+        if (slot.type === 'break') {
+          result[day].push({
+            id: slot.id,
+            type: 'break',
+            day,
+            label: slot.label,
+            periodNumber: null,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            taught: null,
+          });
+          return;
+        }
         const taught =
-          teaching.find(
-            (p) => p.day === slot.day && p.periodNumber === slot.periodNumber && p.teacherId === teacher?.id,
-          ) ?? null;
-        result[slot.day].push({ ...slot, taught });
+          teaching.find((p) => p.day === day && p.periodNumber === slot.periodNumber && p.teacherId === teacher?.id) ??
+          null;
+        result[day].push({
+          id: slot.id,
+          type: 'period',
+          day,
+          label: slot.label,
+          periodNumber: slot.periodNumber ?? null,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          taught,
+        });
       });
+    });
     return result;
-  }, [periods, teacher?.id]);
+  }, [periods, schedule, teacher?.id]);
 
   return { loading: slotsByDay === null, slotsByDay };
 }

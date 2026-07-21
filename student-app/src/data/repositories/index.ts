@@ -54,6 +54,7 @@ import {
   Trip,
   LiveLocation,
   SchoolLocation,
+  PeriodSchedule,
 } from '@/types';
 
 // ---- backend document shapes (mirror teacher-app/admin-app's real schema) ----
@@ -216,6 +217,15 @@ export const repo = {
       return onSnapshot(q, (snap) => cb(snap.docs.map((d) => withId<BackendTimetablePeriod>(d))));
     },
     getAll: (classId: string) => once<TimetablePeriod[]>((cb) => repo.timetable.subscribeForClass(classId, cb)),
+  },
+
+  // The school-wide period/break row structure - read-only here, only
+  // admin-app writes it.
+  periodSchedule: {
+    subscribe: (cb: (schedule: PeriodSchedule) => void): Unsubscribe =>
+      onSnapshot(doc(db, 'settings', 'periodSchedule'), (snap) =>
+        cb(snap.exists() ? (snap.data() as PeriodSchedule) : { slots: [] }),
+      ),
   },
 
   homework: {

@@ -1,14 +1,14 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { startOfWeek, addDays, format, isSameDay } from 'date-fns';
 import { AppText, Card, AnimatedPressable, SkeletonCard, EmptyState, ErrorState } from '@components/ui';
-import { TimetableAgendaRow } from '@components/timetable/TimetableAgendaRow';
+import { TimetableAgendaRow, TimetableAgendaRowData } from '@components/timetable/TimetableAgendaRow';
 import { colors, spacing, layout, radius } from '@theme';
 import { repo } from '@data/repositories';
 import { useAsyncResource } from '@hooks/useAsyncResource';
 import { useAuthStore } from '@store/useAuthStore';
-import { DayOfWeek } from '@/types';
+import { DayOfWeek, PeriodSchedule } from '@/types';
 
 const DAY_CODES: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -31,10 +31,30 @@ export function TimetableScreen() {
     [classId],
   );
 
-  const dayPeriods = useMemo(() => {
-    if (!data) return [];
-    return [...data.filter((p) => p.day === selectedDay.code)].sort((a, b) => a.periodNumber - b.periodNumber);
-  }, [data, selectedDay]);
+  const [schedule, setSchedule] = useState<PeriodSchedule | null>(null);
+  useEffect(() => repo.periodSchedule.subscribe(setSchedule), []);
+
+  // Merges the admin-authored row order (which slots exist, and which are
+  // breaks vs. teaching periods) with this class's saved periods for the
+  // day. Break rows always render (schedule-only, no document behind them);
+  // a period row only renders once this class has a saved period for it.
+  const dayRows = useMemo<TimetableAgendaRowData[]>(() => {
+    if (!data || !schedule) return [];
+    const dayPeriods = data.filter((p) => p.day === selectedDay.code);
+    const sortedSlots = [...schedule.slots].sort((a, b) => a.order - b.order);
+    const rows: TimetableAgendaRowData[] = [];
+    for (const slot of sortedSlots) {
+      if (slot.type === 'break') {
+        rows.push({ type: 'break', key: slot.id, label: slot.label, startTime: slot.startTime, endTime: slot.endTime });
+        continue;
+      }
+      const period = dayPeriods.find((p) => p.periodNumber === slot.periodNumber);
+      if (period) {
+        rows.push({ type: 'period', key: period.id, periodNumber: slot.periodNumber!, period });
+      }
+    }
+    return rows;
+  }, [data, schedule, selectedDay]);
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
@@ -73,12 +93,12 @@ export function TimetableScreen() {
           <View style={styles.section}>
             {loading ? (
               <SkeletonCard lines={4} />
-            ) : dayPeriods.length === 0 ? (
+            ) : dayRows.length === 0 ? (
               <EmptyState icon="calendar-outline" title="No periods" message="Nothing scheduled for this day." />
             ) : (
               <Card padded={false} elevation="xs">
-                {dayPeriods.map((p, i) => (
-                  <TimetableAgendaRow key={p.id} period={p} isLast={i === dayPeriods.length - 1} />
+                {dayRows.map((row, i) => (
+                  <TimetableAgendaRow key={row.key} row={row} isLast={i === dayRows.length - 1} />
                 ))}
               </Card>
             )}

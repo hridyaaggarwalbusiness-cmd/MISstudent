@@ -54,6 +54,27 @@ export interface TimetablePeriod {
   isBreak?: boolean;
 }
 
+// The school-wide row structure of the timetable grid, admin-authored and
+// shared by every class - see admin-app/src/types/index.ts for the full
+// rationale. Break/recess rows are their own slot type so they never consume
+// a period number (P1, P2, P3, Recess, P4, ... rather than recess becoming
+// "period 4"). Read-only here; only admin-app writes it.
+export type PeriodSlotType = 'period' | 'break';
+
+export interface PeriodSlot {
+  id: string;
+  type: PeriodSlotType;
+  label: string;
+  periodNumber?: number;
+  startTime: string;
+  endTime: string;
+  order: number;
+}
+
+export interface PeriodSchedule {
+  slots: PeriodSlot[];
+}
+
 export type HomeworkStatus = 'pending' | 'submitted' | 'graded' | 'overdue';
 
 export interface Attachment {

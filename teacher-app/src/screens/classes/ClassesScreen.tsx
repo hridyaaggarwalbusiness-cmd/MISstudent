@@ -77,8 +77,9 @@ export function ClassesScreen() {
     });
   }, [slotsByDay, classInfo]);
 
-  const taughtCount = daySlots.filter((s) => s.taught).length;
-  const freeCount = daySlots.length - taughtCount;
+  const periodSlots = useMemo(() => daySlots.filter((s) => s.type === 'period'), [daySlots]);
+  const taughtCount = periodSlots.filter((s) => s.taught).length;
+  const freeCount = periodSlots.length - taughtCount;
 
   const { leadingBlanks, monthDays } = useMemo(() => {
     const start = startOfMonth(pickerMonth);
@@ -165,6 +166,23 @@ export function ClassesScreen() {
           <EmptyState icon="calendar-outline" title="No periods scheduled" message="Nothing on the timetable for this day yet." />
         ) : (
           daySlots.map((slot) => {
+            if (slot.type === 'break') {
+              return (
+                <View key={slot.id} style={styles.breakRow}>
+                  <View style={[styles.periodBadge, styles.breakBadge]}>
+                    <Ionicons name="cafe-outline" size={20} color={colors.textSecondary} />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                    <AppText variant="bodySemibold" color={colors.textSecondary}>
+                      {slot.label}
+                    </AppText>
+                    <AppText variant="tiny" color={colors.textTertiary} style={{ marginTop: 2 }}>
+                      {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
+                    </AppText>
+                  </View>
+                </View>
+              );
+            }
             const isFree = !slot.taught;
             if (!isFree) colorCursor += 1;
             const color = isFree ? colors.textTertiary : PERIOD_COLORS[colorCursor % PERIOD_COLORS.length];
@@ -176,7 +194,7 @@ export function ClassesScreen() {
               : 'Free Period';
             return (
               <AnimatedPressable
-                key={`${slot.day}-${slot.periodNumber}`}
+                key={slot.id}
                 onPress={() => slot.taught && setDetail(slot)}
                 haptic={false}
                 style={styles.periodRow}
@@ -360,6 +378,20 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  breakRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    borderStyle: 'dashed',
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  breakBadge: {
+    backgroundColor: colors.surface,
   },
   overlay: {
     flex: 1,

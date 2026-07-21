@@ -14,21 +14,54 @@ function formatTime(t: string): string {
   return `${String(hour12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
 }
 
-export function TimetableAgendaRow({ period, isLast }: { period: TimetablePeriod; isLast: boolean }) {
-  const isLunch = period.isBreak && period.subject.toLowerCase().includes('lunch');
-  const isBreak = !!period.isBreak;
+// A break row is derived purely from the shared PeriodSchedule (no Firestore
+// timetable document backs it, so it never gets a period number). A period
+// row pairs the schedule's teaching-only period number with this class's
+// saved TimetablePeriod document for that slot.
+export type TimetableAgendaRowData =
+  | { type: 'break'; key: string; label: string; startTime: string; endTime: string }
+  | { type: 'period'; key: string; periodNumber: number; period: TimetablePeriod };
 
-  const content = isBreak ? (
-    <>
-      <View style={[styles.iconWrap, { backgroundColor: isLunch ? colors.tileOrange : colors.tileOrange }]}>
-        <Ionicons name={isLunch ? 'restaurant-outline' : 'cafe-outline'} size={20} color="#fff" />
+export function TimetableAgendaRow({ row, isLast }: { row: TimetableAgendaRowData; isLast: boolean }) {
+  if (row.type === 'break') {
+    const isLunch = row.label.toLowerCase().includes('lunch');
+    return (
+      <View style={[styles.row, !isLast && styles.rowDivider, { backgroundColor: colors.warningBg }]}>
+        <View style={styles.timeCol}>
+          <AppText variant="caption" color={colors.textSecondary}>
+            {formatTime(row.startTime)}
+          </AppText>
+          <AppText variant="tiny" color={colors.textTertiary} style={{ marginTop: 2 }}>
+            {formatTime(row.endTime)}
+          </AppText>
+        </View>
+        <View style={[styles.iconWrap, { backgroundColor: colors.tileOrange }]}>
+          <Ionicons name={isLunch ? 'restaurant-outline' : 'cafe-outline'} size={20} color="#fff" />
+        </View>
+        <View style={{ flex: 1, marginLeft: spacing.sm }}>
+          <AppText variant="bodySemibold">{row.label}</AppText>
+        </View>
       </View>
-      <View style={{ flex: 1, marginLeft: spacing.sm }}>
-        <AppText variant="bodySemibold">{period.subject || (isLunch ? 'Lunch Break' : 'Break')}</AppText>
+    );
+  }
+
+  const { period, periodNumber } = row;
+
+  return (
+    <View style={[styles.row, !isLast && styles.rowDivider]}>
+      <View style={styles.timeCol}>
+        <AppText variant="caption" color={colors.textSecondary}>
+          {formatTime(period.startTime)}
+        </AppText>
+        <AppText variant="tiny" color={colors.textTertiary} style={{ marginTop: 2 }}>
+          {formatTime(period.endTime)}
+        </AppText>
       </View>
-    </>
-  ) : (
-    <>
+      <View style={styles.periodBadge}>
+        <AppText variant="tiny" color={colors.textTertiary}>
+          P{periodNumber}
+        </AppText>
+      </View>
       <LinearGradient
         colors={subjectMeta(period.subject).gradient}
         start={{ x: 0, y: 0 }}
@@ -47,26 +80,6 @@ export function TimetableAgendaRow({ period, isLast }: { period: TimetablePeriod
           </AppText>
         )}
       </View>
-    </>
-  );
-
-  return (
-    <View
-      style={[
-        styles.row,
-        !isLast && styles.rowDivider,
-        isLunch && { backgroundColor: colors.warningBg },
-      ]}
-    >
-      <View style={styles.timeCol}>
-        <AppText variant="caption" color={colors.textSecondary}>
-          {formatTime(period.startTime)}
-        </AppText>
-        <AppText variant="tiny" color={colors.textTertiary} style={{ marginTop: 2 }}>
-          {formatTime(period.endTime)}
-        </AppText>
-      </View>
-      {content}
     </View>
   );
 }
@@ -85,12 +98,17 @@ const styles = StyleSheet.create({
   timeCol: {
     width: 68,
   },
+  periodBadge: {
+    width: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   iconWrap: {
     width: 40,
     height: 40,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: spacing.sm,
+    marginLeft: spacing.xs,
   },
 });

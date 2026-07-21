@@ -36,6 +36,7 @@ import {
   ExamResult,
   AttendanceRecord,
   AttendanceStatus,
+  PeriodSchedule,
 } from '@/types';
 
 function withId<T>(d: { id: string; data: () => any }): T {
@@ -93,6 +94,15 @@ export const repo = {
       const q = collection(db, 'timetable');
       return onSnapshot(q, (snap) => cb(snap.docs.map((d) => withId<TimetablePeriod>(d))));
     },
+  },
+
+  // The school-wide period/break row structure - read-only here, only
+  // admin-app writes it.
+  periodSchedule: {
+    subscribe: (cb: (schedule: PeriodSchedule) => void): Unsubscribe =>
+      onSnapshot(doc(db, 'settings', 'periodSchedule'), (snap) =>
+        cb(snap.exists() ? (snap.data() as PeriodSchedule) : { slots: [] }),
+      ),
   },
 
   homework: {
