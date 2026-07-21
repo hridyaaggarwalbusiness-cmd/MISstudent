@@ -61,27 +61,18 @@ const MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
 // older models reject unrecognized generationConfig fields outright.
 const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest']);
 
-// Carries the HTTP status so callGemini can tell a transient, worth-a-retry
-// failure (503 "high demand") apart from a hard one.
+// Carries the HTTP status so callGemini can tell apart a quota response
+// (429) from everything else when deciding what to tell the student.
 class GeminiHttpError extends Error {
   constructor(public readonly status: number, message: string) {
     super(message);
   }
 }
 
-// Only 503 gets a same-model backoff retry. A 429 here is Google's
-// RESOURCE_EXHAUSTED response, which covers two very different situations -
-// a per-minute rate limit (which needs ~60s to clear, far longer than any
-// UX-reasonable retry delay) or the account's daily/free-tier quota being
-// fully used up (which won't clear until the quota resets, sometimes
-// hours away). Neither recovers within a second or two, so retrying a 429
-// with a short backoff never actually helps - it only burns more requests
-// and adds latency before falling through to the next model anyway.
-const RETRYABLE_STATUS = new Set([503]);
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+// Every key/model combination gets this long to answer before it's treated
+// as failed and raced out - see callGemini below for why racing (not trying
+// one at a time) is what actually keeps this under 30s.
+const REQUEST_TIMEOUT_MS = 12000;
 
 // Each free-tier Gemini API key (from its own Google Cloud project) has an
 // independent daily quota. A single key's quota is small enough that a
@@ -110,6 +101,7 @@ async function callGeminiModel(
   parts: GradePromptPart[],
   requestedMaxOutputTokens: number,
   temperature: number,
+  signal: AbortSignal,
 ): Promise<string> {
   const maxOutputTokens = Math.min(requestedMaxOutputTokens, MODEL_MAX_OUTPUT_TOKENS[model] ?? requestedMaxOutputTokens);
   const generationConfig: Record<string, unknown> = {
@@ -120,14 +112,23 @@ async function callGeminiModel(
   if (MODELS_WITH_THINKING_CONFIG.has(model)) {
     generationConfig.thinkingConfig = { thinkingBudget: 0 };
   }
-  const res = await fetch(`${API_BASE}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts }],
-      generationConfig,
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts }],
+        generationConfig,
+      }),
+      signal,
+    });
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new GeminiHttpError(408, `${model} timed out after ${REQUEST_TIMEOUT_MS / 1000}s`);
+    }
+    throw err;
+  }
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
@@ -164,12 +165,15 @@ async function callGeminiModel(
 const GENERATION_TEMPERATURE = 0.8;
 const GRADING_TEMPERATURE = 0.15;
 
-// A 503 "high demand" response is Google's servers being briefly
-// overloaded, not a real failure of this model - worth a couple of short-
-// backoff retries on the SAME model before writing it off and falling
-// through to the next candidate.
-const RETRY_DELAYS_MS = [400, 1200];
-
+// Every configured key × candidate model is fired at once and raced,
+// instead of tried one at a time with sleep-based retries in between. With
+// several keys now in play (see getApiKeys), trying every combination
+// sequentially - even with short backoffs - could add up to minutes before
+// giving up, which is exactly what made generation look "stuck". Racing
+// them bounds the whole call to roughly one request's round trip (or
+// REQUEST_TIMEOUT_MS if every single combo is genuinely down), and the
+// moment one succeeds every other in-flight request is aborted so it isn't
+// silently burning quota for an answer nobody needs.
 async function callGemini(
   prompt: string | GradePromptPart[],
   maxOutputTokens: number,
@@ -177,6 +181,10 @@ async function callGemini(
 ): Promise<string> {
   const apiKeys = getApiKeys();
   const parts = typeof prompt === 'string' ? [{ text: prompt }] : prompt;
+  const combos = apiKeys.flatMap((apiKey) => MODEL_CANDIDATES.map((model) => ({ apiKey, model })));
+  const controllers = combos.map(() => new AbortController());
+  const timeoutId = setTimeout(() => controllers.forEach((c) => c.abort()), REQUEST_TIMEOUT_MS);
+
   let lastMessage = 'The AI provider is currently unavailable.';
   // Tracks whether every single failure across every key and every model was
   // specifically a 429 quota/rate-limit response - if so, the real story
@@ -186,23 +194,24 @@ async function callGemini(
   // model happened to fail last.
   let allFailuresWereQuota = true;
 
-  for (const apiKey of apiKeys) {
-    for (const model of MODEL_CANDIDATES) {
-      for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
-        try {
-          return await callGeminiModel(model, apiKey, parts, maxOutputTokens, temperature);
-        } catch (err) {
-          if (err instanceof PaperGenerationError) throw err;
-          lastMessage = err instanceof Error ? err.message : String(err);
-          if (!(err instanceof GeminiHttpError && err.status === 429)) {
-            allFailuresWereQuota = false;
-          }
-          const retryable = err instanceof GeminiHttpError && RETRYABLE_STATUS.has(err.status);
-          if (!retryable || attempt === RETRY_DELAYS_MS.length) break;
-          await sleep(RETRY_DELAYS_MS[attempt]);
-        }
+  try {
+    return await Promise.any(
+      combos.map(({ apiKey, model }, i) =>
+        callGeminiModel(model, apiKey, parts, maxOutputTokens, temperature, controllers[i].signal),
+      ),
+    );
+  } catch (aggregate) {
+    const errors = aggregate instanceof AggregateError ? aggregate.errors : [aggregate];
+    for (const err of errors) {
+      if (err instanceof PaperGenerationError) throw err;
+      lastMessage = err instanceof Error ? err.message : String(err);
+      if (!(err instanceof GeminiHttpError && err.status === 429)) {
+        allFailuresWereQuota = false;
       }
     }
+  } finally {
+    clearTimeout(timeoutId);
+    controllers.forEach((c) => c.abort());
   }
 
   if (allFailuresWereQuota) {

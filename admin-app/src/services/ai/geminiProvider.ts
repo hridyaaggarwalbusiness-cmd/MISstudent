@@ -10,15 +10,16 @@ import { extractJson, normalizeNotice, NoticeValidationError } from './noticeSch
 // to this app's real domains, same as the student-app key.
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-const MODEL_CANDIDATES = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-flash-latest'];
+// gemini-2.0-flash, gemini-1.5-flash, and gemini-1.5-flash-8b have all been
+// permanently retired by Google (shut down / returning 404) as of 2026 - see
+// student-app/src/services/ai/geminiProvider.ts for the same note.
+const MODEL_CANDIDATES = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest'];
 
 // A notice is a few short paragraphs, nowhere near the token budgets the
 // practice-test generator needs - these are deliberately small.
 const MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
   'gemini-2.5-flash': 4000,
-  'gemini-2.0-flash': 2000,
-  'gemini-1.5-flash': 2000,
-  'gemini-1.5-flash-8b': 2000,
+  'gemini-2.5-flash-lite': 2000,
   'gemini-flash-latest': 2000,
 };
 
@@ -26,7 +27,11 @@ const MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
 // invisible reasoning tokens draw from the same maxOutputTokens budget as
 // the visible response - disabling it keeps the full budget for the actual
 // notice text.
-const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-2.5-flash', 'gemini-flash-latest']);
+const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest']);
+
+// Every key/model combination gets this long to answer before it's raced
+// out - see callGemini below.
+const REQUEST_TIMEOUT_MS = 12000;
 
 // Each free-tier Gemini API key (from its own Google Cloud project) has an
 // independent daily quota, small enough that a handful of AI notices can
@@ -49,7 +54,13 @@ function getApiKeys(): string[] {
   return keys;
 }
 
-async function callGeminiModel(model: string, apiKey: string, prompt: string, requestedMaxOutputTokens: number): Promise<string> {
+async function callGeminiModel(
+  model: string,
+  apiKey: string,
+  prompt: string,
+  requestedMaxOutputTokens: number,
+  signal: AbortSignal,
+): Promise<string> {
   const maxOutputTokens = Math.min(requestedMaxOutputTokens, MODEL_MAX_OUTPUT_TOKENS[model] ?? requestedMaxOutputTokens);
   const generationConfig: Record<string, unknown> = {
     responseMimeType: 'application/json',
@@ -60,11 +71,20 @@ async function callGeminiModel(model: string, apiKey: string, prompt: string, re
     generationConfig.thinkingConfig = { thinkingBudget: 0 };
   }
 
-  const res = await fetch(`${API_BASE}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig }),
+      signal,
+    });
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`${model} timed out after ${REQUEST_TIMEOUT_MS / 1000}s`);
+    }
+    throw err;
+  }
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
@@ -89,19 +109,30 @@ async function callGeminiModel(model: string, apiKey: string, prompt: string, re
   return text;
 }
 
+// Every key/model combination is raced at once rather than tried one at a
+// time, same reasoning as student-app's practice-test generator: bounds the
+// whole call to roughly one request's round trip instead of the sum of
+// every sequential attempt, and aborts the losers the moment one succeeds.
 async function callGemini(prompt: string, maxOutputTokens: number): Promise<string> {
   const apiKeys = getApiKeys();
+  const combos = apiKeys.flatMap((apiKey) => MODEL_CANDIDATES.map((model) => ({ apiKey, model })));
+  const controllers = combos.map(() => new AbortController());
+  const timeoutId = setTimeout(() => controllers.forEach((c) => c.abort()), REQUEST_TIMEOUT_MS);
   let lastMessage = 'The AI provider is currently unavailable.';
 
-  for (const apiKey of apiKeys) {
-    for (const model of MODEL_CANDIDATES) {
-      try {
-        return await callGeminiModel(model, apiKey, prompt, maxOutputTokens);
-      } catch (err) {
-        if (err instanceof NoticeGenerationError) throw err;
-        lastMessage = err instanceof Error ? err.message : String(err);
-      }
+  try {
+    return await Promise.any(
+      combos.map(({ apiKey, model }, i) => callGeminiModel(model, apiKey, prompt, maxOutputTokens, controllers[i].signal)),
+    );
+  } catch (aggregate) {
+    const errors = aggregate instanceof AggregateError ? aggregate.errors : [aggregate];
+    for (const err of errors) {
+      if (err instanceof NoticeGenerationError) throw err;
+      lastMessage = err instanceof Error ? err.message : String(err);
     }
+  } finally {
+    clearTimeout(timeoutId);
+    controllers.forEach((c) => c.abort());
   }
 
   throw new NoticeGenerationError(`AI provider request failed on every available model. ${lastMessage}`, 'gemini-all-models-failed');
