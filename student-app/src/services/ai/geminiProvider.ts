@@ -51,14 +51,15 @@ const MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
 // alone can consume the entire budget and leave nothing for the actual
 // paper, which is why even a small 20-mark request can hit MAX_TOKENS.
 // IMPORTANT: Gemini 3 replaced the old numeric `thinkingBudget` field with
-// `thinkingLevel` ("low" | "medium" | "high") - sending the old field name
-// (or both) gets a flat 400 INVALID_ARGUMENT, which is almost certainly
-// why the previous gemini-flash-latest alias kept failing once Google
-// repointed it at a Gemini 3 model. "low" is the closest equivalent to the
-// old thinkingBudget: 0 (Gemini 3 has no true "off" setting) - it leaves
-// the most of the token budget for the actual response. Only send this to
-// models that actually understand it - older models reject unrecognized
-// generationConfig fields outright.
+// `thinkingLevel` ("minimal" | "low" | "medium" | "high") - sending the old
+// field name (or both) gets a flat 400 INVALID_ARGUMENT, which is almost
+// certainly why the previous gemini-flash-latest alias kept failing once
+// Google repointed it at a Gemini 3 model. "minimal" (NOT "low" - "low"
+// still spends real tokens reasoning, which was silently truncating/
+// corrupting the JSON response on some requests) is the closest equivalent
+// to the old thinkingBudget: 0 - it leaves the most of the token budget for
+// the actual response. Only send this to models that actually understand
+// it - older models reject unrecognized generationConfig fields outright.
 const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-3.5-flash', 'gemini-3.1-flash-lite']);
 
 // Carries the HTTP status (and whether this specifically means "the API key
@@ -120,7 +121,7 @@ async function callGeminiModel(
     temperature,
   };
   if (MODELS_WITH_THINKING_CONFIG.has(model)) {
-    generationConfig.thinkingConfig = { thinkingLevel: 'low' };
+    generationConfig.thinkingConfig = { thinkingLevel: 'minimal' };
   }
   let res: Response;
   try {

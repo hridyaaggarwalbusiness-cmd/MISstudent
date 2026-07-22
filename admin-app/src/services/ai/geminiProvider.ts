@@ -33,9 +33,11 @@ const MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
 // Gemini 3.x models "think" before answering by default, and those
 // invisible reasoning tokens draw from the same maxOutputTokens budget as
 // the visible response. Gemini 3 replaced the old numeric `thinkingBudget`
-// field with `thinkingLevel` ("low" | "medium" | "high") - sending the old
-// field name gets a flat 400 INVALID_ARGUMENT. "low" leaves the most
-// budget for the actual notice text (Gemini 3 has no true "off" setting).
+// field with `thinkingLevel` ("minimal" | "low" | "medium" | "high") -
+// sending the old field name gets a flat 400 INVALID_ARGUMENT. "minimal"
+// (NOT "low" - "low" still spends real tokens reasoning, which was
+// silently truncating/corrupting the JSON response) leaves the most
+// budget for the actual notice text.
 const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-3.5-flash', 'gemini-3.1-flash-lite']);
 
 // Every candidate model gets this long to answer before it's raced out -
@@ -80,7 +82,7 @@ async function callGeminiModel(
     temperature: 0.7,
   };
   if (MODELS_WITH_THINKING_CONFIG.has(model)) {
-    generationConfig.thinkingConfig = { thinkingLevel: 'low' };
+    generationConfig.thinkingConfig = { thinkingLevel: 'minimal' };
   }
 
   let res: Response;
