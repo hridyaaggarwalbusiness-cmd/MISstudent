@@ -21,3 +21,5 @@ export * from './SegmentedControl';
 export * from './AttachmentRow';
 export * from './DetailHeader';
 export * from './EdgeFade';
+export * from './PulsingIcon';
+export * from './TypingDots';

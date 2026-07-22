@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '@navigation/types';
-import { AppText, Button, Card, Chip, DetailHeader, SegmentedControl, Divider } from '@components/ui';
+import { AppText, Button, Card, Chip, DetailHeader, SegmentedControl, Divider, PulsingIcon, TypingDots } from '@components/ui';
 import { StepIndicator } from '@components/practiceTest/StepIndicator';
 import { OptionCard } from '@components/practiceTest/OptionCard';
 import { FormField } from '@components/practiceTest/FormField';
@@ -107,9 +107,7 @@ export function PracticeTestGeneratorScreen() {
   if (generating) {
     return (
       <View style={styles.loadingSafe}>
-        <View style={styles.loadingIconWrap}>
-          <Ionicons name="sparkles" size={36} color={colors.primary} />
-        </View>
+        <PulsingIcon name="sparkles" size={84} iconSize={36} />
         <AppText variant="h2" align="center" style={{ marginTop: spacing.lg }}>
           Crafting your CBSE paper...
         </AppText>
@@ -117,6 +115,9 @@ export function PracticeTestGeneratorScreen() {
           Our AI is writing {totalMarks} marks of {subject || 'your subject'} questions on {topics.map((t) => `“${t}”`).join(', ')}.
           This usually takes under a minute.
         </AppText>
+        <View style={{ marginTop: spacing.lg }}>
+          <TypingDots />
+        </View>
       </View>
     );
   }

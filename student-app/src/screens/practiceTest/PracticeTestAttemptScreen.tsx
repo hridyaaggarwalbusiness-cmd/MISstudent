@@ -4,7 +4,7 @@ import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '@navigation/types';
-import { AppText, Button, Card, DetailHeader } from '@components/ui';
+import { AppText, Button, Card, DetailHeader, PulsingIcon, TypingDots } from '@components/ui';
 import { AttemptQuestionBlock } from '@components/practiceTest/AttemptQuestionBlock';
 import { colors, radius, spacing } from '@theme';
 import { gradeAttempt } from '@utils/gradePaper';
@@ -84,15 +84,16 @@ export function PracticeTestAttemptScreen() {
   if (submitting) {
     return (
       <View style={styles.loadingSafe}>
-        <View style={styles.loadingIconWrap}>
-          <Ionicons name="checkmark-done" size={36} color={colors.primary} />
-        </View>
+        <PulsingIcon name="checkmark-done" size={84} iconSize={36} />
         <AppText variant="h2" align="center" style={{ marginTop: spacing.lg }}>
           Grading your answers...
         </AppText>
         <AppText variant="body" color={colors.textSecondary} align="center" style={{ marginTop: 6, maxWidth: 280 }}>
           Objective questions are scored instantly; written answers are being reviewed by AI. This usually takes a few seconds.
         </AppText>
+        <View style={{ marginTop: spacing.lg }}>
+          <TypingDots />
+        </View>
       </View>
     );
   }
