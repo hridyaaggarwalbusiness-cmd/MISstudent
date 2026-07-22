@@ -10,57 +10,6 @@ import {
 
 export class PaperValidationError extends Error {}
 
-// The most common way an otherwise-correct AI response becomes invalid
-// JSON: a raw, unescaped newline/tab/carriage-return character sitting
-// inside a JSON string value instead of its escaped \n/\t/\r form. This
-// happens most often on multi-line fields the prompt explicitly asks for -
-// e.g. an Assertion-Reason "caseText" ("Assertion (A): ..." on one line,
-// "Reason (R): ..." on the next) - where the model complies with the
-// two-line instruction by inserting a literal line break inside the string
-// rather than escaping it. A trailing comma before a closing brace/bracket
-// is the other frequent slip. Both are silent, single-character mistakes
-// that break JSON.parse even though the rest of the response is fine.
-// This walks the text tracking whether each character sits inside a JSON
-// string (respecting backslash-escapes and quote boundaries) and only
-// rewrites control characters found there, then strips trailing commas -
-// it never touches anything outside a string value, so it can't alter
-// well-formed JSON. Only ever invoked as a fallback after a first,
-// unmodified parse attempt has already failed - it can rescue an
-// otherwise-broken response, never change one that already parsed fine.
-function repairJsonWhitespace(text: string): string {
-  let result = '';
-  let inString = false;
-  let escaped = false;
-  for (const ch of text) {
-    if (inString) {
-      if (escaped) {
-        result += ch;
-        escaped = false;
-      } else if (ch === '\\') {
-        result += ch;
-        escaped = true;
-      } else if (ch === '"') {
-        inString = false;
-        result += ch;
-      } else if (ch === '\n') {
-        result += '\\n';
-      } else if (ch === '\r') {
-        result += '\\r';
-      } else if (ch === '\t') {
-        result += '\\t';
-      } else {
-        result += ch;
-      }
-    } else if (ch === '"') {
-      inString = true;
-      result += ch;
-    } else {
-      result += ch;
-    }
-  }
-  return result.replace(/,(\s*[}\]])/g, '$1');
-}
-
 // Models sometimes wrap JSON in ```json fences or add a stray sentence
 // around it despite instructions - this pulls out the outermost JSON value
 // rather than trusting the response to be bare JSON. The top-level value can
@@ -87,11 +36,7 @@ export function extractJson(raw: string): unknown {
   try {
     return JSON.parse(jsonText);
   } catch {
-    try {
-      return JSON.parse(repairJsonWhitespace(jsonText));
-    } catch {
-      throw new PaperValidationError('AI response was not valid JSON.');
-    }
+    throw new PaperValidationError('AI response was not valid JSON.');
   }
 }
 
