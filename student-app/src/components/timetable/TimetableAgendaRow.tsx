@@ -1,11 +1,26 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AppText } from '@components/ui';
 import { colors, spacing, radius } from '@theme';
 import { TimetablePeriod } from '@/types';
 import { subjectMeta, subjectTextColor } from '@data/subjectMeta';
+
+// Non-teaching schedule rows (Assembly, Fruit Break, Lunch, Diary, ...) get a
+// badge matched to what the row actually is, instead of one generic icon for
+// every kind of break - Assembly gets the Om glyph (no Ionicons equivalent
+// exists, so it's rendered as text), Fruit Break an apple, Lunch a
+// fork-and-knife, Diary an open book, and anything else falls back to the
+// plain cup icon.
+function breakBadge(label: string): { glyph: string } | { icon: keyof typeof Ionicons.glyphMap } {
+  const l = label.toLowerCase();
+  if (l.includes('assembl')) return { glyph: 'ॐ' };
+  if (l.includes('fruit')) return { icon: 'nutrition-outline' };
+  if (l.includes('lunch')) return { icon: 'restaurant-outline' };
+  if (l.includes('diary')) return { icon: 'reader-outline' };
+  return { icon: 'cafe-outline' };
+}
 
 function formatTime(t: string): string {
   const [h, m] = t.split(':').map(Number);
@@ -24,7 +39,7 @@ export type TimetableAgendaRowData =
 
 export function TimetableAgendaRow({ row, isLast }: { row: TimetableAgendaRowData; isLast: boolean }) {
   if (row.type === 'break') {
-    const isLunch = row.label.toLowerCase().includes('lunch');
+    const badge = breakBadge(row.label);
     return (
       <View style={[styles.row, !isLast && styles.rowDivider, { backgroundColor: colors.warningBg }]}>
         <View style={styles.timeCol}>
@@ -36,7 +51,11 @@ export function TimetableAgendaRow({ row, isLast }: { row: TimetableAgendaRowDat
           </AppText>
         </View>
         <View style={[styles.iconWrap, { backgroundColor: colors.tileOrange }]}>
-          <Ionicons name={isLunch ? 'restaurant-outline' : 'cafe-outline'} size={20} color="#fff" />
+          {'glyph' in badge ? (
+            <Text style={styles.breakGlyph}>{badge.glyph}</Text>
+          ) : (
+            <Ionicons name={badge.icon} size={20} color="#fff" />
+          )}
         </View>
         <View style={{ flex: 1, marginLeft: spacing.sm }}>
           <AppText variant="bodySemibold">{row.label}</AppText>
@@ -110,5 +129,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: spacing.xs,
+  },
+  breakGlyph: {
+    fontSize: 20,
+    lineHeight: 22,
+    color: '#fff',
+    fontWeight: '700',
   },
 });

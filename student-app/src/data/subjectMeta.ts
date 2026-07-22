@@ -20,6 +20,8 @@ const KNOWN_SUBJECTS: Record<string, SubjectMeta> = {
   'physical education': { icon: 'body-outline', gradient: [palette.violet400, palette.violet600] },
   pe: { icon: 'body-outline', gradient: [palette.violet400, palette.violet600] },
   'p.e.': { icon: 'body-outline', gradient: [palette.violet400, palette.violet600] },
+  diary: { icon: 'reader-outline', gradient: [palette.amber400, palette.amber600] },
+  'diary period': { icon: 'reader-outline', gradient: [palette.amber400, palette.amber600] },
 };
 
 const FALLBACK_GRADIENTS: readonly (readonly [string, string])[] = [
