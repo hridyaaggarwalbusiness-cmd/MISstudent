@@ -62,6 +62,7 @@
 }
 
 .cell {
+  position: relative;
   min-height: 82px;
   border-radius: var(--radius-md);
   border: 1.5px dashed var(--color-border);
@@ -72,6 +73,37 @@
   justify-content: center;
   gap: 3px;
   transition: border-color 0.12s ease, background 0.12s ease, transform 0.12s ease;
+}
+
+.cellDragTarget {
+  border-style: solid;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-soft) inset;
+}
+
+.dragHandle {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+
+.cell:hover .dragHandle {
+  opacity: 1;
+}
+
+.dragHandle:hover {
+  background: var(--color-surface);
+  color: var(--color-primary);
 }
 
 .cell:hover {

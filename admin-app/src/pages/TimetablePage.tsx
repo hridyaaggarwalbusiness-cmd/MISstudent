@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarClock, Coffee, User, MapPin, Settings2, Plus, ArrowUp, ArrowDown, X } from 'lucide-react';
+import { CalendarClock, Coffee, User, MapPin, Settings2, Plus, ArrowUp, ArrowDown, X, GripVertical } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
@@ -62,6 +62,66 @@ export function TimetablePage() {
   const [timeError, setTimeError] = useState('');
 
   const [manageOpen, setManageOpen] = useState(false);
+
+  // Drag-fill: holding the grip on a filled period cell and dragging across
+  // other period cells copies that period's subject/teacher/room onto every
+  // cell the pointer passes over, released on mouseup - the same "autofill"
+  // gesture as dragging a spreadsheet cell handle.
+  const [dragSource, setDragSource] = useState<{ subject: string; teacherId: string; teacher: string; room: string } | null>(null);
+  const [dragTargets, setDragTargets] = useState<Set<string>>(new Set());
+  const draggingRef = useRef(false);
+
+  function startDrag(e: React.MouseEvent, period: TimetablePeriod) {
+    e.preventDefault();
+    e.stopPropagation();
+    draggingRef.current = true;
+    setDragSource({ subject: period.subject, teacherId: period.teacherId, teacher: period.teacher, room: period.room });
+    setDragTargets(new Set());
+  }
+
+  function enterCellWhileDragging(day: DayOfWeek, slot: PeriodSlot) {
+    if (!draggingRef.current || slot.type !== 'period') return;
+    const key = `${day}|${slot.periodNumber}`;
+    setDragTargets((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+  }
+
+  useEffect(() => {
+    if (!dragSource) return;
+    async function commitDrag() {
+      draggingRef.current = false;
+      const source = dragSource;
+      const targets = Array.from(dragTargets);
+      setDragSource(null);
+      setDragTargets(new Set());
+      if (!source || !classId || targets.length === 0) return;
+      await Promise.all(
+        targets.map(async (key) => {
+          const [day, numStr] = key.split('|');
+          const periodNumber = Number(numStr);
+          const slot = sortedSlots.find((s) => s.type === 'period' && s.periodNumber === periodNumber);
+          if (!slot) return;
+          const existing = cellFor(day as DayOfWeek, periodNumber);
+          const id = existing?.id ?? `${classId}_${day}_${periodNumber}`;
+          await repo.timetable.upsert({
+            id,
+            classId,
+            day: day as DayOfWeek,
+            periodNumber,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            subject: source.subject,
+            teacher: source.teacher,
+            teacherId: source.teacherId,
+            room: source.room,
+            isBreak: false,
+          });
+        }),
+      );
+    }
+    window.addEventListener('mouseup', commitDrag);
+    return () => window.removeEventListener('mouseup', commitDrag);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragSource, dragTargets, classId]);
 
   useEffect(() => {
     if (classes.length && !classId) setClassId(classes[0].id);
@@ -252,17 +312,31 @@ export function TimetablePage() {
                     );
                   }
                   const period = cellFor(day, slot.periodNumber!);
+                  const isDragTarget = dragTargets.has(`${day}|${slot.periodNumber}`);
                   return (
                     <div
                       key={`${day}-${slot.id}`}
-                      className={[styles.cell, period && styles.cellFilled, day === todayAbbr && styles.cellToday]
+                      className={[
+                        styles.cell,
+                        period && styles.cellFilled,
+                        day === todayAbbr && styles.cellToday,
+                        isDragTarget && styles.cellDragTarget,
+                      ]
                         .filter(Boolean)
                         .join(' ')}
                       style={period ? subjectAccentStyle(period.subject) : undefined}
                       onClick={() => openCell(day, slot)}
+                      onMouseEnter={() => enterCellWhileDragging(day, slot)}
                     >
                       {period ? (
                         <>
+                          <span
+                            className={styles.dragHandle}
+                            title="Drag to copy this period onto other slots"
+                            onMouseDown={(e) => startDrag(e, period)}
+                          >
+                            <GripVertical size={12} />
+                          </span>
                           <span className={styles.cellSubject}>{period.subject}</span>
                           <span className={styles.cellMeta}>
                             {slot.startTime}-{slot.endTime}
