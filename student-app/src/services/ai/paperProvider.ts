@@ -27,18 +27,14 @@ export class PaperGenerationError extends Error {
 
 // Every screen that calls the AI shows whatever this returns directly to
 // the student, so it's the one place deciding how much of the real error
-// they see. Two codes are shown verbatim because they're genuine,
-// actionable information rather than a description of something broken:
-// "topic-not-in-syllabus" (which class/topic to pick instead) and
-// "quota-exceeded" (today's free-tier AI usage is used up - it resets on
-// its own; retrying right now won't help, so it needs to read differently
-// from a real failure or a student/admin will just keep retrying a request
-// that can't succeed until the quota resets). Everything else (invalid
-// key, model failures, malformed AI output, etc.) is real but not
-// something a student can act on, so it's replaced with one plain,
+// they see. Only "topic-not-in-syllabus" is shown verbatim - it's genuine,
+// actionable guidance about the student's own input (which class/topic to
+// pick instead), not a description of something broken. Everything else
+// (quota, invalid key, model failures, malformed AI output, etc.) is real
+// but not something a student can act on, so it's replaced with one plain,
 // consistent message rather than raw technical detail.
 export function friendlyAiErrorMessage(err: unknown): string {
-  if (err instanceof PaperGenerationError && (err.code === 'topic-not-in-syllabus' || err.code === 'quota-exceeded')) {
+  if (err instanceof PaperGenerationError && err.code === 'topic-not-in-syllabus') {
     return err.message;
   }
   return "There's a network error. Please try again.";
