@@ -24,18 +24,3 @@ export class PaperGenerationError extends Error {
     this.name = 'PaperGenerationError';
   }
 }
-
-// Every screen that calls the AI shows whatever this returns directly to
-// the student, so it's the one place deciding how much of the real error
-// they see. Only "topic-not-in-syllabus" is shown verbatim - it's genuine,
-// actionable guidance about the student's own input (which class/topic to
-// pick instead), not a description of something broken. Everything else
-// (quota, invalid key, model failures, malformed AI output, etc.) is real
-// but not something a student can act on, so it's replaced with one plain,
-// consistent message rather than raw technical detail.
-export function friendlyAiErrorMessage(err: unknown): string {
-  if (err instanceof PaperGenerationError && err.code === 'topic-not-in-syllabus') {
-    return err.message;
-  }
-  return "There's a network error. Please try again.";
-}

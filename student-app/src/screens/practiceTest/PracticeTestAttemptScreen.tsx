@@ -8,7 +8,7 @@ import { AppText, Button, Card, DetailHeader, PulsingIcon, TypingDots } from '@c
 import { AttemptQuestionBlock } from '@components/practiceTest/AttemptQuestionBlock';
 import { colors, radius, spacing } from '@theme';
 import { gradeAttempt } from '@utils/gradePaper';
-import { friendlyAiErrorMessage } from '@services/ai';
+import { PaperGenerationError } from '@services/ai';
 import { AttemptAnswer } from '@/types';
 
 function formatClock(totalSeconds: number): string {
@@ -50,7 +50,7 @@ export function PracticeTestAttemptScreen() {
     } catch (err) {
       submittedRef.current = false;
       setSubmitting(false);
-      setError(friendlyAiErrorMessage(err));
+      setError(err instanceof PaperGenerationError ? err.message : 'Could not grade your answers. Please try again.');
     }
   }
 

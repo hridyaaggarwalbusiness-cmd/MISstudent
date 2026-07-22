@@ -11,7 +11,7 @@ import { FormField } from '@components/practiceTest/FormField';
 import { TopicTagInput } from '@components/practiceTest/TopicTagInput';
 import { colors, radius, spacing } from '@theme';
 import { useAuthStore } from '@store/useAuthStore';
-import { paperProvider, friendlyAiErrorMessage } from '@services/ai';
+import { paperProvider, PaperGenerationError } from '@services/ai';
 import {
   CLASS_OPTIONS,
   DIFFICULTY_OPTIONS,
@@ -98,7 +98,7 @@ export function PracticeTestGeneratorScreen() {
       const paper = await paperProvider.generatePaper(request);
       navigation.navigate('PracticeTestResult', { paper });
     } catch (err) {
-      setError(friendlyAiErrorMessage(err));
+      setError(err instanceof PaperGenerationError ? err.message : 'Something went wrong. Please try again.');
     } finally {
       setGenerating(false);
     }
