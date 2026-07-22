@@ -15,5 +15,5 @@ import { PaperProvider } from './paperProvider';
 // the client at all.
 export const paperProvider: PaperProvider = geminiProvider;
 
-export { PaperGenerationError } from './paperProvider';
+export { PaperGenerationError, friendlyAiErrorMessage } from './paperProvider';
 export type { PaperProvider } from './paperProvider';

@@ -8,7 +8,7 @@ import { AnimatedPressable, AppText, Button, Card, DetailHeader, IconButton } fr
 import { QuestionBlock } from '@components/practiceTest/QuestionBlock';
 import { colors, radius, spacing } from '@theme';
 import { repo } from '@data/repositories';
-import { paperProvider, PaperGenerationError } from '@services/ai';
+import { paperProvider, friendlyAiErrorMessage } from '@services/ai';
 import { downloadPracticeTestPdf, sharePracticeTestPdf, viewPracticeTestPdf } from '@utils/practiceTestPdf';
 import { DIFFICULTY_LABEL, LANGUAGE_LABEL, PAPER_TYPE_LABEL } from '@data/practiceTestOptions';
 import { GeneratedPaper } from '@/types';
@@ -70,7 +70,7 @@ export function PracticeTestResultScreen() {
         ),
       }));
     } catch (err) {
-      setActionError(err instanceof PaperGenerationError ? err.message : 'Could not regenerate that question. Please try again.');
+      setActionError(friendlyAiErrorMessage(err));
     } finally {
       setRegeneratingId(null);
     }
