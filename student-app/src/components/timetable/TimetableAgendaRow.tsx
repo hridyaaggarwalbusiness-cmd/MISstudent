@@ -50,6 +50,7 @@ export function TimetableAgendaRow({ row, isLast }: { row: TimetableAgendaRowDat
             {formatTime(row.endTime)}
           </AppText>
         </View>
+        <View style={styles.periodBadge} />
         <View style={[styles.iconWrap, { backgroundColor: colors.tileOrange }]}>
           {'glyph' in badge ? (
             <Text style={styles.breakGlyph}>{badge.glyph}</Text>
