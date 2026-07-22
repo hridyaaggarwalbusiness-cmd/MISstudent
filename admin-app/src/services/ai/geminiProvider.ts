@@ -10,30 +10,33 @@ import { extractJson, normalizeNotice, NoticeValidationError } from './noticeSch
 // to this app's real domains, same as the student-app key.
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-// gemini-2.0-flash, gemini-1.5-flash, and gemini-1.5-flash-8b have all been
-// permanently retired by Google (shut down / returning 404) as of 2026 - see
-// student-app/src/services/ai/geminiProvider.ts for the same note.
-// Deliberately NOT including "gemini-flash-latest" either - a moving alias
-// Google repoints to whatever its current flagship flash model is, which in
-// practice has intermittently rejected requests with a bare 400
-// INVALID_ARGUMENT, almost certainly because whatever it's aliased to right
-// now doesn't support one of the generationConfig fields below. Both
-// gemini-2.5-flash and gemini-2.5-flash-lite are pinned, versioned model
-// IDs that don't have this problem.
-const MODEL_CANDIDATES = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+// Google fully retired the entire Gemini 2.5 generation for this project
+// sometime before July 2026 (gemini-2.5-flash / gemini-2.5-flash-lite both
+// 404 with "no longer available to new users") - see
+// student-app/src/services/ai/geminiProvider.ts for the full account of
+// how this was diagnosed. Current lineup as of July 2026: gemini-3.5-flash
+// (released May 2026, free tier) as primary, gemini-3.1-flash-lite (GA
+// since May 2026, free tier) as fallback - not the same-day-released
+// gemini-3.5-flash-lite/gemini-3.6-flash, which are too unproven yet for a
+// fallback that needs to just work. If every candidate here starts failing
+// again, check https://ai.google.dev/gemini-api/docs/models for the
+// current model IDs rather than assuming these are still current.
+const MODEL_CANDIDATES = ['gemini-3.5-flash', 'gemini-3.1-flash-lite'];
 
 // A notice is a few short paragraphs, nowhere near the token budgets the
 // practice-test generator needs - these are deliberately small.
 const MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
-  'gemini-2.5-flash': 4000,
-  'gemini-2.5-flash-lite': 2000,
+  'gemini-3.5-flash': 4000,
+  'gemini-3.1-flash-lite': 2000,
 };
 
-// The 2.5-generation models "think" before answering by default, and those
+// Gemini 3.x models "think" before answering by default, and those
 // invisible reasoning tokens draw from the same maxOutputTokens budget as
-// the visible response - disabling it keeps the full budget for the actual
-// notice text.
-const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-2.5-flash', 'gemini-2.5-flash-lite']);
+// the visible response. Gemini 3 replaced the old numeric `thinkingBudget`
+// field with `thinkingLevel` ("low" | "medium" | "high") - sending the old
+// field name gets a flat 400 INVALID_ARGUMENT. "low" leaves the most
+// budget for the actual notice text (Gemini 3 has no true "off" setting).
+const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-3.5-flash', 'gemini-3.1-flash-lite']);
 
 // Every candidate model gets this long to answer before it's raced out -
 // see callGemini below.
@@ -77,7 +80,7 @@ async function callGeminiModel(
     temperature: 0.7,
   };
   if (MODELS_WITH_THINKING_CONFIG.has(model)) {
-    generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    generationConfig.thinkingConfig = { thinkingLevel: 'low' };
   }
 
   let res: Response;

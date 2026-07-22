@@ -18,53 +18,48 @@ import { PaperGenerationError, PaperProvider } from './paperProvider';
 // for a key that never leaves the server at all.
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-// Free-tier quota/billing eligibility for a given model varies by Google
-// account and can differ even between models on the exact same key (some
-// accounts get a 429 "exceeded quota" on the newest flash model but not on
-// older ones). Rather than depend on one model working, try a prioritized
-// list and fall through to the next on any failure - this self-heals
-// without needing per-account diagnosis.
-// gemini-2.5-flash goes first: it has a far higher output-token ceiling,
-// which matters because a full CBSE paper (up to 100 marks, 30+ questions
-// with model answers) can run long enough to hit a smaller cap mid-JSON.
-// gemini-2.5-flash-lite is the fallback: same generation, no separate
-// billing/quota bucket shared with 2.5-flash, and a noticeably higher free-
-// tier daily request cap - so once 2.5-flash's own daily quota is used up,
-// this keeps the app working for the rest of the day instead of failing.
-// Deliberately NOT including "gemini-flash-latest" (a moving alias Google
-// repoints to whatever its current flagship flash model is): it has been
-// the source of every single failure this list has produced in practice -
-// intermittently rejecting requests with a bare 400 INVALID_ARGUMENT,
-// almost certainly because whatever it's currently aliased to doesn't
-// support one of the fields in generationConfig (see
-// MODELS_WITH_THINKING_CONFIG below). Both gemini-2.5-flash and
-// gemini-2.5-flash-lite are pinned, versioned model IDs - their supported
-// fields don't shift under this app - so sticking to just these two is
-// more reliable than chasing a moving target for one extra fallback. The
-// older gemini-2.0-flash, gemini-1.5-flash, and gemini-1.5-flash-8b model
-// IDs have all been permanently retired by Google (shut down / returning
-// 404) as of 2026, so they're not candidates either. If requests start
-// failing on every remaining candidate, check
-// https://ai.google.dev/gemini-api/docs/models for current model IDs.
-const MODEL_CANDIDATES = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+// Google fully retired the entire Gemini 2.5 generation for this project
+// sometime before July 2026 - gemini-2.5-flash and gemini-2.5-flash-lite
+// both now 404 with "no longer available to new users", which is what
+// every failure this session traced back to (the previously-listed
+// gemini-flash-latest alias had quietly started pointing at a Gemini 3.x
+// model, which needs a different generationConfig shape - see
+// MODELS_WITH_THINKING_CONFIG below - hence its own intermittent 400s).
+// Current lineup as of July 2026: gemini-3.5-flash (released May 2026,
+// well-established, up to 64K output tokens, free tier) as primary;
+// gemini-3.1-flash-lite (GA since May 2026, free tier) as the fallback -
+// deliberately not the same-day-released gemini-3.5-flash-lite or
+// gemini-3.6-flash, since day-of-release models are too unproven for a
+// fallback that needs to just work. Google's Gemini lineup has moved fast
+// (three version bumps in the ~7 months since this code was first
+// written) - if every candidate here starts failing again, check
+// https://ai.google.dev/gemini-api/docs/models for the current model IDs
+// rather than assuming these two are still current.
+const MODEL_CANDIDATES = ['gemini-3.5-flash', 'gemini-3.1-flash-lite'];
 
 // Each model's real output-token ceiling - requests above this are just
 // wasted budget (or rejected outright by some models), so the requested
 // amount is clamped per-model rather than sent as one flat number.
 const MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
-  'gemini-2.5-flash': 24000,
-  'gemini-2.5-flash-lite': 8000,
+  'gemini-3.5-flash': 24000,
+  'gemini-3.1-flash-lite': 8000,
 };
 
-// The 2.5-generation models "think" before answering by default, and those
+// Gemini 3.x models "think" before answering by default, and those
 // invisible reasoning tokens are deducted from the SAME maxOutputTokens
 // budget as the visible JSON - on a model that reasons a lot, thinking
 // alone can consume the entire budget and leave nothing for the actual
 // paper, which is why even a small 20-mark request can hit MAX_TOKENS.
-// Setting thinkingBudget: 0 turns thinking off so the full budget goes to
-// the response. Only send this to models that actually understand it -
-// older models reject unrecognized generationConfig fields outright.
-const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-2.5-flash', 'gemini-2.5-flash-lite']);
+// IMPORTANT: Gemini 3 replaced the old numeric `thinkingBudget` field with
+// `thinkingLevel` ("low" | "medium" | "high") - sending the old field name
+// (or both) gets a flat 400 INVALID_ARGUMENT, which is almost certainly
+// why the previous gemini-flash-latest alias kept failing once Google
+// repointed it at a Gemini 3 model. "low" is the closest equivalent to the
+// old thinkingBudget: 0 (Gemini 3 has no true "off" setting) - it leaves
+// the most of the token budget for the actual response. Only send this to
+// models that actually understand it - older models reject unrecognized
+// generationConfig fields outright.
+const MODELS_WITH_THINKING_CONFIG = new Set(['gemini-3.5-flash', 'gemini-3.1-flash-lite']);
 
 // Carries the HTTP status (and whether this specifically means "the API key
 // itself is malformed/invalid") so callGemini can decide what to tell the
@@ -125,7 +120,7 @@ async function callGeminiModel(
     temperature,
   };
   if (MODELS_WITH_THINKING_CONFIG.has(model)) {
-    generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    generationConfig.thinkingConfig = { thinkingLevel: 'low' };
   }
   let res: Response;
   try {
