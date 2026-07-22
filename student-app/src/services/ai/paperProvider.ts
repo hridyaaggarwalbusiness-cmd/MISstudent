@@ -38,6 +38,15 @@ export class PaperGenerationError extends Error {
 // something a student can act on, so it's replaced with one plain,
 // consistent message rather than raw technical detail.
 export function friendlyAiErrorMessage(err: unknown): string {
+  // Logged (not shown to the student) so the real cause is visible in the
+  // browser console when the generic message below doesn't say enough to
+  // diagnose a report of "it just doesn't work" - never remove this without
+  // replacing it with an equivalent way to see what actually failed.
+  // eslint-disable-next-line no-console
+  console.error(
+    'AI request failed:',
+    err instanceof PaperGenerationError ? `[${err.code ?? 'no-code'}] ${err.message}` : err,
+  );
   if (err instanceof PaperGenerationError && (err.code === 'topic-not-in-syllabus' || err.code === 'quota-exceeded')) {
     return err.message;
   }
