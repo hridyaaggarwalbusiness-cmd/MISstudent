@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
-import { AppText, Card, Chip, Button, DetailHeader, AttachmentRow } from '@components/ui';
+import { AppText, Card, Chip, Button, DetailHeader, SubjectSelectField, AttachmentRow } from '@components/ui';
 import { colors, spacing, radius } from '@theme';
 import { useAuthStore } from '@store/useAuthStore';
 import { repo, MAX_ATTACHMENT_BYTES } from '@data/repositories';
-import { Attachment, MaterialType } from '@/types';
+import { subjectOptions, parseGrade } from '@/data/subjects';
+import { Attachment, MaterialType, SchoolClass } from '@/types';
 
 const TYPES: { key: MaterialType; label: string }[] = [
   { key: 'note', label: 'Notes' },
@@ -21,10 +22,20 @@ export function MaterialUploadScreen() {
   const navigation = useNavigation();
   const { teacher } = useAuthStore();
   const classId = teacher?.classIds?.[0];
-  const subjects = teacher?.subjects ?? [];
+  const [classInfo, setClassInfo] = useState<SchoolClass | null>(null);
+
+  useEffect(() => {
+    if (!classId) return;
+    repo.classes.get(classId).then(setClassInfo);
+  }, [classId]);
+
+  const subjects = useMemo(
+    () => subjectOptions('homework', classInfo ? parseGrade(classInfo.name) : null),
+    [classInfo],
+  );
 
   const [type, setType] = useState<MaterialType>('note');
-  const [subject, setSubject] = useState(subjects[0] ?? '');
+  const [subject, setSubject] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [pickedFile, setPickedFile] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
@@ -100,11 +111,7 @@ export function MaterialUploadScreen() {
           <AppText variant="caption" color={colors.textSecondary} style={{ marginTop: spacing.md, marginBottom: 6 }}>
             Subject
           </AppText>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
-            {subjects.map((s) => (
-              <Chip key={s} label={s} active={subject === s} onPress={() => setSubject(s)} />
-            ))}
-          </View>
+          <SubjectSelectField key={classId} value={subject} options={subjects} onChange={setSubject} title="Subject" />
 
           <AppText variant="caption" color={colors.textSecondary} style={{ marginTop: spacing.md, marginBottom: 6 }}>
             Title

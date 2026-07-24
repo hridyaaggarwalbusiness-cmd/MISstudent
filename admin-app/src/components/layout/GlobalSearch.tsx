@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Users, GraduationCap, School } from 'lucide-react';
 import { useCollection } from '@/hooks/useCollection';
 import { repo } from '@/data/repositories';
+import { classLabelById } from '@/utils/classLabels';
 import type { SchoolClass, Student, Teacher } from '@/types';
 import styles from './AppLayout.module.css';
 
@@ -55,14 +56,14 @@ export function GlobalSearch() {
         }),
       );
     teachers
-      .filter((t) => t.name.toLowerCase().includes(q) || t.subjects.some((sub) => sub.toLowerCase().includes(q)))
+      .filter((t) => t.name.toLowerCase().includes(q))
       .slice(0, 5)
       .forEach((t) =>
         out.push({
           key: `t-${t.id}`,
           icon: GraduationCap,
           title: t.name,
-          subtitle: `Teacher · ${t.subjects.join(', ')}`,
+          subtitle: t.isClassTeacherOf ? `Teacher · Class Teacher of ${classLabelById(t.isClassTeacherOf, classes)}` : 'Teacher',
           onSelect: () => navigate(`/teachers?q=${encodeURIComponent(t.name)}`),
         }),
       );

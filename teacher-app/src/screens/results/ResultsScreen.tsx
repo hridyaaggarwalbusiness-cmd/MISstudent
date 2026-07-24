@@ -23,8 +23,6 @@ export function ResultsScreen() {
     return repo.exams.subscribeForClass(classId, setExams);
   }, [classId]);
 
-  const mySubjectExams = (exams ?? []).filter((e) => teacher?.subjects.includes(e.subject));
-
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <DetailHeader title="Results" />
@@ -34,7 +32,7 @@ export function ResultsScreen() {
         </View>
       ) : (
         <FlatList
-          data={mySubjectExams}
+          data={exams ?? []}
           keyExtractor={(e) => e.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}

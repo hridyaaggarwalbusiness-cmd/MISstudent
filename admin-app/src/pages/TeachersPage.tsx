@@ -30,18 +30,16 @@ interface FormState {
   email: string;
   password: string;
   phone: string;
-  subjects: string;
   isClassTeacherOf: string;
 }
 
-const emptyForm: FormState = { name: '', email: '', password: '', phone: '', subjects: '', isClassTeacherOf: '' };
+const emptyForm: FormState = { name: '', email: '', password: '', phone: '', isClassTeacherOf: '' };
 
 interface ImportRow {
   name: string;
   email: string;
   password: string;
   phone: string;
-  subjects: string[];
   isClassTeacherOf: string | null;
 }
 
@@ -92,7 +90,6 @@ export function TeachersPage() {
           name: form.name.trim(),
           email: form.email.trim(),
           phone: form.phone.trim(),
-          subjects: form.subjects.split(',').map((s) => s.trim()).filter(Boolean),
           isClassTeacherOf,
         },
       });
@@ -130,7 +127,6 @@ export function TeachersPage() {
     { key: 'name', label: 'Name', required: true, width: '180px' },
     { key: 'email', label: 'Email', readOnly: true, width: '200px' },
     { key: 'phone', label: 'Phone', width: '130px' },
-    { key: 'subjects', label: 'Subjects', width: '180px' },
     { key: 'classTeacherOf', label: 'Class Teacher Of', width: '180px' },
   ];
 
@@ -138,7 +134,6 @@ export function TeachersPage() {
     name: t.name,
     email: t.email,
     phone: t.phone,
-    subjects: t.subjects.join(', '),
     classTeacherOf: t.isClassTeacherOf ? classLabel(t.isClassTeacherOf) : '',
   }));
 
@@ -161,19 +156,6 @@ export function TeachersPage() {
   async function onSpreadsheetCellCommit(rowIndex: number, key: string, value: string) {
     const teacher = teachers[rowIndex];
     if (!teacher) return;
-
-    if (key === 'subjects') {
-      flashStatus(rowIndex, { tone: 'busy' });
-      try {
-        await repo.teachers.update(teacher.id, {
-          subjects: value.split(/[;,]/).map((s) => s.trim()).filter(Boolean),
-        });
-        flashStatus(rowIndex, { tone: 'success' });
-      } catch (e) {
-        flashStatus(rowIndex, { tone: 'error', message: getErrorMessage(e) });
-      }
-      return;
-    }
 
     if (key === 'classTeacherOf') {
       if (!value.trim()) {
@@ -220,7 +202,6 @@ export function TeachersPage() {
     { key: 'email', label: 'Email', required: true },
     { key: 'password', label: 'Password', aliases: ['temporary password'] },
     { key: 'phone', label: 'Phone' },
-    { key: 'subjects', label: 'Subjects', aliases: ['subject'] },
     { key: 'classTeacherOf', label: 'Class Teacher Of', aliases: ['class teacher', 'class incharge'] },
   ];
 
@@ -244,10 +225,6 @@ export function TeachersPage() {
         email,
         password: (cells.password ?? '').trim() || generateTempPassword(),
         phone: (cells.phone ?? '').trim(),
-        subjects: (cells.subjects ?? '')
-          .split(/[;,]/)
-          .map((s) => s.trim())
-          .filter(Boolean),
         isClassTeacherOf,
       },
     };
@@ -262,7 +239,6 @@ export function TeachersPage() {
         name: row.name,
         email: row.email,
         phone: row.phone,
-        subjects: row.subjects,
         isClassTeacherOf: row.isClassTeacherOf,
       },
     });
@@ -336,7 +312,6 @@ export function TeachersPage() {
                 ),
               },
               { key: 'phone', header: 'Phone', render: (t) => t.phone },
-              { key: 'subjects', header: 'Subjects', render: (t) => t.subjects.join(', ') || '—' },
               { key: 'classTeacherOf', header: 'Class Teacher Of', render: (t) => (t.isClassTeacherOf ? classLabel(t.isClassTeacherOf) : '—') },
               {
                 key: 'actions',
@@ -388,12 +363,6 @@ export function TeachersPage() {
             onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
           <TextField label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          <TextField
-            label="Subjects"
-            hint="Comma separated, e.g. Math, Physics"
-            value={form.subjects}
-            onChange={(e) => setForm({ ...form, subjects: e.target.value })}
-          />
           <SelectField
             label="Class Teacher Of (optional)"
             hint="Only if this teacher is in charge of a homeroom class - any teacher can teach any class regardless."

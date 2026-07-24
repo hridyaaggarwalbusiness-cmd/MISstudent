@@ -222,7 +222,7 @@ export function DashboardScreen() {
     },
   ];
 
-  const teacherRoleLine = teacher ? `${teacher.subjects.join(', ')} Teacher` : '';
+  const teacherRoleLine = teacher?.isClassTeacherOf ? 'Class Teacher' : 'Teacher';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>

@@ -44,7 +44,7 @@ export function ProfileScreen() {
             {teacher.name}
           </AppText>
           <AppText variant="body" color={colors.textSecondary} style={{ marginTop: 2 }}>
-            {teacher.subjects.join(', ')}
+            Teacher
           </AppText>
           {teacher.isClassTeacherOf && (
             <View style={styles.badgeRow}>
@@ -69,13 +69,6 @@ export function ProfileScreen() {
                 Students
               </AppText>
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statBox}>
-              <AppText variant="h2">{teacher.subjects.length}</AppText>
-              <AppText variant="tiny" color={colors.textTertiary}>
-                {teacher.subjects.length === 1 ? 'Subject' : 'Subjects'}
-              </AppText>
-            </View>
           </View>
         </View>
 
@@ -90,7 +83,6 @@ export function ProfileScreen() {
         <View style={styles.section}>
           <SectionLabel icon="school-outline" title="Teaching Assignment" />
           <Card>
-            <InfoRow icon="book-outline" label="Subjects" value={teacher.subjects.join(', ')} />
             <InfoRow
               icon="people-outline"
               label="Classes"

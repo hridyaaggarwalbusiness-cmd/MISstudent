@@ -46,8 +46,6 @@ let subscribed = false;
 
 function recompute(set: (partial: Partial<NotificationsState>) => void, get: () => NotificationsState) {
   const { notices, exams, events, readIds } = get();
-  const teacher = useAuthStore.getState().teacher;
-  const mySubjects = new Set(teacher?.subjects ?? []);
 
   const entries: { ts: number; item: NotificationsState['items'][number] }[] = [];
 
@@ -71,7 +69,7 @@ function recompute(set: (partial: Partial<NotificationsState>) => void, get: () 
   });
 
   exams
-    .filter((e) => mySubjects.has(e.subject) && isUpcoming(e.date, 14))
+    .filter((e) => isUpcoming(e.date, 14))
     .forEach((e) => {
       const id = `exam-${e.id}`;
       entries.push({

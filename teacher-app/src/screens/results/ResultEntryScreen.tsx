@@ -2,12 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, TextInput, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp } from '@react-navigation/native';
-import { AppText, Card, Chip, Button, DetailHeader, EmptyState, IconButton, DatePickerField, SubjectSelectField } from '@components/ui';
+import { Ionicons } from '@expo/vector-icons';
+import { AppText, Card, Badge, Button, DetailHeader, EmptyState, IconButton, Skeleton, DatePickerField, SubjectSelectField } from '@components/ui';
 import { colors, spacing, radius } from '@theme';
 import { RootStackParamList } from '@navigation/types';
 import { useAuthStore } from '@store/useAuthStore';
 import { repo } from '@data/repositories';
 import { subjectOptions, parseGrade } from '@data/subjects';
+import { friendlyDate } from '@utils/date';
 import { Exam, SchoolClass, Student, ExamResult } from '@/types';
 
 const emptyExamForm = { name: '', subject: '', date: '', startTime: '', endTime: '', room: '' };
@@ -63,10 +65,7 @@ export function ResultEntryScreen() {
   }, [classId]);
 
   const selectedExam = useMemo(() => exams?.find((e) => e.id === selectedExamId), [exams, selectedExamId]);
-  const mySubjectExams = useMemo(
-    () => (exams ?? []).filter((e) => teacher?.subjects.includes(e.subject)),
-    [exams, teacher],
-  );
+  const examsList = exams ?? [];
 
   useEffect(() => {
     if (!selectedExamId) return;
@@ -148,7 +147,10 @@ export function ResultEntryScreen() {
     <Modal visible={creatingExam} transparent animationType="fade" onRequestClose={() => setCreatingExam(false)}>
       <View style={styles.modalOverlay}>
         <View style={styles.modalCard}>
-          <AppText variant="h2">New Exam</AppText>
+          <View style={styles.modalHeaderRow}>
+            <AppText variant="h2">New Exam</AppText>
+            <IconButton icon="close" onPress={() => setCreatingExam(false)} size={32} />
+          </View>
           <FormField label="Name (e.g. Unit Test 2)" value={examForm.name} onChangeText={(v) => setExamForm((f) => ({ ...f, name: v }))} />
           <View style={{ marginTop: spacing.md }}>
             <AppText variant="caption" color={colors.textSecondary} style={{ marginBottom: 4 }}>
@@ -195,16 +197,26 @@ export function ResultEntryScreen() {
             <AppText variant="h3">Select an exam</AppText>
             <IconButton icon="add" onPress={openCreateExam} backgroundColor={colors.primary} color={colors.textInverse} size={32} />
           </View>
-          {mySubjectExams.length === 0 ? (
+          {exams === null ? (
+            <Skeleton height={100} borderRadius={16} />
+          ) : examsList.length === 0 ? (
             <EmptyState icon="document-text-outline" title="No exams found" message="Tap + to schedule your first exam." />
           ) : (
-            mySubjectExams.map((exam) => (
-              <Chip
-                key={exam.id}
-                label={`${exam.name} — ${exam.subject}`}
-                onPress={() => setSelectedExamId(exam.id)}
-                style={{ marginBottom: spacing.sm, alignSelf: 'flex-start' }}
-              />
+            examsList.map((exam) => (
+              <Card key={exam.id} style={{ marginBottom: spacing.sm }} onPress={() => setSelectedExamId(exam.id)}>
+                <View style={styles.row}>
+                  <View style={{ flex: 1 }}>
+                    <Badge label={exam.subject} tone="neutral" size="sm" />
+                    <AppText variant="bodySemibold" style={{ marginTop: 4 }}>
+                      {exam.name}
+                    </AppText>
+                    <AppText variant="tiny" color={colors.textTertiary} style={{ marginTop: 3 }}>
+                      {friendlyDate(exam.date)}
+                    </AppText>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+                </View>
+              </Card>
             ))
           )}
         </ScrollView>
@@ -213,39 +225,64 @@ export function ResultEntryScreen() {
     );
   }
 
+  const totalStudents = students.length;
+  const gradedCount = students.filter((s) => (marks[s.id] ?? '').trim() !== '').length;
+  const pendingCount = totalStudents - gradedCount;
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <DetailHeader title={selectedExam?.name ?? 'Enter Marks'} />
+      <DetailHeader title="Enter Marks" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <AppText variant="caption" color={colors.textSecondary} style={{ marginBottom: spacing.md }}>
-          {selectedExam?.subject} · Marks out of 100
-        </AppText>
-        {students.map((student) => (
-          <Card key={student.id} style={{ marginBottom: spacing.sm }}>
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <AppText variant="bodyMedium">{student.name}</AppText>
-                <AppText variant="tiny" color={colors.textTertiary}>
-                  Roll No. {student.rollNumber}
-                </AppText>
+        <View style={styles.summaryCard}>
+          <Badge label={selectedExam?.subject ?? ''} tone="neutral" style={{ backgroundColor: 'rgba(255,255,255,0.18)' }} />
+          <AppText variant="h3" color={colors.textInverse} style={{ marginTop: spacing.sm }}>
+            {selectedExam?.name ?? 'Exam'}
+          </AppText>
+          <AppText variant="caption" color="rgba(255,255,255,0.85)" style={{ marginTop: 2 }}>
+            {selectedExam ? friendlyDate(selectedExam.date) : ''} · Marks out of 100
+          </AppText>
+
+          <View style={styles.summaryStatsRow}>
+            <SummaryStat label="Students" value={totalStudents} />
+            <SummaryStat label="Graded" value={gradedCount} valueColor="#7CF2B0" />
+            <SummaryStat label="Pending" value={pendingCount} valueColor="#FF9C9C" />
+          </View>
+        </View>
+
+        {students.map((student) => {
+          const rawMark = marks[student.id] ?? '';
+          const marksObtained = Number(rawMark);
+          const hasMark = rawMark.trim() !== '' && !Number.isNaN(marksObtained);
+          return (
+            <Card key={student.id} style={{ marginBottom: spacing.sm }}>
+              <View style={styles.row}>
+                <View style={{ flex: 1 }}>
+                  <AppText variant="bodyMedium">{student.name}</AppText>
+                  <AppText variant="tiny" color={colors.textTertiary}>
+                    Roll No. {student.rollNumber}
+                  </AppText>
+                </View>
+                {hasMark && (
+                  <Badge label={gradeFor(marksObtained)} tone="success" size="sm" style={{ marginRight: spacing.sm }} />
+                )}
+                <TextInput
+                  value={rawMark}
+                  onChangeText={(v) => setMarks((m) => ({ ...m, [student.id]: v }))}
+                  keyboardType="numeric"
+                  placeholder="—"
+                  placeholderTextColor={colors.textTertiary}
+                  style={[styles.marksInput, hasMark && styles.marksInputFilled]}
+                  onBlur={() => saveOne(student)}
+                />
+                {saving === student.id && (
+                  <AppText variant="tiny" color={colors.primary} style={{ marginLeft: spacing.xs }}>
+                    Saving…
+                  </AppText>
+                )}
               </View>
-              <TextInput
-                value={marks[student.id] ?? ''}
-                onChangeText={(v) => setMarks((m) => ({ ...m, [student.id]: v }))}
-                keyboardType="numeric"
-                placeholder="—"
-                placeholderTextColor={colors.textTertiary}
-                style={styles.marksInput}
-                onBlur={() => saveOne(student)}
-              />
-              {saving === student.id && (
-                <AppText variant="tiny" color={colors.primary} style={{ marginLeft: spacing.xs }}>
-                  Saving…
-                </AppText>
-              )}
-            </View>
-          </Card>
-        ))}
+            </Card>
+          );
+        })}
         <Button
           label="Done"
           onPress={() => Alert.alert('Saved', 'Marks are saved automatically as you enter them.')}
@@ -254,6 +291,19 @@ export function ResultEntryScreen() {
         />
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function SummaryStat({ label, value, valueColor }: { label: string; value: number; valueColor?: string }) {
+  return (
+    <View style={{ flex: 1, alignItems: 'center' }}>
+      <AppText variant="h3" color={valueColor ?? colors.textInverse}>
+        {value}
+      </AppText>
+      <AppText variant="tiny" color="rgba(255,255,255,0.8)" align="center">
+        {label}
+      </AppText>
+    </View>
   );
 }
 
@@ -286,6 +336,19 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
   row: { flexDirection: 'row', alignItems: 'center' },
   selectHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
+  summaryCard: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  summaryStatsRow: {
+    flexDirection: 'row',
+    marginTop: spacing.lg,
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.25)',
+  },
   marksInput: {
     width: 64,
     height: 40,
@@ -297,8 +360,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
     color: colors.textPrimary,
   },
+  marksInputFilled: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
+  },
   modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: spacing.lg },
-  modalCard: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg },
+  modalCard: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg },
+  modalHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs },
   input: {
     height: 44,
     borderRadius: radius.sm,

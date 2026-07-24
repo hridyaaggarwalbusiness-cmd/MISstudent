@@ -4,7 +4,6 @@ export interface Teacher {
   photoUrl?: string | null;
   email: string;
   phone: string;
-  subjects: string[];
   classIds: string[];
   isClassTeacherOf: string | null;
 }
