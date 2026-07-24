@@ -55,6 +55,7 @@ export interface TimetablePeriod {
   teacherId: string;
   room: string;
   isBreak?: boolean;
+  updatedAt?: string;
 }
 
 // The school-wide row structure of the timetable grid, admin-authored and

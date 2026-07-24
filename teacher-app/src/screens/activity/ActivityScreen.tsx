@@ -17,10 +17,11 @@ export function ActivityScreen() {
     init();
   }, [init]);
 
-  const onPressItem = (id: string, navTarget: { screen: 'notices' | 'exam' | 'calendar' }) => {
+  const onPressItem = (id: string, navTarget: { screen: 'notices' | 'exam' | 'calendar' | 'timetable' }) => {
     markRead(id);
     if (navTarget.screen === 'notices') navigation.navigate('Notices');
     else if (navTarget.screen === 'exam') navigation.navigate('ResultEntry', {});
+    else if (navTarget.screen === 'timetable') navigation.navigate('MainTabs', { screen: 'ClassesTab' });
     else navigation.navigate('AcademicCalendar');
   };
 

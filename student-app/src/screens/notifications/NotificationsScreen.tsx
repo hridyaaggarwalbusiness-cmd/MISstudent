@@ -14,6 +14,7 @@ const TABS: { label: string; type: AppNotification['type'] | 'all' }[] = [
   { label: 'All', type: 'all' },
   { label: 'Homework', type: 'homework' },
   { label: 'Notices', type: 'notice' },
+  { label: 'Timetable', type: 'timetable' },
 ];
 
 export function NotificationsScreen() {
@@ -53,6 +54,9 @@ export function NotificationsScreen() {
         break;
       case 'bus':
         navigation.navigate('LiveBusTracking');
+        break;
+      case 'timetable':
+        navigation.navigate('MainTabs', { screen: 'TimetableTab' });
         break;
     }
   };

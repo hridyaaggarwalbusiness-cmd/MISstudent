@@ -278,7 +278,8 @@ export const repo = {
     // class's own periods can never reveal on their own.
     subscribeAll: (cb: (items: TimetablePeriod[]) => void): Unsubscribe =>
       onSnapshot(collection(db, 'timetable'), (snap) => cb(snap.docs.map((d) => withId<TimetablePeriod>(d)))),
-    upsert: (period: TimetablePeriod) => setDoc(doc(db, 'timetable', period.id), period, { merge: true }),
+    upsert: (period: TimetablePeriod) =>
+      setDoc(doc(db, 'timetable', period.id), { ...period, updatedAt: new Date().toISOString() }, { merge: true }),
     remove: (id: string) => deleteDoc(doc(db, 'timetable', id)),
   },
 

@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '@theme';
 import { repo } from '@data/repositories';
 import { useAuthStore } from '@store/useAuthStore';
-import { Notice, Exam, CalendarEvent } from '@/types';
+import { Notice, Exam, CalendarEvent, TimetablePeriod } from '@/types';
 import { FeedNotification } from '@components/notifications/NotificationItem';
 import { parseDate } from '@utils/date';
 
@@ -29,13 +29,21 @@ function isUpcoming(dateIso: string, days: number): boolean {
   return then >= now && then - now <= days * 24 * 60 * 60 * 1000;
 }
 
+function isRecent(dateIso: string | undefined, days: number): boolean {
+  if (!dateIso) return false;
+  const then = new Date(dateIso).getTime();
+  if (Number.isNaN(then)) return false;
+  return Date.now() - then <= days * 24 * 60 * 60 * 1000;
+}
+
 interface NotificationsState {
   notices: Notice[];
   exams: Exam[];
   events: CalendarEvent[];
+  timetable: TimetablePeriod[];
   readIds: Set<string>;
   loaded: boolean;
-  items: (FeedNotification & { navTarget: { screen: 'notices' | 'exam' | 'calendar' } })[];
+  items: (FeedNotification & { navTarget: { screen: 'notices' | 'exam' | 'calendar' | 'timetable' } })[];
   unreadCount: number;
   init: () => void;
   markRead: (id: string) => void;
@@ -45,9 +53,31 @@ interface NotificationsState {
 let subscribed = false;
 
 function recompute(set: (partial: Partial<NotificationsState>) => void, get: () => NotificationsState) {
-  const { notices, exams, events, readIds } = get();
+  const { notices, exams, events, timetable, readIds } = get();
+  const teacherId = useAuthStore.getState().teacher?.id;
 
   const entries: { ts: number; item: NotificationsState['items'][number] }[] = [];
+
+  timetable
+    .filter((p) => p.teacherId === teacherId && isRecent(p.updatedAt, 3))
+    .forEach((p) => {
+      const id = `timetable-${p.id}-${p.updatedAt}`;
+      entries.push({
+        ts: new Date(p.updatedAt as string).getTime() || 0,
+        item: {
+          id,
+          icon: 'calendar-outline',
+          bg: colors.infoBg,
+          fg: colors.infoStrong,
+          title: 'Timetable Updated',
+          body: `${p.day} · ${p.subject} for ${p.startTime}-${p.endTime}${p.room ? ` · Room ${p.room}` : ''}`,
+          time: p.updatedAt as string,
+          isRead: readIds.has(id),
+          onPress: () => {},
+          navTarget: { screen: 'timetable' },
+        },
+      });
+    });
 
   notices.forEach((n) => {
     const id = `notice-${n.id}`;
@@ -118,6 +148,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   notices: [],
   exams: [],
   events: [],
+  timetable: [],
   readIds: new Set(),
   loaded: false,
   items: [],
@@ -143,6 +174,10 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
     }
     repo.calendar.subscribeAll((events) => {
       set({ events });
+      recompute(set, get);
+    });
+    repo.timetable.subscribeAll((timetable) => {
+      set({ timetable });
       recompute(set, get);
     });
   },

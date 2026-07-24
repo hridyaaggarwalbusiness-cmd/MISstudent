@@ -24,7 +24,14 @@ import { useAuthStore } from '@store/useAuthStore';
 import { useBusTrackingStore, requestBusNotificationPermission } from '@store/useBusTrackingStore';
 import { greetingForNow, noticeTimeLabel, dueInLabelLong, parseDate } from '@utils/date';
 import { subjectMeta } from '@data/subjectMeta';
-import { ExamResult, FeePayment, StudyMaterial } from '@/types';
+import { ExamResult, FeePayment, StudyMaterial, TimetablePeriod } from '@/types';
+
+function isRecentUpdate(iso: string | undefined, days: number): boolean {
+  if (!iso) return false;
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return false;
+  return Date.now() - then <= days * 24 * 60 * 60 * 1000;
+}
 
 const FEED_COLLAPSED_LIMIT = 4;
 const FEED_EXPANDED_LIMIT = 10;
@@ -95,6 +102,16 @@ export function HomeScreen() {
         return () => {};
       }
       return repo.materials.subscribeForClass(authStudent.classId, cb);
+    },
+    [authStudent?.classId],
+  );
+  const { data: liveTimetable } = useLiveResource<TimetablePeriod[]>(
+    (cb) => {
+      if (!authStudent) {
+        cb([]);
+        return () => {};
+      }
+      return repo.timetable.subscribeForClass(authStudent.classId, cb);
     },
     [authStudent?.classId],
   );
@@ -216,6 +233,27 @@ export function HomeScreen() {
       });
     });
 
+    (liveTimetable ?? [])
+      .filter((p) => isRecentUpdate(p.updatedAt, 3))
+      .forEach((p) => {
+        entries.push({
+          ts: new Date(p.updatedAt as string).getTime() || 0,
+          item: {
+            key: `timetable-${p.id}-${p.updatedAt}`,
+            icon: 'calendar',
+            iconColor: '#2C52D9',
+            iconBg: '#DCEAFF',
+            accentColor: '#3E6BFA',
+            cardBg: '#EFF5FF',
+            categoryLabel: 'Timetable Updated',
+            categoryColor: '#2C52D9',
+            title: p.isBreak ? `${p.day} schedule changed` : `${p.day} · ${p.subject} with ${p.teacher}`,
+            subtitle: `${p.startTime}-${p.endTime} · ${noticeTimeLabel(p.updatedAt as string)}`,
+            onPress: () => navigation.navigate('MainTabs', { screen: 'TimetableTab' }),
+          },
+        });
+      });
+
     if (latestResult) {
       entries.push({
         ts: new Date(latestResult.date).getTime() || 0,
@@ -239,7 +277,7 @@ export function HomeScreen() {
       .sort((a, b) => b.ts - a.ts)
       .slice(0, FEED_EXPANDED_LIMIT)
       .map((e) => e.item);
-  }, [homeworkItems, noticeItems, latestResult, liveMaterials, liveFeePayments, navigation]);
+  }, [homeworkItems, noticeItems, latestResult, liveMaterials, liveFeePayments, liveTimetable, navigation]);
 
   const visibleFeedItems = feedExpanded ? feedItems : feedItems.slice(0, FEED_COLLAPSED_LIMIT);
   const canExpandFeed = feedItems.length > FEED_COLLAPSED_LIMIT;

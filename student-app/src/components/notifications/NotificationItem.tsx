@@ -14,6 +14,7 @@ const typeMeta: Record<NotificationType, { icon: keyof typeof Ionicons.glyphMap;
   result: { icon: 'stats-chart-outline', bg: '#F5F3FF', fg: colors.accentViolet },
   notice: { icon: 'megaphone-outline', bg: colors.dangerBg, fg: colors.dangerStrong },
   bus: { icon: 'bus-outline', bg: colors.infoBg, fg: colors.infoStrong },
+  timetable: { icon: 'calendar-outline', bg: colors.primarySoft, fg: colors.primary },
 };
 
 export function NotificationItem({

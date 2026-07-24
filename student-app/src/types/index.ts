@@ -52,6 +52,7 @@ export interface TimetablePeriod {
   teacher: string;
   room: string;
   isBreak?: boolean;
+  updatedAt?: string;
 }
 
 // The school-wide row structure of the timetable grid, admin-authored and
@@ -233,7 +234,8 @@ export type NotificationType =
   | 'attendance'
   | 'result'
   | 'notice'
-  | 'bus';
+  | 'bus'
+  | 'timetable';
 
 export interface AppNotification {
   id: string;

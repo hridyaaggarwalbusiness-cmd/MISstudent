@@ -1,9 +1,13 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AppNotification } from '@/types';
+import { AppNotification, TimetablePeriod } from '@/types';
+import { repo } from '@data/repositories';
+import { useAuthStore } from '@store/useAuthStore';
 import { useHomeworkStore } from '@store/useHomeworkStore';
 import { useNoticesStore } from '@store/useNoticesStore';
 import { useBusTrackingStore } from '@store/useBusTrackingStore';
+
+let timetablePeriods: TimetablePeriod[] = [];
 
 const READ_NOTIFICATIONS_KEY = 'misstudent:readNotificationIds';
 
@@ -57,6 +61,21 @@ function computeNotifications(readIds: Set<string>): AppNotification[] {
         refId: hw.id,
       });
     }
+  }
+
+  for (const period of timetablePeriods) {
+    if (!period.updatedAt || !isRecent(period.updatedAt, 3)) continue;
+    const id = `timetable-${period.id}-${period.updatedAt}`;
+    notifications.push({
+      id,
+      type: 'timetable',
+      title: 'Timetable Updated',
+      body: period.isBreak
+        ? `${period.day} · ${period.startTime}-${period.endTime} changed`
+        : `${period.day} · ${period.subject} with ${period.teacher} (${period.startTime}-${period.endTime})`,
+      createdAt: period.updatedAt,
+      isRead: readIds.has(id),
+    });
   }
 
   for (const notice of useNoticesStore.getState().items) {
@@ -123,6 +142,13 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       useHomeworkStore.subscribe(recompute);
       useNoticesStore.subscribe(recompute);
       useBusTrackingStore.subscribe(recompute);
+      const classId = useAuthStore.getState().student?.classId;
+      if (classId) {
+        repo.timetable.subscribeForClass(classId, (periods) => {
+          timetablePeriods = periods;
+          recompute();
+        });
+      }
     }
   },
 
