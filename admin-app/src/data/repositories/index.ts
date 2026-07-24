@@ -237,6 +237,11 @@ export const repo = {
       const q = query(collection(db, 'timetable'), where('classId', '==', classId));
       return onSnapshot(q, (snap) => cb(snap.docs.map((d) => withId<TimetablePeriod>(d))));
     },
+    // Every class's periods, school-wide - needed to catch a teacher double-
+    // booked across two classes at the same day/period, which a single
+    // class's own periods can never reveal on their own.
+    subscribeAll: (cb: (items: TimetablePeriod[]) => void): Unsubscribe =>
+      onSnapshot(collection(db, 'timetable'), (snap) => cb(snap.docs.map((d) => withId<TimetablePeriod>(d)))),
     upsert: (period: TimetablePeriod) => setDoc(doc(db, 'timetable', period.id), period, { merge: true }),
     remove: (id: string) => deleteDoc(doc(db, 'timetable', id)),
   },

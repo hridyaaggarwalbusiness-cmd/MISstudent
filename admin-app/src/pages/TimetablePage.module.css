@@ -106,6 +106,20 @@
   color: var(--color-primary);
 }
 
+.clashBadge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-strong);
+}
+
 .cell:hover {
   border-color: var(--color-primary);
   transform: translateY(-1px);

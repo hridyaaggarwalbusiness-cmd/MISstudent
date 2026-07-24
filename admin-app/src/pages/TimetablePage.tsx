@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarClock, Coffee, User, MapPin, Settings2, Plus, ArrowUp, ArrowDown, X, GripVertical } from 'lucide-react';
+import { CalendarClock, Coffee, User, MapPin, Settings2, Plus, ArrowUp, ArrowDown, X, GripVertical, AlertTriangle } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
@@ -7,6 +7,7 @@ import { Modal } from '@/components/ui/Modal';
 import { TextField, SelectField } from '@/components/ui/FormField';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { PageHeader, pageHeaderStyles } from '@/pages/PageHeader';
 import { useCollection } from '@/hooks/useCollection';
 import { repo } from '@/data/repositories';
@@ -47,14 +48,32 @@ export function TimetablePage() {
   const { data: teachers } = useCollection<Teacher>((cb) => repo.teachers.subscribeAll(cb));
   const [classId, setClassId] = useState('');
   const [periods, setPeriods] = useState<TimetablePeriod[]>([]);
+  const [allPeriods, setAllPeriods] = useState<TimetablePeriod[]>([]);
   const [schedule, setSchedule] = useState<PeriodSchedule | null>(null);
   const seededRef = useRef(false);
+  const confirm = useConfirm();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [activeCell, setActiveCell] = useState<{ day: DayOfWeek; slot: PeriodSlot } | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const classNameById = useMemo(() => new Map(classes.map((c) => [c.id, `${c.name} - ${c.section}`])), [classes]);
+
+  // The same teacher assigned to two different classes at the same
+  // day/period is a physical impossibility (one person can't be in two
+  // rooms at once), and unlike a within-class overwrite it's invisible from
+  // this class's own periods alone - it only shows up by checking every
+  // other class's timetable for the same teacher/day/period.
+  function findClash(day: DayOfWeek, periodNumber: number, teacherId: string, forClassId: string): TimetablePeriod | null {
+    if (!teacherId) return null;
+    return (
+      allPeriods.find(
+        (p) => p.day === day && p.periodNumber === periodNumber && p.teacherId === teacherId && p.classId !== forClassId,
+      ) ?? null
+    );
+  }
 
   const [timeModalSlot, setTimeModalSlot] = useState<PeriodSlot | null>(null);
   const [timeForm, setTimeForm] = useState({ label: '', startTime: '', endTime: '' });
@@ -94,6 +113,27 @@ export function TimetablePage() {
       setDragSource(null);
       setDragTargets(new Set());
       if (!source || !classId || targets.length === 0) return;
+
+      const clashes = targets
+        .map((key) => {
+          const [day, numStr] = key.split('|');
+          return findClash(day as DayOfWeek, Number(numStr), source.teacherId, classId);
+        })
+        .filter((c): c is TimetablePeriod => !!c);
+
+      if (clashes.length > 0) {
+        const lines = clashes.map(
+          (c) => `${c.day}, period ${c.periodNumber}: already teaching ${classNameById.get(c.classId) ?? c.classId}`,
+        );
+        const proceed = await confirm({
+          title: 'Period clash detected',
+          message: `${source.teacher} is already scheduled elsewhere at the same time:\n${lines.join('\n')}\n\nFill anyway?`,
+          confirmLabel: 'Fill Anyway',
+          cancelLabel: 'Cancel',
+        });
+        if (!proceed) return;
+      }
+
       await Promise.all(
         targets.map(async (key) => {
           const [day, numStr] = key.split('|');
@@ -121,7 +161,7 @@ export function TimetablePage() {
     window.addEventListener('mouseup', commitDrag);
     return () => window.removeEventListener('mouseup', commitDrag);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dragSource, dragTargets, classId]);
+  }, [dragSource, dragTargets, classId, allPeriods, classNameById, confirm]);
 
   useEffect(() => {
     if (classes.length && !classId) setClassId(classes[0].id);
@@ -132,6 +172,8 @@ export function TimetablePage() {
     const unsub = repo.timetable.subscribeForClass(classId, setPeriods);
     return unsub;
   }, [classId]);
+
+  useEffect(() => repo.timetable.subscribeAll(setAllPeriods), []);
 
   useEffect(() => repo.periodSchedule.subscribe(setSchedule), []);
 
@@ -168,6 +210,8 @@ export function TimetablePage() {
     setError('');
     setModalOpen(true);
   }
+
+  const activeClash = activeCell ? findClash(activeCell.day, activeCell.slot.periodNumber!, form.teacherId, classId) : null;
 
   async function onSave() {
     if (!activeCell || !classId || !schedule) return;
@@ -313,6 +357,7 @@ export function TimetablePage() {
                   }
                   const period = cellFor(day, slot.periodNumber!);
                   const isDragTarget = dragTargets.has(`${day}|${slot.periodNumber}`);
+                  const cellClash = period ? findClash(day, slot.periodNumber!, period.teacherId, classId) : null;
                   return (
                     <div
                       key={`${day}-${slot.id}`}
@@ -337,6 +382,14 @@ export function TimetablePage() {
                           >
                             <GripVertical size={12} />
                           </span>
+                          {cellClash && (
+                            <span
+                              className={styles.clashBadge}
+                              title={`Period clash: ${period.teacher} also teaches ${classNameById.get(cellClash.classId) ?? cellClash.classId} at this time.`}
+                            >
+                              <AlertTriangle size={12} />
+                            </span>
+                          )}
                           <span className={styles.cellSubject}>{period.subject}</span>
                           <span className={styles.cellMeta}>
                             {slot.startTime}-{slot.endTime}
@@ -377,13 +430,18 @@ export function TimetablePage() {
               Cancel
             </Button>
             <Button onClick={onSave} loading={saving}>
-              Save
+              {activeClash ? 'Save Anyway' : 'Save'}
             </Button>
           </>
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {error && <ErrorBanner message={error} />}
+          {activeClash && (
+            <ErrorBanner
+              message={`Period clash: ${activeClash.teacher} already teaches ${classNameById.get(activeClash.classId) ?? activeClash.classId} during this period on ${activeClash.day}.`}
+            />
+          )}
           {activeCell && (activeCell.slot.startTime || activeCell.slot.endTime) && (
             <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
               Time: {activeCell.slot.startTime || '--:--'}-{activeCell.slot.endTime || '--:--'} (set via "Manage Periods" — applies every day)
