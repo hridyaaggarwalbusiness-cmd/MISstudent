@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { Modal } from '@/components/ui/Modal';
-import { TextField, SelectField } from '@/components/ui/FormField';
+import { TextField, SelectField, ComboField } from '@/components/ui/FormField';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
@@ -469,18 +469,14 @@ export function TimetablePage() {
               Time: {activeCell.slot.startTime || '--:--'}-{activeCell.slot.endTime || '--:--'} (set via "Manage Periods" — applies every day)
             </div>
           )}
-          <SelectField
+          <ComboField
+            id="timetable-subject"
             label="Subject"
             value={form.subject}
-            onChange={(e) => setForm({ ...form, subject: e.target.value })}
-          >
-            <option value="">Select subject</option>
-            {timetableSubjects.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </SelectField>
+            onChange={(v) => setForm({ ...form, subject: v })}
+            options={timetableSubjects}
+            placeholder="Select or type a subject"
+          />
           <SelectField
             label="Teacher"
             value={form.teacherId}

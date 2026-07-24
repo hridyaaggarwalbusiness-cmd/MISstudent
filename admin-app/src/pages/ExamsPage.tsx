@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { StatStrip } from '@/components/ui/StatStrip';
-import { TextField, SelectField } from '@/components/ui/FormField';
+import { TextField, SelectField, ComboField } from '@/components/ui/FormField';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
@@ -237,14 +237,14 @@ export function ExamsPage() {
               </option>
             ))}
           </SelectField>
-          <SelectField label="Subject" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })}>
-            <option value="">Select subject</option>
-            {formSubjectOptions.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </SelectField>
+          <ComboField
+            id="exam-subject"
+            label="Subject"
+            value={form.subject}
+            onChange={(v) => setForm({ ...form, subject: v })}
+            options={formSubjectOptions}
+            placeholder="Select or type a subject"
+          />
           <TextField label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <TextField label="Start Time" type="time" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} />

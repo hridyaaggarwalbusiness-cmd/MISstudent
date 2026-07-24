@@ -3,7 +3,9 @@
 // from/until a certain grade. `subjectOptions()` is the single place that
 // applies both the per-surface subset and the grade condition. Mirrors
 // admin-app/src/data/subjects.ts so Timetable, Homework and Results/Exams
-// never drift out of sync with each other across apps.
+// never drift out of sync with each other across apps. The picker built on
+// top of this list still lets a custom subject be typed in - this is the
+// school's list of common subjects, not a hard boundary.
 interface SubjectDef {
   label: string;
   minGrade?: number;
@@ -22,11 +24,11 @@ const SUBJECT_DEFS: SubjectDef[] = [
   { label: 'E.V.S', maxGrade: 5, surfaces: [...ALL] },
   { label: 'S.S.T', minGrade: 5, surfaces: [...ALL] },
   { label: 'Computer', surfaces: [...ALL] },
-  { label: 'Punjabi / Sanskrit', minGrade: 6, surfaces: ['timetable'] },
+  { label: 'Punjabi', minGrade: 6, surfaces: [...ALL] },
+  { label: 'Sanskrit', minGrade: 6, surfaces: [...ALL] },
   { label: 'Mental Ability', surfaces: ['timetable', 'homework'] },
   { label: 'Sports', surfaces: ['timetable'] },
   { label: 'Skating', surfaces: ['timetable'] },
-  { label: 'Library', surfaces: ['timetable'] },
   { label: 'Spoken', surfaces: ['timetable', 'homework'] },
   { label: 'Art and Craft', surfaces: ['timetable'] },
 ];
