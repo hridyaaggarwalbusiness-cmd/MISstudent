@@ -13,7 +13,7 @@ import {
 import { MaterialCard } from '@components/materials/MaterialCard';
 import { colors, spacing } from '@theme';
 import { repo } from '@data/repositories';
-import { useAsyncResource } from '@hooks/useAsyncResource';
+import { useLiveResource } from '@hooks/useLiveResource';
 import { materialTypeLabels } from '@data/materialTypeLabels';
 import { useAuthStore } from '@store/useAuthStore';
 import { MaterialType, StudyMaterial } from '@/types';
@@ -31,8 +31,14 @@ const FILTERS: { key: FilterKey; label: string }[] = [
 
 export function StudyMaterialsScreen() {
   const classId = useAuthStore((s) => s.student?.classId);
-  const { data, loading, refreshing, error, refresh } = useAsyncResource(
-    () => (classId ? repo.materials.list(classId) : Promise.resolve([])),
+  const { data, loading, refreshing, error, refresh } = useLiveResource<StudyMaterial[]>(
+    (cb) => {
+      if (!classId) {
+        cb([]);
+        return () => {};
+      }
+      return repo.materials.subscribeForClass(classId, cb);
+    },
     [classId],
   );
   const [query, setQuery] = useState('');

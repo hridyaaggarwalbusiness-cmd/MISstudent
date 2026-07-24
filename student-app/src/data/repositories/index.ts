@@ -437,9 +437,9 @@ export const repo = {
   },
 
   results: {
-    list: async (studentId: string): Promise<ExamResult[]> => {
-      const snap = await getDocs(query(collection(db, 'results'), where('studentId', '==', studentId)));
-      const flat = snap.docs.map((d) => withId<BackendExamResult>(d));
+    // Shared by the one-shot `list` and the live `subscribeForStudent` below,
+    // so publishing/editing a result grades identically either way.
+    _group: (flat: BackendExamResult[]): ExamResult[] => {
       const byExam = new Map<string, BackendExamResult[]>();
       flat.forEach((r) => {
         const list = byExam.get(r.examId) ?? [];
@@ -472,6 +472,14 @@ export const repo = {
         });
       }
       return results.sort((a, b) => a.date.localeCompare(b.date));
+    },
+    subscribeForStudent: (studentId: string, cb: (items: ExamResult[]) => void): Unsubscribe => {
+      const q = query(collection(db, 'results'), where('studentId', '==', studentId));
+      return onSnapshot(q, (snap) => cb(repo.results._group(snap.docs.map((d) => withId<BackendExamResult>(d)))));
+    },
+    list: async (studentId: string): Promise<ExamResult[]> => {
+      const snap = await getDocs(query(collection(db, 'results'), where('studentId', '==', studentId)));
+      return repo.results._group(snap.docs.map((d) => withId<BackendExamResult>(d)));
     },
   },
 

@@ -19,17 +19,24 @@ import {
 } from '@components/ui';
 import { colors, spacing, radius } from '@theme';
 import { repo } from '@data/repositories';
-import { useAsyncResource } from '@hooks/useAsyncResource';
+import { useLiveResource } from '@hooks/useLiveResource';
 import { useAuthStore } from '@store/useAuthStore';
 import { gradeColor } from '@utils/grade';
+import { ExamResult } from '@/types';
 
 const SUBJECT_BAR_COLORS = [colors.accentEmerald, colors.accentSky, colors.accentViolet, colors.danger, colors.accentAmber];
 
 export function ResultsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const studentId = useAuthStore((s) => s.student?.id);
-  const { data, loading, refreshing, error, refresh } = useAsyncResource(
-    () => (studentId ? repo.results.list(studentId) : Promise.resolve([])),
+  const { data, loading, refreshing, error, refresh } = useLiveResource<ExamResult[]>(
+    (cb) => {
+      if (!studentId) {
+        cb([]);
+        return () => {};
+      }
+      return repo.results.subscribeForStudent(studentId, cb);
+    },
     [studentId],
   );
 

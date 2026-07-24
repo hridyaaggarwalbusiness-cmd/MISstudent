@@ -15,6 +15,7 @@ import { MoreMenuModal } from '@components/dashboard/MoreMenuModal';
 import { colors, spacing, layout } from '@theme';
 import { repo } from '@data/repositories';
 import { useAsyncResource } from '@hooks/useAsyncResource';
+import { useLiveResource } from '@hooks/useLiveResource';
 import { useStudentStore } from '@store/useStudentStore';
 import { useHomeworkStore } from '@store/useHomeworkStore';
 import { useNoticesStore } from '@store/useNoticesStore';
@@ -23,21 +24,24 @@ import { useAuthStore } from '@store/useAuthStore';
 import { useBusTrackingStore, requestBusNotificationPermission } from '@store/useBusTrackingStore';
 import { greetingForNow, noticeTimeLabel, dueInLabelLong, parseDate } from '@utils/date';
 import { subjectMeta } from '@data/subjectMeta';
+import { ExamResult, FeePayment, StudyMaterial } from '@/types';
 
 const FEED_COLLAPSED_LIMIT = 4;
 const FEED_EXPANDED_LIMIT = 10;
 
+// Results, study materials and fee receipts feed the "latest updates" list
+// below and are sourced from their own live subscriptions instead (so a
+// newly-published result/material/receipt appears without a refresh) -
+// timetable/exams/attendance/calendar aren't rendered on this screen at all,
+// so a one-shot fetch (refreshed on pull-to-refresh) is enough for them.
 async function loadDashboard(classId: string, studentId: string) {
-  const [timetable, exams, attendanceMonth, results, calendarEvents, materials, feePayments] = await Promise.all([
+  const [timetable, exams, attendanceMonth, calendarEvents] = await Promise.all([
     repo.timetable.getAll(classId),
     repo.exams.list(classId),
     repo.attendance.getCurrentMonth(studentId),
-    repo.results.list(studentId),
     repo.calendar.list(),
-    repo.materials.list(classId),
-    repo.feePayments.list(studentId),
   ]);
-  return { timetable, exams, attendanceMonth, results, calendarEvents, materials, feePayments };
+  return { timetable, exams, attendanceMonth, calendarEvents };
 }
 
 function BellButton({ count, onPress }: { count: number; onPress: () => void }) {
@@ -70,7 +74,38 @@ export function HomeScreen() {
     () =>
       authStudent
         ? loadDashboard(authStudent.classId, authStudent.id)
-        : Promise.resolve({ timetable: [], exams: [], attendanceMonth: [], results: [], calendarEvents: [], materials: [], feePayments: [] }),
+        : Promise.resolve({ timetable: [], exams: [], attendanceMonth: [], calendarEvents: [] }),
+    [authStudent?.id],
+  );
+
+  const { data: liveResults } = useLiveResource<ExamResult[]>(
+    (cb) => {
+      if (!authStudent) {
+        cb([]);
+        return () => {};
+      }
+      return repo.results.subscribeForStudent(authStudent.id, cb);
+    },
+    [authStudent?.id],
+  );
+  const { data: liveMaterials } = useLiveResource<StudyMaterial[]>(
+    (cb) => {
+      if (!authStudent) {
+        cb([]);
+        return () => {};
+      }
+      return repo.materials.subscribeForClass(authStudent.classId, cb);
+    },
+    [authStudent?.classId],
+  );
+  const { data: liveFeePayments } = useLiveResource<FeePayment[]>(
+    (cb) => {
+      if (!authStudent) {
+        cb([]);
+        return () => {};
+      }
+      return repo.feePayments.subscribeForStudent(authStudent.id, cb);
+    },
     [authStudent?.id],
   );
 
@@ -88,7 +123,7 @@ export function HomeScreen() {
     }
   }, [authStudent?.assignedBusId, authStudent?.assignedStopId]);
 
-  const latestResult = data?.results[data.results.length - 1];
+  const latestResult = liveResults?.[liveResults.length - 1];
 
   // A single chronological feed instead of separate homework/notice/material/
   // fee sections, so the home screen leads with "latest updates" first.
@@ -135,7 +170,7 @@ export function HomeScreen() {
       });
     });
 
-    (data?.materials ?? []).forEach((m) => {
+    (liveMaterials ?? []).forEach((m) => {
       entries.push({
         ts: new Date(m.uploadedAt).getTime() || 0,
         item: {
@@ -155,7 +190,7 @@ export function HomeScreen() {
       });
     });
 
-    (data?.feePayments ?? []).forEach((p) => {
+    (liveFeePayments ?? []).forEach((p) => {
       const badge =
         p.statusAfter === 'paid'
           ? { label: 'Paid', icon: 'checkmark' as const, color: '#16803F', bg: '#D9F5E3' }
@@ -204,7 +239,7 @@ export function HomeScreen() {
       .sort((a, b) => b.ts - a.ts)
       .slice(0, FEED_EXPANDED_LIMIT)
       .map((e) => e.item);
-  }, [homeworkItems, noticeItems, latestResult, data?.materials, data?.feePayments, navigation]);
+  }, [homeworkItems, noticeItems, latestResult, liveMaterials, liveFeePayments, navigation]);
 
   const visibleFeedItems = feedExpanded ? feedItems : feedItems.slice(0, FEED_COLLAPSED_LIMIT);
   const canExpandFeed = feedItems.length > FEED_COLLAPSED_LIMIT;

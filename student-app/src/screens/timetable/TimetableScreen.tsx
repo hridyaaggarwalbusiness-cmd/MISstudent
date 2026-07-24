@@ -6,9 +6,9 @@ import { AppText, Card, AnimatedPressable, SkeletonCard, EmptyState, ErrorState 
 import { TimetableAgendaRow, TimetableAgendaRowData } from '@components/timetable/TimetableAgendaRow';
 import { colors, spacing, layout, radius } from '@theme';
 import { repo } from '@data/repositories';
-import { useAsyncResource } from '@hooks/useAsyncResource';
+import { useLiveResource } from '@hooks/useLiveResource';
 import { useAuthStore } from '@store/useAuthStore';
-import { DayOfWeek, PeriodSchedule } from '@/types';
+import { DayOfWeek, PeriodSchedule, TimetablePeriod } from '@/types';
 
 const DAY_CODES: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -26,8 +26,14 @@ export function TimetableScreen() {
   });
   const selectedDay = weekDates[selectedIndex];
 
-  const { data, loading, refreshing, error, refresh } = useAsyncResource(
-    () => (classId ? repo.timetable.getAll(classId) : Promise.resolve([])),
+  const { data, loading, refreshing, error, refresh } = useLiveResource<TimetablePeriod[]>(
+    (cb) => {
+      if (!classId) {
+        cb([]);
+        return () => {};
+      }
+      return repo.timetable.subscribeForClass(classId, cb);
+    },
     [classId],
   );
 
