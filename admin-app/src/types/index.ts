@@ -21,7 +21,9 @@ export interface Teacher {
   email: string;
   phone: string;
   subjects: string[];
-  classIds: string[];
+  // Which class this teacher is the homeroom/class teacher of, if any - a
+  // teacher can teach any class regardless, so this is the only class
+  // relationship worth declaring up front.
   isClassTeacherOf: string | null;
   createdAt?: string;
 }

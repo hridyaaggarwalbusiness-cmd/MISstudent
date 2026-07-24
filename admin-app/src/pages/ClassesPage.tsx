@@ -58,6 +58,7 @@ export function ClassesPage() {
       const isNew = !form.id;
       const id = form.id || `${form.name.toLowerCase().replace(/\s+/g, '')}-${form.section.toLowerCase()}`;
       await repo.classes.upsert({ ...form, id }, isNew);
+      await repo.classes.setTeacherForClass(id, form.classTeacherId || null);
       setModalOpen(false);
       show(isNew ? 'Class added' : 'Class updated');
     } catch (e) {

@@ -187,6 +187,42 @@ export const repo = {
       if (isNew) logAudit('class_created', `Class ${item.name} - ${item.section} created`);
     },
     remove: (id: string) => deleteDoc(doc(db, 'classes', id)),
+    // A class has at most one class teacher and a teacher is in charge of at
+    // most one class, so setting this relationship from either side (a
+    // teacher's "class teacher of" field, or a class's "class teacher"
+    // field) must clear whichever other relationship it displaces - a
+    // transaction so a concurrent edit can't leave both sides pointing at
+    // stale partners.
+    setClassTeacher: (teacherId: string, classId: string | null) =>
+      runTransaction(db, async (tx) => {
+        const teacherRef = doc(db, 'teachers', teacherId);
+        const teacherSnap = await tx.get(teacherRef);
+        const prevClassId = teacherSnap.exists() ? ((teacherSnap.data() as Teacher).isClassTeacherOf ?? null) : null;
+
+        if (prevClassId && prevClassId !== classId) {
+          tx.update(doc(db, 'classes', prevClassId), { classTeacherId: '' });
+        }
+        if (classId) {
+          const classRef = doc(db, 'classes', classId);
+          const classSnap = await tx.get(classRef);
+          const prevTeacherId = classSnap.exists() ? (classSnap.data() as SchoolClass).classTeacherId : '';
+          if (prevTeacherId && prevTeacherId !== teacherId) {
+            tx.update(doc(db, 'teachers', prevTeacherId), { isClassTeacherOf: null });
+          }
+          tx.update(classRef, { classTeacherId: teacherId });
+        }
+        tx.update(teacherRef, { isClassTeacherOf: classId });
+      }),
+    // Mirror image of setClassTeacher, entered from the class side (picking
+    // a class's teacher rather than a teacher's class) - same sync, just
+    // starting from "unassign whichever teacher currently holds this class"
+    // when clearing it, since that direction has no teacherId to start from.
+    setTeacherForClass: async (classId: string, teacherId: string | null) => {
+      if (teacherId) return repo.classes.setClassTeacher(teacherId, classId);
+      const classSnap = await getDoc(doc(db, 'classes', classId));
+      const prevTeacherId = classSnap.exists() ? (classSnap.data() as SchoolClass).classTeacherId : '';
+      if (prevTeacherId) await repo.classes.setClassTeacher(prevTeacherId, null);
+    },
   },
 
   admins: {

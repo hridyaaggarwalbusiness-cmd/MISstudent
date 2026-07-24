@@ -6,7 +6,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Table, tableStyles } from '@/components/ui/Table';
-import { TextField } from '@/components/ui/FormField';
+import { TextField, SelectField } from '@/components/ui/FormField';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
@@ -21,7 +21,7 @@ import { useToast } from '@/components/ui/Toast';
 import { repo } from '@/data/repositories';
 import { getErrorMessage } from '@/utils/errors';
 import { generateTempPassword } from '@/utils/password';
-import { classLabelById, resolveClassLabels } from '@/utils/classLabels';
+import { classLabelById, resolveSingleClassLabel } from '@/utils/classLabels';
 import type { Teacher, SchoolClass } from '@/types';
 import styles from './TeachersPage.module.css';
 
@@ -31,10 +31,10 @@ interface FormState {
   password: string;
   phone: string;
   subjects: string;
-  classIds: string[];
+  isClassTeacherOf: string;
 }
 
-const emptyForm: FormState = { name: '', email: '', password: '', phone: '', subjects: '', classIds: [] };
+const emptyForm: FormState = { name: '', email: '', password: '', phone: '', subjects: '', isClassTeacherOf: '' };
 
 interface ImportRow {
   name: string;
@@ -42,7 +42,7 @@ interface ImportRow {
   password: string;
   phone: string;
   subjects: string[];
-  classIds: string[];
+  isClassTeacherOf: string | null;
 }
 
 export function TeachersPage() {
@@ -67,13 +67,6 @@ export function TeachersPage() {
 
   useQuickActionIntent(!loading, openCreate);
 
-  function toggleClass(id: string) {
-    setForm((f) => ({
-      ...f,
-      classIds: f.classIds.includes(id) ? f.classIds.filter((c) => c !== id) : [...f.classIds, id],
-    }));
-  }
-
   function validate(f: Pick<FormState, 'name' | 'email' | 'password'>): string | null {
     if (!f.name.trim()) return 'Full name is required.';
     if (!/^\S+@\S+\.\S+$/.test(f.email.trim())) return 'Enter a valid email address.';
@@ -90,7 +83,8 @@ export function TeachersPage() {
     setError('');
     setSaving(true);
     try {
-      await repo.teachers.create({
+      const isClassTeacherOf = form.isClassTeacherOf || null;
+      const teacherId = await repo.teachers.create({
         email: form.email.trim(),
         password: form.password,
         displayName: form.name.trim(),
@@ -99,10 +93,10 @@ export function TeachersPage() {
           email: form.email.trim(),
           phone: form.phone.trim(),
           subjects: form.subjects.split(',').map((s) => s.trim()).filter(Boolean),
-          classIds: form.classIds,
-          isClassTeacherOf: null,
+          isClassTeacherOf,
         },
       });
+      if (isClassTeacherOf) await repo.classes.setClassTeacher(teacherId, isClassTeacherOf);
       setModalOpen(false);
       show('Teacher added');
     } catch (e) {
@@ -137,7 +131,7 @@ export function TeachersPage() {
     { key: 'email', label: 'Email', readOnly: true, width: '200px' },
     { key: 'phone', label: 'Phone', width: '130px' },
     { key: 'subjects', label: 'Subjects', width: '180px' },
-    { key: 'classes', label: 'Classes', width: '220px' },
+    { key: 'classTeacherOf', label: 'Class Teacher Of', width: '180px' },
   ];
 
   const spreadsheetRows = teachers.map((t) => ({
@@ -145,7 +139,7 @@ export function TeachersPage() {
     email: t.email,
     phone: t.phone,
     subjects: t.subjects.join(', '),
-    classes: t.classIds.map(classLabel).join(', '),
+    classTeacherOf: t.isClassTeacherOf ? classLabel(t.isClassTeacherOf) : '',
   }));
 
   const spreadsheetRowStatuses = teachers.map((_, i) => cellStatus[i]);
@@ -181,15 +175,25 @@ export function TeachersPage() {
       return;
     }
 
-    if (key === 'classes') {
-      const resolved = resolveClassLabels(value, classes);
+    if (key === 'classTeacherOf') {
+      if (!value.trim()) {
+        flashStatus(rowIndex, { tone: 'busy' });
+        try {
+          await repo.classes.setClassTeacher(teacher.id, null);
+          flashStatus(rowIndex, { tone: 'success' });
+        } catch (e) {
+          flashStatus(rowIndex, { tone: 'error', message: getErrorMessage(e) });
+        }
+        return;
+      }
+      const resolved = resolveSingleClassLabel(value, classes);
       if ('error' in resolved) {
         flashStatus(rowIndex, { tone: 'error', message: resolved.error });
         return;
       }
       flashStatus(rowIndex, { tone: 'busy' });
       try {
-        await repo.teachers.update(teacher.id, { classIds: resolved.ids });
+        await repo.classes.setClassTeacher(teacher.id, resolved.cls.id);
         flashStatus(rowIndex, { tone: 'success' });
       } catch (e) {
         flashStatus(rowIndex, { tone: 'error', message: getErrorMessage(e) });
@@ -217,7 +221,7 @@ export function TeachersPage() {
     { key: 'password', label: 'Password', aliases: ['temporary password'] },
     { key: 'phone', label: 'Phone' },
     { key: 'subjects', label: 'Subjects', aliases: ['subject'] },
-    { key: 'classes', label: 'Classes', aliases: ['class'] },
+    { key: 'classTeacherOf', label: 'Class Teacher Of', aliases: ['class teacher', 'class incharge'] },
   ];
 
   function mapImportRow(cells: Record<string, string>): { value: ImportRow } | { error: string } {
@@ -226,9 +230,13 @@ export function TeachersPage() {
     if (!name) return { error: 'Missing name' };
     if (!/^\S+@\S+\.\S+$/.test(email)) return { error: 'Invalid or missing email' };
 
-    const resolved = resolveClassLabels(cells.classes ?? '', classes);
-    if ('error' in resolved) return { error: resolved.error };
-    const classIds = resolved.ids;
+    const classTeacherOfText = (cells.classTeacherOf ?? '').trim();
+    let isClassTeacherOf: string | null = null;
+    if (classTeacherOfText) {
+      const resolved = resolveSingleClassLabel(classTeacherOfText, classes);
+      if ('error' in resolved) return { error: resolved.error };
+      isClassTeacherOf = resolved.cls.id;
+    }
 
     return {
       value: {
@@ -240,13 +248,13 @@ export function TeachersPage() {
           .split(/[;,]/)
           .map((s) => s.trim())
           .filter(Boolean),
-        classIds,
+        isClassTeacherOf,
       },
     };
   }
 
   async function importTeacherRow(row: ImportRow): Promise<string> {
-    await repo.teachers.create({
+    const teacherId = await repo.teachers.create({
       email: row.email,
       password: row.password,
       displayName: row.name,
@@ -255,10 +263,10 @@ export function TeachersPage() {
         email: row.email,
         phone: row.phone,
         subjects: row.subjects,
-        classIds: row.classIds,
-        isClassTeacherOf: null,
+        isClassTeacherOf: row.isClassTeacherOf,
       },
     });
+    if (row.isClassTeacherOf) await repo.classes.setClassTeacher(teacherId, row.isClassTeacherOf);
     return `password: ${row.password}`;
   }
 
@@ -329,7 +337,7 @@ export function TeachersPage() {
               },
               { key: 'phone', header: 'Phone', render: (t) => t.phone },
               { key: 'subjects', header: 'Subjects', render: (t) => t.subjects.join(', ') || '—' },
-              { key: 'classes', header: 'Classes', render: (t) => t.classIds.map(classLabel).join(', ') || '—' },
+              { key: 'classTeacherOf', header: 'Class Teacher Of', render: (t) => (t.isClassTeacherOf ? classLabel(t.isClassTeacherOf) : '—') },
               {
                 key: 'actions',
                 header: '',
@@ -386,24 +394,19 @@ export function TeachersPage() {
             value={form.subjects}
             onChange={(e) => setForm({ ...form, subjects: e.target.value })}
           />
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-              Assigned Classes
-            </label>
-            <div className={styles.checkboxGrid} style={{ marginTop: 8 }}>
-              {classes.map((c) => (
-                <div
-                  key={c.id}
-                  className={[styles.checkboxItem, form.classIds.includes(c.id) && styles.checkboxItemActive]
-                    .filter(Boolean)
-                    .join(' ')}
-                  onClick={() => toggleClass(c.id)}
-                >
-                  {c.name} - {c.section}
-                </div>
-              ))}
-            </div>
-          </div>
+          <SelectField
+            label="Class Teacher Of (optional)"
+            hint="Only if this teacher is in charge of a homeroom class - any teacher can teach any class regardless."
+            value={form.isClassTeacherOf}
+            onChange={(e) => setForm({ ...form, isClassTeacherOf: e.target.value })}
+          >
+            <option value="">None</option>
+            {classes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} - {c.section}
+              </option>
+            ))}
+          </SelectField>
         </div>
       </Modal>
 
