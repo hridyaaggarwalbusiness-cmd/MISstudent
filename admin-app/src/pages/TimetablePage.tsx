@@ -488,7 +488,6 @@ export function TimetablePage() {
               </option>
             ))}
           </SelectField>
-          <TextField label="Room" value={form.room} onChange={(e) => setForm({ ...form, room: e.target.value })} />
         </div>
       </Modal>
 
