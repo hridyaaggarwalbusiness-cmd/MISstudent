@@ -213,6 +213,22 @@ export function TimetablePage() {
 
   const activeClash = activeCell ? findClash(activeCell.day, activeCell.slot.periodNumber!, form.teacherId, classId) : null;
 
+  // Teachers already teaching a different class during this exact day/period
+  // shouldn't even be offered here - picking one would always be a mistake,
+  // so it's simpler to keep them out of the list than to let it happen and
+  // warn afterwards. The currently selected teacher stays visible regardless
+  // (covers reopening a cell whose assignment already clashes from before
+  // this existed - the picker shouldn't look like it silently cleared).
+  const availableTeachers = activeCell
+    ? teachers.filter(
+        (t) =>
+          t.id === form.teacherId ||
+          !allPeriods.some(
+            (p) => p.day === activeCell.day && p.periodNumber === activeCell.slot.periodNumber! && p.classId !== classId && p.teacherId === t.id,
+          ),
+      )
+    : teachers;
+
   async function onSave() {
     if (!activeCell || !classId || !schedule) return;
     const { day, slot } = activeCell;
@@ -458,7 +474,7 @@ export function TimetablePage() {
             onChange={(e) => setForm({ ...form, teacherId: e.target.value })}
           >
             <option value="">Select teacher</option>
-            {teachers.map((t) => (
+            {availableTeachers.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
               </option>
