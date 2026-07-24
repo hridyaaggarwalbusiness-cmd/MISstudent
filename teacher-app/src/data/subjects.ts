@@ -34,6 +34,9 @@ const SUBJECT_DEFS: SubjectDef[] = [
   { label: 'Skating', surfaces: ['timetable'] },
   { label: 'Spoken', surfaces: ['timetable', 'homework'] },
   { label: 'Art and Craft', surfaces: ['timetable'] },
+  { label: 'Dance', surfaces: ['timetable'] },
+  { label: 'Music', surfaces: ['timetable'] },
+  { label: 'Library', surfaces: ['timetable'] },
 ];
 
 export function parseGrade(className: string): number | null {

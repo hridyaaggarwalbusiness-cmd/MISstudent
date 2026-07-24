@@ -38,6 +38,9 @@ const SUBJECT_DEFS: SubjectDef[] = [
   { label: 'Skating', surfaces: ['timetable'] },
   { label: 'Spoken', surfaces: ['timetable', 'homework'] },
   { label: 'Art and Craft', surfaces: ['timetable'] },
+  { label: 'Dance', surfaces: ['timetable'] },
+  { label: 'Music', surfaces: ['timetable'] },
+  { label: 'Library', surfaces: ['timetable'] },
 ];
 
 // Pulls the first number out of a class name like "Grade 9" or "Class 5" -

@@ -233,13 +233,23 @@ export function HomeScreen() {
       });
     });
 
-    (liveTimetable ?? [])
-      .filter((p) => isRecentUpdate(p.updatedAt, 3))
-      .forEach((p) => {
+    // Grouped by the calendar day the edit happened so one bulk timetable
+    // edit - e.g. a drag-fill touching many cells at once - produces a
+    // single feed entry instead of one per changed period.
+    {
+      const changedPeriods = (liveTimetable ?? []).filter((p) => isRecentUpdate(p.updatedAt, 3));
+      const byEditDay = new Map<string, TimetablePeriod[]>();
+      changedPeriods.forEach((p) => {
+        const key = (p.updatedAt as string).slice(0, 10);
+        byEditDay.set(key, [...(byEditDay.get(key) ?? []), p]);
+      });
+      byEditDay.forEach((periods, editDay) => {
+        const latest = periods.reduce((a, b) => ((a.updatedAt as string) > (b.updatedAt as string) ? a : b));
+        const days = [...new Set(periods.map((p) => p.day))];
         entries.push({
-          ts: new Date(p.updatedAt as string).getTime() || 0,
+          ts: new Date(latest.updatedAt as string).getTime() || 0,
           item: {
-            key: `timetable-${p.id}-${p.updatedAt}`,
+            key: `timetable-${editDay}`,
             icon: 'calendar',
             iconColor: '#2C52D9',
             iconBg: '#DCEAFF',
@@ -247,12 +257,21 @@ export function HomeScreen() {
             cardBg: '#EFF5FF',
             categoryLabel: 'Timetable Updated',
             categoryColor: '#2C52D9',
-            title: p.isBreak ? `${p.day} schedule changed` : `${p.day} · ${p.subject} with ${p.teacher}`,
-            subtitle: `${p.startTime}-${p.endTime} · ${noticeTimeLabel(p.updatedAt as string)}`,
+            title:
+              periods.length === 1
+                ? latest.isBreak
+                  ? `${latest.day} schedule changed`
+                  : `${latest.day} · ${latest.subject} with ${latest.teacher}`
+                : `${periods.length} periods updated (${days.join(', ')})`,
+            subtitle:
+              periods.length === 1
+                ? `${latest.startTime}-${latest.endTime} · ${noticeTimeLabel(latest.updatedAt as string)}`
+                : noticeTimeLabel(latest.updatedAt as string),
             onPress: () => navigation.navigate('MainTabs', { screen: 'TimetableTab' }),
           },
         });
       });
+    }
 
     if (latestResult) {
       entries.push({

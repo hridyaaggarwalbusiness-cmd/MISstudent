@@ -63,20 +63,34 @@ function computeNotifications(readIds: Set<string>): AppNotification[] {
     }
   }
 
-  for (const period of timetablePeriods) {
-    if (!period.updatedAt || !isRecent(period.updatedAt, 3)) continue;
-    const id = `timetable-${period.id}-${period.updatedAt}`;
+  // Grouped by the calendar day the edit happened so one bulk timetable
+  // edit - e.g. a drag-fill touching many cells at once - produces a single
+  // notification instead of one per changed period.
+  const changedPeriods = timetablePeriods.filter((p) => p.updatedAt && isRecent(p.updatedAt, 3));
+  const byEditDay = new Map<string, TimetablePeriod[]>();
+  changedPeriods.forEach((p) => {
+    const key = (p.updatedAt as string).slice(0, 10);
+    byEditDay.set(key, [...(byEditDay.get(key) ?? []), p]);
+  });
+  byEditDay.forEach((periods, editDay) => {
+    const id = `timetable-${editDay}`;
+    const latest = periods.reduce((a, b) => ((a.updatedAt as string) > (b.updatedAt as string) ? a : b));
+    const days = [...new Set(periods.map((p) => p.day))];
+    const body =
+      periods.length === 1
+        ? latest.isBreak
+          ? `${latest.day} · ${latest.startTime}-${latest.endTime} changed`
+          : `${latest.day} · ${latest.subject} with ${latest.teacher} (${latest.startTime}-${latest.endTime})`
+        : `${periods.length} periods updated in your timetable (${days.join(', ')})`;
     notifications.push({
       id,
       type: 'timetable',
       title: 'Timetable Updated',
-      body: period.isBreak
-        ? `${period.day} · ${period.startTime}-${period.endTime} changed`
-        : `${period.day} · ${period.subject} with ${period.teacher} (${period.startTime}-${period.endTime})`,
-      createdAt: period.updatedAt,
+      body,
+      createdAt: latest.updatedAt as string,
       isRead: readIds.has(id),
     });
-  }
+  });
 
   for (const notice of useNoticesStore.getState().items) {
     const id = `notice-${notice.id}`;

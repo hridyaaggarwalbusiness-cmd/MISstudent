@@ -58,26 +58,40 @@ function recompute(set: (partial: Partial<NotificationsState>) => void, get: () 
 
   const entries: { ts: number; item: NotificationsState['items'][number] }[] = [];
 
-  timetable
-    .filter((p) => p.teacherId === teacherId && isRecent(p.updatedAt, 3))
-    .forEach((p) => {
-      const id = `timetable-${p.id}-${p.updatedAt}`;
-      entries.push({
-        ts: new Date(p.updatedAt as string).getTime() || 0,
-        item: {
-          id,
-          icon: 'calendar-outline',
-          bg: colors.infoBg,
-          fg: colors.infoStrong,
-          title: 'Timetable Updated',
-          body: `${p.day} · ${p.subject} for ${p.startTime}-${p.endTime}${p.room ? ` · Room ${p.room}` : ''}`,
-          time: p.updatedAt as string,
-          isRead: readIds.has(id),
-          onPress: () => {},
-          navTarget: { screen: 'timetable' },
-        },
-      });
+  // Grouped by the calendar day the edit happened (not the day the period
+  // falls on) so one bulk timetable edit - e.g. a drag-fill touching many
+  // cells at once - produces a single notification for this teacher instead
+  // of one per cell.
+  const myChangedPeriods = timetable.filter((p) => p.teacherId === teacherId && isRecent(p.updatedAt, 3));
+  const byEditDay = new Map<string, TimetablePeriod[]>();
+  myChangedPeriods.forEach((p) => {
+    const key = (p.updatedAt as string).slice(0, 10);
+    byEditDay.set(key, [...(byEditDay.get(key) ?? []), p]);
+  });
+  byEditDay.forEach((periods, editDay) => {
+    const id = `timetable-${editDay}`;
+    const latest = periods.reduce((a, b) => ((a.updatedAt as string) > (b.updatedAt as string) ? a : b));
+    const days = [...new Set(periods.map((p) => p.day))];
+    const body =
+      periods.length === 1
+        ? `${latest.day} · ${latest.subject} for ${latest.startTime}-${latest.endTime}${latest.room ? ` · Room ${latest.room}` : ''}`
+        : `${periods.length} periods added or changed on your schedule (${days.join(', ')})`;
+    entries.push({
+      ts: new Date(latest.updatedAt as string).getTime() || 0,
+      item: {
+        id,
+        icon: 'calendar-outline',
+        bg: colors.infoBg,
+        fg: colors.infoStrong,
+        title: 'Timetable Updated',
+        body,
+        time: latest.updatedAt as string,
+        isRead: readIds.has(id),
+        onPress: () => {},
+        navTarget: { screen: 'timetable' },
+      },
     });
+  });
 
   notices.forEach((n) => {
     const id = `notice-${n.id}`;
