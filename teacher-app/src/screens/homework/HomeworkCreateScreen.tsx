@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import { formatISO, addDays } from 'date-fns';
-import { AppText, Button, DetailHeader, SelectField, ComboField, AttachmentRow, AnimatedPressable } from '@components/ui';
+import { AppText, Button, DetailHeader, SelectField, SubjectSelectField, AttachmentRow, AnimatedPressable } from '@components/ui';
 import { colors, spacing, radius } from '@theme';
 import { useAuthStore } from '@store/useAuthStore';
 import { repo, MAX_ATTACHMENT_BYTES } from '@data/repositories';
@@ -126,7 +126,7 @@ export function HomeworkCreateScreen() {
         </Field>
 
         <Field label="Subject">
-          <ComboField value={subject} options={subjects} onChange={setSubject} placeholder="Select or type a subject" title="Subject" />
+          <SubjectSelectField key={classId} value={subject} options={subjects} onChange={setSubject} title="Subject" />
         </Field>
 
         <Field label="Title">

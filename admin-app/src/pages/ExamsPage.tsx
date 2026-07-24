@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { StatStrip } from '@/components/ui/StatStrip';
-import { TextField, SelectField, ComboField } from '@/components/ui/FormField';
+import { TextField, SelectField, SubjectSelectField } from '@/components/ui/FormField';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorBanner } from '@/components/ui/ErrorBanner';
@@ -237,13 +237,12 @@ export function ExamsPage() {
               </option>
             ))}
           </SelectField>
-          <ComboField
-            id="exam-subject"
+          <SubjectSelectField
+            key={form.id || 'new'}
             label="Subject"
             value={form.subject}
             onChange={(v) => setForm({ ...form, subject: v })}
             options={formSubjectOptions}
-            placeholder="Select or type a subject"
           />
           <TextField label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>

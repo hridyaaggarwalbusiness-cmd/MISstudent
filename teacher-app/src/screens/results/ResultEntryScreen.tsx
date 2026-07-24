@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, TextInput, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp } from '@react-navigation/native';
-import { AppText, Card, Chip, Button, DetailHeader, EmptyState, IconButton, DatePickerField, ComboField } from '@components/ui';
+import { AppText, Card, Chip, Button, DetailHeader, EmptyState, IconButton, DatePickerField, SubjectSelectField } from '@components/ui';
 import { colors, spacing, radius } from '@theme';
 import { RootStackParamList } from '@navigation/types';
 import { useAuthStore } from '@store/useAuthStore';
@@ -154,11 +154,11 @@ export function ResultEntryScreen() {
             <AppText variant="caption" color={colors.textSecondary} style={{ marginBottom: 4 }}>
               Subject
             </AppText>
-            <ComboField
+            <SubjectSelectField
+              key={classId}
               value={examForm.subject}
               options={newExamSubjects}
               onChange={(v) => setExamForm((f) => ({ ...f, subject: v }))}
-              placeholder="Select or type a subject"
               title="Subject"
             />
           </View>

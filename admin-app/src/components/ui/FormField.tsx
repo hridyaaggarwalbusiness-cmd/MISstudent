@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
 import styles from './FormField.module.css';
 
@@ -61,40 +62,59 @@ export function SelectField({
   );
 }
 
-// A pick-from-list field that still accepts a subject typed in by hand - the
-// list is the school's common subjects, not a hard boundary, so a native
-// <input list> + <datalist> combo (browser-native autocomplete, no custom
-// dropdown component needed) fits better here than a plain <select>.
-export function ComboField({
+const OTHER_VALUE = '__other__';
+
+// A plain <select> - same look and interaction as picking a Teacher - with
+// one extra "Other" entry that reveals a text field below for a subject not
+// on the list. The list is the school's common subjects, not a hard
+// boundary, so typing one in stays possible without the field looking or
+// behaving differently from every other select in the app.
+export function SubjectSelectField({
   label,
   hint,
-  id,
   options,
   value,
   onChange,
-  placeholder,
 }: FieldProps & {
-  id: string;
   options: string[];
   value: string;
   onChange: (value: string) => void;
-  placeholder?: string;
 }) {
-  const listId = `${id}-options`;
+  const [customMode, setCustomMode] = useState(() => value !== '' && !options.includes(value));
+
   return (
-    <FieldWrapper label={label} hint={hint}>
-      <input
-        className={styles.input}
-        list={listId}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-      />
-      <datalist id={listId}>
-        {options.map((o) => (
-          <option key={o} value={o} />
-        ))}
-      </datalist>
-    </FieldWrapper>
+    <>
+      <FieldWrapper label={label} hint={hint}>
+        <select
+          className={styles.input}
+          value={customMode ? OTHER_VALUE : value}
+          onChange={(e) => {
+            if (e.target.value === OTHER_VALUE) {
+              setCustomMode(true);
+              onChange('');
+            } else {
+              setCustomMode(false);
+              onChange(e.target.value);
+            }
+          }}
+        >
+          <option value="">Select subject</option>
+          {options.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+          <option value={OTHER_VALUE}>Other (type your own)</option>
+        </select>
+      </FieldWrapper>
+      {customMode && (
+        <TextField
+          label="Custom Subject"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Type the subject name"
+        />
+      )}
+    </>
   );
 }

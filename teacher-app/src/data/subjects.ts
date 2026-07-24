@@ -26,6 +26,9 @@ const SUBJECT_DEFS: SubjectDef[] = [
   { label: 'Computer', surfaces: [...ALL] },
   { label: 'Punjabi', minGrade: 6, surfaces: [...ALL] },
   { label: 'Sanskrit', minGrade: 6, surfaces: [...ALL] },
+  // Timetable-only: a period taught jointly needs its own entry rather than
+  // forcing a pick between the two languages it actually covers.
+  { label: 'Punjabi / Sanskrit', minGrade: 6, surfaces: ['timetable'] },
   { label: 'Mental Ability', surfaces: ['timetable', 'homework'] },
   { label: 'Sports', surfaces: ['timetable'] },
   { label: 'Skating', surfaces: ['timetable'] },
