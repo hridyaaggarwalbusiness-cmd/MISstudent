@@ -19,6 +19,7 @@ import { useToast } from '@/components/ui/Toast';
 import { repo } from '@/data/repositories';
 import { getErrorMessage } from '@/utils/errors';
 import { subjectAccentStyle } from '@/utils/subjectVisuals';
+import { subjectOptions, parseGrade } from '@/data/subjects';
 import type { Exam, SchoolClass, ExamStatus } from '@/types';
 import styles from './ExamsPage.module.css';
 
@@ -52,6 +53,11 @@ export function ExamsPage() {
   const [listError, setListError] = useState('');
   const confirm = useConfirm();
   const { show } = useToast();
+
+  const formSubjectOptions = useMemo(() => {
+    const cls = classes.find((c) => c.id === form.classId);
+    return subjectOptions('results', cls ? parseGrade(cls.name) : null);
+  }, [classes, form.classId]);
 
   function openCreate() {
     setForm(emptyForm);
@@ -223,12 +229,19 @@ export function ExamsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {error && <ErrorBanner message={error} />}
           <TextField label="Exam Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <TextField label="Subject" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
           <SelectField label="Class" value={form.classId} onChange={(e) => setForm({ ...form, classId: e.target.value })}>
             <option value="">Select class</option>
             {classes.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name} - {c.section}
+              </option>
+            ))}
+          </SelectField>
+          <SelectField label="Subject" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })}>
+            <option value="">Select subject</option>
+            {formSubjectOptions.map((s) => (
+              <option key={s} value={s}>
+                {s}
               </option>
             ))}
           </SelectField>

@@ -13,6 +13,7 @@ import { useCollection } from '@/hooks/useCollection';
 import { repo } from '@/data/repositories';
 import { getErrorMessage } from '@/utils/errors';
 import { subjectAccentStyle } from '@/utils/subjectVisuals';
+import { subjectOptions, parseGrade } from '@/data/subjects';
 import type { SchoolClass, Teacher, TimetablePeriod, DayOfWeek, PeriodSlot, PeriodSchedule } from '@/types';
 import styles from './TimetablePage.module.css';
 
@@ -60,6 +61,11 @@ export function TimetablePage() {
   const [error, setError] = useState('');
 
   const classNameById = useMemo(() => new Map(classes.map((c) => [c.id, `${c.name} - ${c.section}`])), [classes]);
+  const selectedClassGrade = useMemo(() => {
+    const cls = classes.find((c) => c.id === classId);
+    return cls ? parseGrade(cls.name) : null;
+  }, [classes, classId]);
+  const timetableSubjects = useMemo(() => subjectOptions('timetable', selectedClassGrade), [selectedClassGrade]);
 
   // The same teacher assigned to two different classes at the same
   // day/period is a physical impossibility (one person can't be in two
@@ -463,11 +469,18 @@ export function TimetablePage() {
               Time: {activeCell.slot.startTime || '--:--'}-{activeCell.slot.endTime || '--:--'} (set via "Manage Periods" — applies every day)
             </div>
           )}
-          <TextField
+          <SelectField
             label="Subject"
             value={form.subject}
             onChange={(e) => setForm({ ...form, subject: e.target.value })}
-          />
+          >
+            <option value="">Select subject</option>
+            {timetableSubjects.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </SelectField>
           <SelectField
             label="Teacher"
             value={form.teacherId}

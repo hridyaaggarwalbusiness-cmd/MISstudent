@@ -2,12 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, TextInput, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, RouteProp } from '@react-navigation/native';
-import { AppText, Card, Chip, Button, DetailHeader, EmptyState, IconButton, DatePickerField } from '@components/ui';
+import { AppText, Card, Chip, Button, DetailHeader, EmptyState, IconButton, DatePickerField, SelectField } from '@components/ui';
 import { colors, spacing, radius } from '@theme';
 import { RootStackParamList } from '@navigation/types';
 import { useAuthStore } from '@store/useAuthStore';
 import { repo } from '@data/repositories';
-import { Exam, Student, ExamResult } from '@/types';
+import { subjectOptions, parseGrade } from '@data/subjects';
+import { Exam, SchoolClass, Student, ExamResult } from '@/types';
 
 const emptyExamForm = { name: '', subject: '', date: '', startTime: '', endTime: '', room: '' };
 
@@ -34,11 +35,22 @@ export function ResultEntryScreen() {
   const [creatingExam, setCreatingExam] = useState(false);
   const [examForm, setExamForm] = useState(emptyExamForm);
   const [savingExam, setSavingExam] = useState(false);
+  const [classInfo, setClassInfo] = useState<SchoolClass | null>(null);
 
   useEffect(() => {
     if (!classId) return;
     return repo.exams.subscribeForClass(classId, setExams);
   }, [classId]);
+
+  useEffect(() => {
+    if (!classId) return;
+    repo.classes.get(classId).then(setClassInfo);
+  }, [classId]);
+
+  const newExamSubjects = useMemo(
+    () => subjectOptions('results', classInfo ? parseGrade(classInfo.name) : null),
+    [classInfo],
+  );
 
   useEffect(() => {
     if (!classId) return;
@@ -101,7 +113,7 @@ export function ResultEntryScreen() {
   };
 
   const openCreateExam = () => {
-    setExamForm({ ...emptyExamForm, subject: teacher?.subjects?.[0] ?? '' });
+    setExamForm({ ...emptyExamForm, subject: newExamSubjects[0] ?? '' });
     setCreatingExam(true);
   };
 
@@ -138,7 +150,18 @@ export function ResultEntryScreen() {
         <View style={styles.modalCard}>
           <AppText variant="h2">New Exam</AppText>
           <FormField label="Name (e.g. Unit Test 2)" value={examForm.name} onChangeText={(v) => setExamForm((f) => ({ ...f, name: v }))} />
-          <FormField label="Subject" value={examForm.subject} onChangeText={(v) => setExamForm((f) => ({ ...f, subject: v }))} />
+          <View style={{ marginTop: spacing.md }}>
+            <AppText variant="caption" color={colors.textSecondary} style={{ marginBottom: 4 }}>
+              Subject
+            </AppText>
+            <SelectField
+              value={examForm.subject}
+              options={newExamSubjects.map((s) => ({ value: s, label: s }))}
+              onChange={(v) => setExamForm((f) => ({ ...f, subject: v }))}
+              placeholder="Select a subject"
+              title="Subject"
+            />
+          </View>
           <View style={{ marginTop: spacing.md }}>
             <AppText variant="caption" color={colors.textSecondary} style={{ marginBottom: 4 }}>
               Date

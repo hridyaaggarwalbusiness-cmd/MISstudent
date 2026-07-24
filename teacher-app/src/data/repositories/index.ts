@@ -73,9 +73,19 @@ export const repo = {
       const snap = await getDoc(doc(db, 'classes', classId));
       return snap.exists() ? withId<SchoolClass>(snap) : null;
     },
+    // Every class in the school - a teacher can teach or act on any of
+    // them, not just a fixed set assigned up front.
+    subscribeAll: (cb: (items: SchoolClass[]) => void): Unsubscribe =>
+      onSnapshot(collection(db, 'classes'), (snap) => cb(snap.docs.map((d) => withId<SchoolClass>(d)))),
     listStudents: async (classId: string): Promise<Student[]> => {
       const q = query(collection(db, 'students'), where('classId', '==', classId));
       const snap = await getDocs(q);
+      return snap.docs.map((d) => withId<Student>(d));
+    },
+    // One-shot, school-wide - only used by global search, which doesn't need
+    // a live listener.
+    listAllStudents: async (): Promise<Student[]> => {
+      const snap = await getDocs(collection(db, 'students'));
       return snap.docs.map((d) => withId<Student>(d));
     },
   },
@@ -114,6 +124,11 @@ export const repo = {
       );
       return onSnapshot(q, (snap) => cb(snap.docs.map((d) => withId<Homework>(d))));
     },
+    // School-wide - a teacher can post homework for any class, so "my
+    // homework" is whatever this teacher posted, not whatever one fixed
+    // class it happens to belong to.
+    subscribeAll: (cb: (items: Homework[]) => void): Unsubscribe =>
+      onSnapshot(collection(db, 'homework'), (snap) => cb(snap.docs.map((d) => withId<Homework>(d)))),
     create: (homework: Omit<Homework, 'id'>) =>
       addDoc(collection(db, 'homework'), { ...homework, createdAt: serverTimestamp() }),
     update: (id: string, changes: Partial<Homework>) => updateDoc(doc(db, 'homework', id), changes),
@@ -183,6 +198,12 @@ export const repo = {
   exams: {
     subscribeForClass: (classId: string, cb: (items: Exam[]) => void): Unsubscribe => {
       const q = query(collection(db, 'exams'), where('classId', '==', classId), orderBy('date', 'asc'));
+      return onSnapshot(q, (snap) => cb(snap.docs.map((d) => withId<Exam>(d))));
+    },
+    // School-wide - which exams a teacher grades is a matter of subject, not
+    // a fixed set of classes, so callers filter by subject client-side.
+    subscribeAll: (cb: (items: Exam[]) => void): Unsubscribe => {
+      const q = query(collection(db, 'exams'), orderBy('date', 'asc'));
       return onSnapshot(q, (snap) => cb(snap.docs.map((d) => withId<Exam>(d))));
     },
     create: (exam: Omit<Exam, 'id'>) => addDoc(collection(db, 'exams'), exam),

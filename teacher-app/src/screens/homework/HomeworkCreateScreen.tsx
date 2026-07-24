@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -8,36 +8,42 @@ import { AppText, Button, DetailHeader, SelectField, AttachmentRow, AnimatedPres
 import { colors, spacing, radius } from '@theme';
 import { useAuthStore } from '@store/useAuthStore';
 import { repo, MAX_ATTACHMENT_BYTES } from '@data/repositories';
+import { subjectOptions as homeworkSubjectOptions, parseGrade } from '@data/subjects';
 import { Attachment, Homework, SchoolClass } from '@/types';
 
 export function HomeworkCreateScreen() {
   const navigation = useNavigation();
   const { teacher } = useAuthStore();
-  const subjects = teacher?.subjects ?? [];
 
-  const [classInfo, setClassInfo] = useState<Record<string, SchoolClass | null>>({});
-  const [classId, setClassId] = useState(teacher?.classIds?.[0] ?? '');
-  const [subject, setSubject] = useState(subjects[0] ?? '');
+  const [classes, setClasses] = useState<SchoolClass[]>([]);
+  const [classId, setClassId] = useState('');
+  const [subject, setSubject] = useState('');
   const [title, setTitle] = useState('');
   const [homeworkText, setHomeworkText] = useState('');
   const [classWork, setClassWork] = useState('');
   const [pickedFile, setPickedFile] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!teacher) return;
-    Promise.all(teacher.classIds.map((id) => repo.classes.get(id).then((info) => [id, info] as const))).then(
-      (entries) => {
-        setClassInfo(Object.fromEntries(entries));
-      },
-    );
-  }, [teacher]);
+  useEffect(() => repo.classes.subscribeAll(setClasses), []);
 
-  const classOptions = (teacher?.classIds ?? []).map((id) => {
-    const info = classInfo[id];
-    return { value: id, label: info ? `${info.name} · Section ${info.section}` : id };
-  });
-  const subjectOptions = subjects.map((s) => ({ value: s, label: s }));
+  useEffect(() => {
+    if (!classId && classes.length > 0) setClassId(classes[0].id);
+  }, [classes, classId]);
+
+  const classOptions = classes.map((c) => ({ value: c.id, label: `${c.name} · Section ${c.section}` }));
+
+  const selectedClassGrade = useMemo(() => {
+    const cls = classes.find((c) => c.id === classId);
+    return cls ? parseGrade(cls.name) : null;
+  }, [classes, classId]);
+  const subjects = useMemo(() => homeworkSubjectOptions('homework', selectedClassGrade), [selectedClassGrade]);
+  const subjectSelectOptions = subjects.map((s) => ({ value: s, label: s }));
+
+  useEffect(() => {
+    if (!subject && subjects.length > 0) setSubject(subjects[0]);
+    else if (subject && !subjects.includes(subject)) setSubject(subjects[0] ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subjects]);
 
   const pickFile = async () => {
     const result = await DocumentPicker.getDocumentAsync({ multiple: false });
@@ -121,7 +127,7 @@ export function HomeworkCreateScreen() {
         </Field>
 
         <Field label="Subject">
-          <SelectField value={subject} options={subjectOptions} onChange={setSubject} placeholder="Select a subject" title="Subject" />
+          <SelectField value={subject} options={subjectSelectOptions} onChange={setSubject} placeholder="Select a subject" title="Subject" />
         </Field>
 
         <Field label="Title">
