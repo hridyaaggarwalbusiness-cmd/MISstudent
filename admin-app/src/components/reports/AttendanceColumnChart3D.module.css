@@ -1,0 +1,55 @@
+.wrap {
+  width: 100%;
+}
+
+.svg {
+  width: 100%;
+  height: 320px;
+  overflow: visible;
+}
+
+.gridLine {
+  stroke: var(--color-border-soft);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.axisLabel {
+  font-size: 10px;
+  font-weight: 600;
+  fill: var(--color-text-tertiary);
+}
+
+.valueLabel {
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--color-text-primary);
+}
+
+.floor {
+  fill: var(--color-border-soft);
+  opacity: 0.5;
+}
+
+.barGroup {
+  cursor: pointer;
+}
+
+.barFront {
+  transition: opacity 0.15s ease;
+  filter: drop-shadow(0 6px 10px rgba(15, 23, 42, 0.12));
+}
+
+.barFrontHover {
+  filter: drop-shadow(0 8px 14px rgba(15, 23, 42, 0.2)) brightness(1.06);
+}
+
+.tooltipBg {
+  fill: var(--color-text-primary);
+}
+
+.tooltipText {
+  font-size: 11px;
+  font-weight: 700;
+  fill: #fff;
+}

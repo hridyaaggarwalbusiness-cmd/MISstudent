@@ -11,6 +11,7 @@ import { useCollection } from '@/hooks/useCollection';
 import { repo } from '@/data/repositories';
 import { useToast } from '@/components/ui/Toast';
 import { downloadCsv } from '@/utils/csv';
+import { AttendanceColumnChart3D } from '@/components/reports/AttendanceColumnChart3D';
 import type { AttendanceRecord, CalendarEvent, Exam, ExamResult, Homework, SchoolClass, Student } from '@/types';
 import styles from './ReportsPage.module.css';
 
@@ -148,14 +149,13 @@ export function ReportsPage() {
           ) : attendanceByClass.length === 0 ? (
             <EmptyState icon={<CheckCircle2 size={28} />} title="No classes yet" compact />
           ) : (
-            <Table
-              rowKey={(r) => r.class.id}
-              rows={attendanceByClass}
-              columns={[
-                { key: 'class', header: 'Class', render: (r) => `${r.class.name} - ${r.class.section}` },
-                { key: 'students', header: 'Students', render: (r) => r.students },
-                { key: 'pct', header: 'Attendance %', render: (r) => `${r.pct}%` },
-              ]}
+            <AttendanceColumnChart3D
+              data={attendanceByClass.map((r) => ({
+                id: r.class.id,
+                label: `${r.class.name}-${r.class.section}`,
+                value: r.pct,
+                students: r.students,
+              }))}
             />
           )}
         </Card>
